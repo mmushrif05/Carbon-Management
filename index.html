@@ -50,6 +50,20 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
 .login-project select option{background:var(--bg2)}
 .login-footer{font-size:10px;color:var(--slate6);margin-top:24px}
 .login-error{display:none;padding:10px;background:rgba(248,113,113,0.1);border:1px solid rgba(248,113,113,0.2);border-radius:8px;color:var(--red);font-size:12px;margin-bottom:12px;text-align:left}
+.login-success{display:none;padding:10px;background:rgba(52,211,153,0.1);border:1px solid rgba(52,211,153,0.2);border-radius:8px;color:var(--green);font-size:12px;margin-bottom:12px;text-align:left}
+.login-tabs{display:flex;gap:0;margin-bottom:24px;background:var(--bg2);border-radius:12px;padding:4px;border:1px solid var(--border)}
+.login-tab{flex:1;padding:10px;text-align:center;font-size:13px;font-weight:700;color:var(--slate5);cursor:pointer;border-radius:10px;transition:all .2s}
+.login-tab.active{background:var(--bg3);color:var(--green)}
+.login-tab:hover:not(.active){color:var(--text2)}
+.login-panel{display:block}.login-panel.hidden{display:none}
+.role-btn.selected{border-color:var(--green);background:rgba(52,211,153,0.08);box-shadow:0 0 0 1px var(--green)}
+.perm-notice{padding:12px 16px;background:rgba(251,191,36,0.06);border:1px solid rgba(251,191,36,0.15);border-radius:10px;font-size:12px;color:var(--yellow);margin-bottom:16px;display:flex;align-items:center;gap:8px}
+.perm-notice .perm-icon{font-size:16px}
+.form-disabled{opacity:.5;pointer-events:none}
+.perm-tag{display:inline-flex;padding:2px 8px;border-radius:5px;font-size:9px;font-weight:700;letter-spacing:.5px;text-transform:uppercase}
+.perm-tag.edit{background:rgba(96,165,250,0.1);color:var(--blue);border:1px solid rgba(96,165,250,0.2)}
+.perm-tag.view{background:rgba(148,163,184,0.1);color:var(--slate4);border:1px solid rgba(148,163,184,0.15)}
+.perm-tag.owner{background:rgba(52,211,153,0.1);color:var(--green);border:1px solid rgba(52,211,153,0.2)}
 
 /* APP SHELL */
 #appShell{display:none}
