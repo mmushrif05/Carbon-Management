@@ -558,6 +558,19 @@ async function loadUserProfile(uid) {
   return null;
 }
 
+// ===== OFFLINE AUTH (localStorage fallback when Firebase is not configured) =====
+function offlineGetUsers() {
+  return JSON.parse(localStorage.getItem('ct_auth_users') || '{}');
+}
+function offlineSaveUsers(users) {
+  localStorage.setItem('ct_auth_users', JSON.stringify(users));
+}
+function simpleHash(str) {
+  let h = 0;
+  for (let i = 0; i < str.length; i++) { h = ((h << 5) - h + str.charCodeAt(i)) | 0; }
+  return 'h_' + Math.abs(h).toString(36);
+}
+
 // Handle login form submission
 async function handleLogin() {
   clearErrors();
@@ -567,19 +580,41 @@ async function handleLogin() {
   if (!email) { showError('loginError', 'Please enter your email.'); return; }
   if (!password) { showError('loginError', 'Please enter your password.'); return; }
 
-  if (!auth) { showError('loginError', 'Firebase is not configured. Please set up Firebase credentials.'); return; }
-
   $('loginBtn').disabled = true;
   $('loginBtn').textContent = 'Signing in...';
 
-  try {
-    await auth.signInWithEmailAndPassword(email, password);
-    // onAuthStateChanged will handle the rest
-  } catch(e) {
-    showError('loginError', authErrorMessage(e.code));
+  // Firebase auth
+  if (auth) {
+    try {
+      await auth.signInWithEmailAndPassword(email, password);
+      // onAuthStateChanged will handle the rest
+      return;
+    } catch(e) {
+      showError('loginError', authErrorMessage(e.code));
+      $('loginBtn').disabled = false;
+      $('loginBtn').textContent = 'Sign In';
+      return;
+    }
+  }
+
+  // Offline auth fallback
+  const users = offlineGetUsers();
+  const user = users[email];
+  if (!user) {
+    showError('loginError', 'No account found with this email. Please register first.');
     $('loginBtn').disabled = false;
     $('loginBtn').textContent = 'Sign In';
+    return;
   }
+  if (user.passHash !== simpleHash(password)) {
+    showError('loginError', 'Incorrect password.');
+    $('loginBtn').disabled = false;
+    $('loginBtn').textContent = 'Sign In';
+    return;
+  }
+  // Success — save session and enter app
+  localStorage.setItem('ct_auth_session', JSON.stringify({ email: email, uid: user.uid }));
+  enterApp(user.name, user.role);
 }
 
 // Handle registration form submission
@@ -595,21 +630,39 @@ async function handleRegister() {
   if (password.length < 6) { showError('regError', 'Password must be at least 6 characters.'); return; }
   if (!selectedRegRole) { showError('regError', 'Please select a role.'); return; }
 
-  if (!auth) { showError('regError', 'Firebase is not configured. Please set up Firebase credentials.'); return; }
-
   $('regBtn').disabled = true;
   $('regBtn').textContent = 'Creating account...';
 
-  try {
-    const cred = await auth.createUserWithEmailAndPassword(email, password);
-    await cred.user.updateProfile({ displayName: name });
-    await saveUserProfile(cred.user.uid, name, email, selectedRegRole);
-    // onAuthStateChanged will handle the rest
-  } catch(e) {
-    showError('regError', authErrorMessage(e.code));
+  // Firebase auth
+  if (auth) {
+    try {
+      const cred = await auth.createUserWithEmailAndPassword(email, password);
+      await cred.user.updateProfile({ displayName: name });
+      await saveUserProfile(cred.user.uid, name, email, selectedRegRole);
+      // onAuthStateChanged will handle the rest
+      return;
+    } catch(e) {
+      showError('regError', authErrorMessage(e.code));
+      $('regBtn').disabled = false;
+      $('regBtn').textContent = 'Create Account';
+      return;
+    }
+  }
+
+  // Offline auth fallback
+  const users = offlineGetUsers();
+  if (users[email]) {
+    showError('regError', 'An account with this email already exists.');
     $('regBtn').disabled = false;
     $('regBtn').textContent = 'Create Account';
+    return;
   }
+  const uid = 'offline_' + Date.now();
+  users[email] = { uid, name, email, role: selectedRegRole, passHash: simpleHash(password), createdAt: new Date().toISOString() };
+  offlineSaveUsers(users);
+  localStorage.setItem('ct_user_profile', JSON.stringify({ uid, name, email, role: selectedRegRole }));
+  localStorage.setItem('ct_auth_session', JSON.stringify({ email, uid }));
+  enterApp(name, selectedRegRole);
 }
 
 // Enter the app after authentication
@@ -631,6 +684,7 @@ function logout() {
   if (auth) {
     auth.signOut();
   }
+  localStorage.removeItem('ct_auth_session');
   state.role = null;
   state.name = '';
   $('appShell').style.display = 'none';
@@ -673,7 +727,16 @@ async function init() {
         }
       });
     } else {
-      // Firebase not configured — show login screen
+      // Firebase not configured — check for offline session
+      const session = JSON.parse(localStorage.getItem('ct_auth_session') || 'null');
+      if (session) {
+        const users = offlineGetUsers();
+        const user = users[session.email];
+        if (user) {
+          enterApp(user.name, user.role);
+          return;
+        }
+      }
       $('loginScreen').style.display = 'flex';
     }
   }, 1500);
