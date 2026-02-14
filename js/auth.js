@@ -1,17 +1,7 @@
-// ===== FIREBASE AUTH =====
-let auth = null;
+// ===== AUTHENTICATION =====
+// All auth operations go through the secure server API.
+// No Firebase SDK or credentials on the client.
 let selectedRegRole = null;
-
-// Only enable Firebase Auth if real credentials are configured
-if (firebaseConfig.apiKey && !firebaseConfig.apiKey.startsWith('YOUR_')) {
-  try {
-    auth = firebase.auth();
-  } catch(e) {
-    console.warn('Firebase Auth init failed:', e);
-  }
-} else {
-  console.info('Firebase not configured — using offline auth.');
-}
 
 // Show/hide login vs register forms
 function showRegister() {
@@ -43,52 +33,7 @@ function showError(elId, msg) {
   el.textContent = msg;
 }
 
-// Map Firebase auth error codes to user-friendly messages
-function authErrorMessage(code) {
-  const map = {
-    'auth/email-already-in-use': 'An account with this email already exists.',
-    'auth/invalid-email': 'Please enter a valid email address.',
-    'auth/weak-password': 'Password must be at least 6 characters.',
-    'auth/user-not-found': 'No account found with this email.',
-    'auth/wrong-password': 'Incorrect password.',
-    'auth/invalid-credential': 'Invalid email or password.',
-    'auth/too-many-requests': 'Too many attempts. Please try again later.',
-    'auth/network-request-failed': 'Network error. Please check your connection.'
-  };
-  return map[code] || 'Authentication failed. Please try again.';
-}
-
-// Save user profile to Firebase DB
-async function saveUserProfile(uid, name, email, role) {
-  if (dbConnected) {
-    await db.ref('users/' + uid).set({
-      name: name,
-      email: email,
-      role: role,
-      createdAt: new Date().toISOString()
-    });
-  }
-  // Also keep in localStorage as fallback
-  localStorage.setItem('ct_user_profile', JSON.stringify({ uid, name, email, role }));
-}
-
-// Load user profile from Firebase DB
-async function loadUserProfile(uid) {
-  if (dbConnected) {
-    const snap = await db.ref('users/' + uid).once('value');
-    const profile = snap.val();
-    if (profile) {
-      localStorage.setItem('ct_user_profile', JSON.stringify({ uid, ...profile }));
-      return profile;
-    }
-  }
-  // Fallback to localStorage
-  const cached = JSON.parse(localStorage.getItem('ct_user_profile') || 'null');
-  if (cached && cached.uid === uid) return cached;
-  return null;
-}
-
-// ===== OFFLINE AUTH (localStorage fallback when Firebase is not configured) =====
+// ===== OFFLINE AUTH (localStorage fallback when server is unavailable) =====
 function offlineGetUsers() {
   return JSON.parse(localStorage.getItem('ct_auth_users') || '{}');
 }
@@ -113,17 +58,31 @@ async function handleLogin() {
   $('loginBtn').disabled = true;
   $('loginBtn').textContent = 'Signing in...';
 
-  // Firebase auth
-  if (auth) {
+  // Server auth
+  if (dbConnected) {
     try {
-      await auth.signInWithEmailAndPassword(email, password);
-      // onAuthStateChanged will handle the rest
-      return;
-    } catch(e) {
-      showError('loginError', authErrorMessage(e.code));
-      $('loginBtn').disabled = false;
-      $('loginBtn').textContent = 'Sign In';
-      return;
+      const res = await fetch(API + '/auth', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'login', email, password })
+      });
+      const data = await res.json();
+
+      if (res.ok) {
+        localStorage.setItem('ct_auth_token', data.token);
+        localStorage.setItem('ct_refresh_token', data.refreshToken);
+        localStorage.setItem('ct_user_profile', JSON.stringify(data.user));
+        enterApp(data.user.name, data.user.role);
+        return;
+      } else {
+        showError('loginError', data.error || 'Login failed.');
+        $('loginBtn').disabled = false;
+        $('loginBtn').textContent = 'Sign In';
+        return;
+      }
+    } catch (e) {
+      // Server unreachable — fall through to offline
+      console.warn('Server auth failed, trying offline:', e);
     }
   }
 
@@ -163,19 +122,30 @@ async function handleRegister() {
   $('regBtn').disabled = true;
   $('regBtn').textContent = 'Creating account...';
 
-  // Firebase auth
-  if (auth) {
+  // Server auth
+  if (dbConnected) {
     try {
-      const cred = await auth.createUserWithEmailAndPassword(email, password);
-      await cred.user.updateProfile({ displayName: name });
-      await saveUserProfile(cred.user.uid, name, email, selectedRegRole);
-      // onAuthStateChanged will handle the rest
-      return;
-    } catch(e) {
-      showError('regError', authErrorMessage(e.code));
-      $('regBtn').disabled = false;
-      $('regBtn').textContent = 'Create Account';
-      return;
+      const res = await fetch(API + '/auth', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'register', name, email, password, role: selectedRegRole })
+      });
+      const data = await res.json();
+
+      if (res.ok) {
+        localStorage.setItem('ct_auth_token', data.token);
+        localStorage.setItem('ct_refresh_token', data.refreshToken);
+        localStorage.setItem('ct_user_profile', JSON.stringify(data.user));
+        enterApp(data.user.name, data.user.role);
+        return;
+      } else {
+        showError('regError', data.error || 'Registration failed.');
+        $('regBtn').disabled = false;
+        $('regBtn').textContent = 'Create Account';
+        return;
+      }
+    } catch (e) {
+      console.warn('Server auth failed, trying offline:', e);
     }
   }
 
@@ -211,9 +181,8 @@ function enterApp(name, role) {
 
 // Logout
 function logout() {
-  if (auth) {
-    auth.signOut();
-  }
+  localStorage.removeItem('ct_auth_token');
+  localStorage.removeItem('ct_refresh_token');
   localStorage.removeItem('ct_auth_session');
   state.role = null;
   state.name = '';

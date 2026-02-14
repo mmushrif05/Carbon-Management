@@ -28,45 +28,53 @@ function navigate(page) {
 
 // ===== INIT =====
 async function init() {
-  // Wait a moment for Firebase to connect
   setTimeout(async () => {
-    updateDbStatus();
+    // Check if server/database is reachable
+    await checkDbConnection();
+
+    // Try to restore session from stored token
+    const token = localStorage.getItem('ct_auth_token');
+    if (token && dbConnected) {
+      try {
+        const res = await apiCall('/auth', {
+          method: 'POST',
+          body: JSON.stringify({ action: 'verify' })
+        });
+        const data = await res.json();
+
+        if (data.authenticated) {
+          await loadAllData();
+          $('loadingOverlay').style.display = 'none';
+          enterApp(data.user.name, data.user.role);
+          return;
+        }
+      } catch (e) {
+        console.warn('Session verify failed:', e);
+      }
+    }
+
+    // No valid server session — check offline session
     await loadAllData();
     $('loadingOverlay').style.display = 'none';
 
-    // Listen for auth state changes
-    if (auth) {
-      auth.onAuthStateChanged(async (user) => {
-        if (user) {
-          // User is signed in — load their profile to get role
-          const profile = await loadUserProfile(user.uid);
-          if (profile) {
-            enterApp(profile.name || user.displayName || 'User', profile.role || 'contractor');
-          } else {
-            // Profile missing (edge case) — sign out and ask to re-register
-            auth.signOut();
-            $('loginScreen').style.display = 'flex';
-            showError('loginError', 'Account profile not found. Please register again.');
-          }
-        } else {
-          // User is signed out — show login
-          $('appShell').style.display = 'none';
-          $('loginScreen').style.display = 'flex';
-        }
-      });
-    } else {
-      // Firebase not configured — check for offline session
-      const session = JSON.parse(localStorage.getItem('ct_auth_session') || 'null');
-      if (session) {
-        const users = offlineGetUsers();
-        const user = users[session.email];
-        if (user) {
-          enterApp(user.name, user.role);
-          return;
-        }
+    const session = JSON.parse(localStorage.getItem('ct_auth_session') || 'null');
+    if (session) {
+      const users = offlineGetUsers();
+      const user = users[session.email];
+      if (user) {
+        enterApp(user.name, user.role);
+        return;
       }
-      $('loginScreen').style.display = 'flex';
     }
+
+    // Also check stored profile (for page refresh after server login)
+    const profile = JSON.parse(localStorage.getItem('ct_user_profile') || 'null');
+    if (profile && token) {
+      enterApp(profile.name, profile.role);
+      return;
+    }
+
+    $('loginScreen').style.display = 'flex';
   }, 1500);
 }
 init();

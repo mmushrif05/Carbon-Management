@@ -1,18 +1,30 @@
 // ===== DATABASE ABSTRACTION LAYER =====
-// Works with Firebase when connected, falls back to localStorage
+// All operations go through secure server API.
+// Falls back to localStorage when server is unavailable.
 const DB = {
   async getEntries() {
     if (dbConnected) {
-      const snap = await db.ref('projects/ksia/entries').once('value');
-      const data = snap.val();
-      return data ? Object.values(data) : [];
+      try {
+        const res = await apiCall('/entries');
+        if (res.ok) {
+          const data = await res.json();
+          // Cache locally as backup
+          localStorage.setItem('ct_entries', JSON.stringify(data.entries || []));
+          return data.entries || [];
+        }
+      } catch (e) { console.warn('API error (getEntries):', e); }
     }
     return JSON.parse(localStorage.getItem('ct_entries') || '[]');
   },
 
   async saveEntry(entry) {
     if (dbConnected) {
-      await db.ref('projects/ksia/entries/' + entry.id).set(entry);
+      try {
+        await apiCall('/entries', {
+          method: 'POST',
+          body: JSON.stringify({ action: 'save', entry })
+        });
+      } catch (e) { console.warn('API error (saveEntry):', e); }
     }
     // Always save locally too as backup
     const entries = JSON.parse(localStorage.getItem('ct_entries') || '[]');
@@ -22,7 +34,12 @@ const DB = {
 
   async updateEntry(id, updates) {
     if (dbConnected) {
-      await db.ref('projects/ksia/entries/' + id).update(updates);
+      try {
+        await apiCall('/entries', {
+          method: 'POST',
+          body: JSON.stringify({ action: 'update', id, updates })
+        });
+      } catch (e) { console.warn('API error (updateEntry):', e); }
     }
     const entries = JSON.parse(localStorage.getItem('ct_entries') || '[]');
     const idx = entries.findIndex(e => e.id === id);
@@ -31,7 +48,12 @@ const DB = {
 
   async deleteEntry(id) {
     if (dbConnected) {
-      await db.ref('projects/ksia/entries/' + id).remove();
+      try {
+        await apiCall('/entries', {
+          method: 'POST',
+          body: JSON.stringify({ action: 'delete', id })
+        });
+      } catch (e) { console.warn('API error (deleteEntry):', e); }
     }
     let entries = JSON.parse(localStorage.getItem('ct_entries') || '[]');
     entries = entries.filter(e => e.id !== id);
@@ -40,16 +62,26 @@ const DB = {
 
   async getA5Entries() {
     if (dbConnected) {
-      const snap = await db.ref('projects/ksia/a5entries').once('value');
-      const data = snap.val();
-      return data ? Object.values(data) : [];
+      try {
+        const res = await apiCall('/a5');
+        if (res.ok) {
+          const data = await res.json();
+          localStorage.setItem('ct_a5entries', JSON.stringify(data.entries || []));
+          return data.entries || [];
+        }
+      } catch (e) { console.warn('API error (getA5Entries):', e); }
     }
     return JSON.parse(localStorage.getItem('ct_a5entries') || '[]');
   },
 
   async saveA5Entry(entry) {
     if (dbConnected) {
-      await db.ref('projects/ksia/a5entries/' + entry.id).set(entry);
+      try {
+        await apiCall('/a5', {
+          method: 'POST',
+          body: JSON.stringify({ action: 'save', entry })
+        });
+      } catch (e) { console.warn('API error (saveA5Entry):', e); }
     }
     const entries = JSON.parse(localStorage.getItem('ct_a5entries') || '[]');
     entries.push(entry);
@@ -58,29 +90,44 @@ const DB = {
 
   async deleteA5Entry(id) {
     if (dbConnected) {
-      await db.ref('projects/ksia/a5entries/' + id).remove();
+      try {
+        await apiCall('/a5', {
+          method: 'POST',
+          body: JSON.stringify({ action: 'delete', id })
+        });
+      } catch (e) { console.warn('API error (deleteA5Entry):', e); }
     }
     let entries = JSON.parse(localStorage.getItem('ct_a5entries') || '[]');
     entries = entries.filter(e => e.id !== id);
     localStorage.setItem('ct_a5entries', JSON.stringify(entries));
   },
 
-  // Real-time listener for live updates across users
+  // Poll for updates from other users (replaces Firebase real-time listeners)
   onEntriesChange(callback) {
     if (dbConnected) {
-      db.ref('projects/ksia/entries').on('value', snap => {
-        const data = snap.val();
-        callback(data ? Object.values(data) : []);
-      });
+      setInterval(async () => {
+        try {
+          const res = await apiCall('/entries');
+          if (res.ok) {
+            const data = await res.json();
+            callback(data.entries || []);
+          }
+        } catch (e) {}
+      }, 30000);
     }
   },
 
   onA5Change(callback) {
     if (dbConnected) {
-      db.ref('projects/ksia/a5entries').on('value', snap => {
-        const data = snap.val();
-        callback(data ? Object.values(data) : []);
-      });
+      setInterval(async () => {
+        try {
+          const res = await apiCall('/a5');
+          if (res.ok) {
+            const data = await res.json();
+            callback(data.entries || []);
+          }
+        } catch (e) {}
+      }, 30000);
     }
   }
 };
