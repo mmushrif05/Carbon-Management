@@ -38,6 +38,7 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
 .role-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:20px}
 .role-btn{padding:20px 12px;background:var(--bg2);border:2px solid var(--border);border-radius:14px;cursor:pointer;transition:all .25s;text-align:center}
 .role-btn:hover{border-color:var(--green);background:var(--bg3)}
+.role-btn.selected{border-color:var(--green);background:rgba(52,211,153,0.08)}
 .role-btn .r-icon{font-size:28px;margin-bottom:8px}
 .role-btn .r-name{font-size:13px;font-weight:700;color:var(--text);margin-bottom:4px}
 .role-btn .r-desc{font-size:10px;color:var(--slate5);line-height:1.4}
@@ -50,6 +51,14 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
 .login-project select option{background:var(--bg2)}
 .login-footer{font-size:10px;color:var(--slate6);margin-top:24px}
 .login-error{display:none;padding:10px;background:rgba(248,113,113,0.1);border:1px solid rgba(248,113,113,0.2);border-radius:8px;color:var(--red);font-size:12px;margin-bottom:12px;text-align:left}
+.login-toggle{font-size:12px;color:var(--slate4);margin-top:16px}
+.login-toggle a{color:var(--green);cursor:pointer;text-decoration:underline}
+.login-toggle a:hover{color:var(--text3)}
+.login-btn{width:100%;padding:14px;background:linear-gradient(135deg,var(--green3),var(--green2));border:none;border-radius:10px;color:#fff;font-size:14px;font-weight:700;cursor:pointer;transition:all .2s;font-family:inherit;letter-spacing:.3px}
+.login-btn:hover{box-shadow:0 4px 20px rgba(5,150,105,0.35)}
+.login-btn:disabled{opacity:0.5;cursor:not-allowed}
+.login-btn-secondary{width:100%;padding:14px;background:var(--bg3);border:2px solid var(--border);border-radius:10px;color:var(--text2);font-size:14px;font-weight:700;cursor:pointer;transition:all .2s;font-family:inherit;margin-top:10px}
+.login-btn-secondary:hover{border-color:var(--green)}
 
 /* APP SHELL */
 #appShell{display:none}
@@ -208,26 +217,63 @@ td.mono{font-family:'Courier New',monospace;font-size:11px}
     <div class="login-title">Carbon<span>Track</span> Pro</div>
     <div class="login-sub">Construction Embodied Carbon & Sustainability Platform</div>
 
-    <div class="login-input">
-      <div class="login-label">Your Name</div>
-      <input id="loginName" placeholder="Enter your name" />
+    <!-- SIGN IN FORM -->
+    <div id="loginForm">
+      <div class="login-input">
+        <div class="login-label">Email</div>
+        <input id="loginEmail" type="email" placeholder="Enter your email" autocomplete="email" />
+      </div>
+
+      <div class="login-input">
+        <div class="login-label">Password</div>
+        <input id="loginPassword" type="password" placeholder="Enter your password" autocomplete="current-password" />
+      </div>
+
+      <div class="login-error" id="loginError"></div>
+
+      <button class="login-btn" id="loginBtn" onclick="handleLogin()">Sign In</button>
+
+      <div class="login-toggle">Don't have an account? <a onclick="showRegister()">Create one</a></div>
     </div>
 
-    <div class="login-project">
-      <div class="login-label">Project</div>
-      <select id="loginProject">
-        <option value="ksia">King Salman International Airport (KSIA)</option>
-      </select>
+    <!-- REGISTER FORM -->
+    <div id="registerForm" style="display:none">
+      <div class="login-input">
+        <div class="login-label">Full Name</div>
+        <input id="regName" placeholder="Enter your full name" autocomplete="name" />
+      </div>
+
+      <div class="login-input">
+        <div class="login-label">Email</div>
+        <input id="regEmail" type="email" placeholder="Enter your email" autocomplete="email" />
+      </div>
+
+      <div class="login-input">
+        <div class="login-label">Password</div>
+        <input id="regPassword" type="password" placeholder="Minimum 6 characters" autocomplete="new-password" />
+      </div>
+
+      <div class="login-project">
+        <div class="login-label">Project</div>
+        <select id="regProject">
+          <option value="ksia">King Salman International Airport (KSIA)</option>
+        </select>
+      </div>
+
+      <div class="login-label">Select Your Role</div>
+      <div class="role-grid" id="regRoleGrid">
+        <div class="role-btn" onclick="selectRole('contractor',this)"><div class="r-icon">🏗️</div><div class="r-name">Contractor</div><div class="r-desc">Enter actual material data & EPDs</div></div>
+        <div class="role-btn" onclick="selectRole('consultant',this)"><div class="r-icon">📋</div><div class="r-name">Consultant</div><div class="r-desc">Review, approve & set baselines</div></div>
+        <div class="role-btn" onclick="selectRole('client',this)"><div class="r-icon">👔</div><div class="r-name">Client</div><div class="r-desc">Dashboard, approvals & reports</div></div>
+      </div>
+
+      <div class="login-error" id="regError"></div>
+
+      <button class="login-btn" id="regBtn" onclick="handleRegister()">Create Account</button>
+
+      <div class="login-toggle">Already have an account? <a onclick="showLogin()">Sign in</a></div>
     </div>
 
-    <div class="login-error" id="loginError"></div>
-
-    <div class="login-label">Select Your Role</div>
-    <div class="role-grid">
-      <div class="role-btn" onclick="login('contractor')"><div class="r-icon">🏗️</div><div class="r-name">Contractor</div><div class="r-desc">Enter actual material data & EPDs</div></div>
-      <div class="role-btn" onclick="login('consultant')"><div class="r-icon">📋</div><div class="r-name">Consultant</div><div class="r-desc">Review, approve & set baselines</div></div>
-      <div class="role-btn" onclick="login('client')"><div class="r-icon">👔</div><div class="r-name">Client</div><div class="r-desc">Dashboard, approvals & reports</div></div>
-    </div>
     <div class="login-footer">v2.0 • Cloud Database Enabled • KSIA Sustainability Program</div>
   </div>
 </div>
@@ -250,6 +296,7 @@ td.mono{font-family:'Courier New',monospace;font-size:11px}
 
 <!-- ===== FIREBASE SDK (v9 compat) ===== -->
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
 
 <script>
@@ -426,6 +473,231 @@ async function loadAllData() {
   DB.onA5Change(data => { state.a5entries = data; if (state.page === 'entry_a5' || state.page === 'dashboard') navigate(state.page); });
 }
 
+// ===== FIREBASE AUTH =====
+let auth = null;
+let selectedRegRole = null;
+
+try {
+  auth = firebase.auth();
+} catch(e) {
+  console.warn('Firebase Auth init failed:', e);
+}
+
+// Show/hide login vs register forms
+function showRegister() {
+  $('loginForm').style.display = 'none';
+  $('registerForm').style.display = 'block';
+  clearErrors();
+}
+function showLogin() {
+  $('registerForm').style.display = 'none';
+  $('loginForm').style.display = 'block';
+  clearErrors();
+}
+function clearErrors() {
+  $('loginError').style.display = 'none';
+  $('regError').style.display = 'none';
+}
+
+// Role selection during registration
+function selectRole(role, el) {
+  selectedRegRole = role;
+  document.querySelectorAll('#regRoleGrid .role-btn').forEach(b => b.classList.remove('selected'));
+  el.classList.add('selected');
+}
+
+// Show an error on a given error element
+function showError(elId, msg) {
+  const el = $(elId);
+  el.style.display = 'block';
+  el.textContent = msg;
+}
+
+// Map Firebase auth error codes to user-friendly messages
+function authErrorMessage(code) {
+  const map = {
+    'auth/email-already-in-use': 'An account with this email already exists.',
+    'auth/invalid-email': 'Please enter a valid email address.',
+    'auth/weak-password': 'Password must be at least 6 characters.',
+    'auth/user-not-found': 'No account found with this email.',
+    'auth/wrong-password': 'Incorrect password.',
+    'auth/invalid-credential': 'Invalid email or password.',
+    'auth/too-many-requests': 'Too many attempts. Please try again later.',
+    'auth/network-request-failed': 'Network error. Please check your connection.'
+  };
+  return map[code] || 'Authentication failed. Please try again.';
+}
+
+// Save user profile to Firebase DB
+async function saveUserProfile(uid, name, email, role) {
+  if (dbConnected) {
+    await db.ref('users/' + uid).set({
+      name: name,
+      email: email,
+      role: role,
+      createdAt: new Date().toISOString()
+    });
+  }
+  // Also keep in localStorage as fallback
+  localStorage.setItem('ct_user_profile', JSON.stringify({ uid, name, email, role }));
+}
+
+// Load user profile from Firebase DB
+async function loadUserProfile(uid) {
+  if (dbConnected) {
+    const snap = await db.ref('users/' + uid).once('value');
+    const profile = snap.val();
+    if (profile) {
+      localStorage.setItem('ct_user_profile', JSON.stringify({ uid, ...profile }));
+      return profile;
+    }
+  }
+  // Fallback to localStorage
+  const cached = JSON.parse(localStorage.getItem('ct_user_profile') || 'null');
+  if (cached && cached.uid === uid) return cached;
+  return null;
+}
+
+// ===== OFFLINE AUTH (localStorage fallback when Firebase is not configured) =====
+function offlineGetUsers() {
+  return JSON.parse(localStorage.getItem('ct_auth_users') || '{}');
+}
+function offlineSaveUsers(users) {
+  localStorage.setItem('ct_auth_users', JSON.stringify(users));
+}
+function simpleHash(str) {
+  let h = 0;
+  for (let i = 0; i < str.length; i++) { h = ((h << 5) - h + str.charCodeAt(i)) | 0; }
+  return 'h_' + Math.abs(h).toString(36);
+}
+
+// Handle login form submission
+async function handleLogin() {
+  clearErrors();
+  const email = $('loginEmail').value.trim();
+  const password = $('loginPassword').value;
+
+  if (!email) { showError('loginError', 'Please enter your email.'); return; }
+  if (!password) { showError('loginError', 'Please enter your password.'); return; }
+
+  $('loginBtn').disabled = true;
+  $('loginBtn').textContent = 'Signing in...';
+
+  // Firebase auth
+  if (auth) {
+    try {
+      await auth.signInWithEmailAndPassword(email, password);
+      // onAuthStateChanged will handle the rest
+      return;
+    } catch(e) {
+      showError('loginError', authErrorMessage(e.code));
+      $('loginBtn').disabled = false;
+      $('loginBtn').textContent = 'Sign In';
+      return;
+    }
+  }
+
+  // Offline auth fallback
+  const users = offlineGetUsers();
+  const user = users[email];
+  if (!user) {
+    showError('loginError', 'No account found with this email. Please register first.');
+    $('loginBtn').disabled = false;
+    $('loginBtn').textContent = 'Sign In';
+    return;
+  }
+  if (user.passHash !== simpleHash(password)) {
+    showError('loginError', 'Incorrect password.');
+    $('loginBtn').disabled = false;
+    $('loginBtn').textContent = 'Sign In';
+    return;
+  }
+  // Success — save session and enter app
+  localStorage.setItem('ct_auth_session', JSON.stringify({ email: email, uid: user.uid }));
+  enterApp(user.name, user.role);
+}
+
+// Handle registration form submission
+async function handleRegister() {
+  clearErrors();
+  const name = $('regName').value.trim();
+  const email = $('regEmail').value.trim();
+  const password = $('regPassword').value;
+
+  if (!name) { showError('regError', 'Please enter your name.'); return; }
+  if (!email) { showError('regError', 'Please enter your email.'); return; }
+  if (!password) { showError('regError', 'Please enter a password.'); return; }
+  if (password.length < 6) { showError('regError', 'Password must be at least 6 characters.'); return; }
+  if (!selectedRegRole) { showError('regError', 'Please select a role.'); return; }
+
+  $('regBtn').disabled = true;
+  $('regBtn').textContent = 'Creating account...';
+
+  // Firebase auth
+  if (auth) {
+    try {
+      const cred = await auth.createUserWithEmailAndPassword(email, password);
+      await cred.user.updateProfile({ displayName: name });
+      await saveUserProfile(cred.user.uid, name, email, selectedRegRole);
+      // onAuthStateChanged will handle the rest
+      return;
+    } catch(e) {
+      showError('regError', authErrorMessage(e.code));
+      $('regBtn').disabled = false;
+      $('regBtn').textContent = 'Create Account';
+      return;
+    }
+  }
+
+  // Offline auth fallback
+  const users = offlineGetUsers();
+  if (users[email]) {
+    showError('regError', 'An account with this email already exists.');
+    $('regBtn').disabled = false;
+    $('regBtn').textContent = 'Create Account';
+    return;
+  }
+  const uid = 'offline_' + Date.now();
+  users[email] = { uid, name, email, role: selectedRegRole, passHash: simpleHash(password), createdAt: new Date().toISOString() };
+  offlineSaveUsers(users);
+  localStorage.setItem('ct_user_profile', JSON.stringify({ uid, name, email, role: selectedRegRole }));
+  localStorage.setItem('ct_auth_session', JSON.stringify({ email, uid }));
+  enterApp(name, selectedRegRole);
+}
+
+// Enter the app after authentication
+function enterApp(name, role) {
+  state.role = role;
+  state.name = name;
+  $('loginScreen').style.display = 'none';
+  $('appShell').style.display = 'block';
+  $('userName').textContent = name;
+  $('userRole').textContent = role;
+  $('userAvatar').className = 'sb-avatar ' + role;
+  $('userAvatar').textContent = name[0].toUpperCase();
+  buildSidebar();
+  navigate('dashboard');
+}
+
+// Logout
+function logout() {
+  if (auth) {
+    auth.signOut();
+  }
+  localStorage.removeItem('ct_auth_session');
+  state.role = null;
+  state.name = '';
+  $('appShell').style.display = 'none';
+  $('loginScreen').style.display = 'flex';
+  // Reset form fields
+  $('loginEmail').value = '';
+  $('loginPassword').value = '';
+  $('loginBtn').disabled = false;
+  $('loginBtn').textContent = 'Sign In';
+  showLogin();
+  clearErrors();
+}
+
 // ===== INIT =====
 async function init() {
   // Wait a moment for Firebase to connect
@@ -433,25 +705,59 @@ async function init() {
     updateDbStatus();
     await loadAllData();
     $('loadingOverlay').style.display = 'none';
-    $('loginScreen').style.display = 'flex';
+
+    // Listen for auth state changes
+    if (auth) {
+      auth.onAuthStateChanged(async (user) => {
+        if (user) {
+          // User is signed in — load their profile to get role
+          const profile = await loadUserProfile(user.uid);
+          if (profile) {
+            enterApp(profile.name || user.displayName || 'User', profile.role || 'contractor');
+          } else {
+            // Profile missing (edge case) — sign out and ask to re-register
+            auth.signOut();
+            $('loginScreen').style.display = 'flex';
+            showError('loginError', 'Account profile not found. Please register again.');
+          }
+        } else {
+          // User is signed out — show login
+          $('appShell').style.display = 'none';
+          $('loginScreen').style.display = 'flex';
+        }
+      });
+    } else {
+      // Firebase not configured — check for offline session
+      const session = JSON.parse(localStorage.getItem('ct_auth_session') || 'null');
+      if (session) {
+        const users = offlineGetUsers();
+        const user = users[session.email];
+        if (user) {
+          enterApp(user.name, user.role);
+          return;
+        }
+      }
+      $('loginScreen').style.display = 'flex';
+    }
   }, 1500);
 }
 init();
 
-// ===== LOGIN =====
-function login(role) {
-  const name = $('loginName').value.trim();
-  if (!name) { const err = $('loginError'); err.style.display='block'; err.textContent='Please enter your name'; return; }
-  state.role = role; state.name = name;
-  $('loginScreen').style.display='none';
-  $('appShell').style.display='block';
-  $('userName').textContent=name;
-  $('userRole').textContent=role;
-  $('userAvatar').className='sb-avatar '+role;
-  $('userAvatar').textContent=name[0].toUpperCase();
-  buildSidebar(); navigate('dashboard');
-}
-function logout() { state.role=null; $('appShell').style.display='none'; $('loginScreen').style.display='flex'; }
+// Allow Enter key to submit login/register forms
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Enter') {
+    if ($('loginForm').style.display !== 'none' && $('loginScreen').style.display !== 'none') {
+      if (document.activeElement === $('loginEmail') || document.activeElement === $('loginPassword')) {
+        handleLogin();
+      }
+    }
+    if ($('registerForm').style.display !== 'none') {
+      if (document.activeElement === $('regName') || document.activeElement === $('regEmail') || document.activeElement === $('regPassword')) {
+        handleRegister();
+      }
+    }
+  }
+});
 
 // ===== SIDEBAR =====
 function buildSidebar() {
