@@ -132,6 +132,8 @@ async function handleRegister() {
   if (!email) { showError('regError', 'Please enter your email.'); return; }
   if (!password) { showError('regError', 'Please enter a password.'); return; }
   if (password.length < 6) { showError('regError', 'Password must be at least 6 characters.'); return; }
+  const confirmPassword = $('regConfirmPassword').value;
+  if (password !== confirmPassword) { showError('regError', 'Passwords do not match.'); return; }
   if (!selectedRegRole) { showError('regError', 'Please select a role.'); return; }
 
   $('regBtn').disabled = true;

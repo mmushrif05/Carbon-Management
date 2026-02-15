@@ -88,7 +88,7 @@ document.addEventListener('keydown', function(e) {
       }
     }
     if ($('registerForm').style.display !== 'none') {
-      if (document.activeElement === $('regName') || document.activeElement === $('regEmail') || document.activeElement === $('regPassword')) {
+      if (document.activeElement === $('regName') || document.activeElement === $('regEmail') || document.activeElement === $('regPassword') || document.activeElement === $('regConfirmPassword')) {
         handleRegister();
       }
     }

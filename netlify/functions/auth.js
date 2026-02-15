@@ -98,6 +98,7 @@ async function handleRegister(body) {
     const errorMsg = authErrorMessage(errorCode);
     console.error('[AUTH] Register error:', errorCode, e.message || e);
     return respond(400, { error: errorMsg, code: errorCode });
+  }
 }
 
 async function handleLogin(body) {
@@ -134,6 +135,7 @@ async function handleLogin(body) {
     const errorMsg = authErrorMessage(errorCode);
     console.error('[AUTH] Login error:', errorCode, e.message || e);
     return respond(401, { error: errorMsg, code: errorCode });
+  }
 }
 
 async function handleVerify(event) {
