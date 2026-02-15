@@ -30,6 +30,19 @@ function selectRole(role, el) {
 function showError(elId, msg) {
   const el = $(elId);
   el.style.display = 'block';
+  el.style.background = 'rgba(248,113,113,0.1)';
+  el.style.borderColor = 'rgba(248,113,113,0.2)';
+  el.style.color = 'var(--red)';
+  el.textContent = msg;
+}
+
+// Show a success message on a given element
+function showSuccess(elId, msg) {
+  const el = $(elId);
+  el.style.display = 'block';
+  el.style.background = 'rgba(52,211,153,0.1)';
+  el.style.borderColor = 'rgba(52,211,153,0.2)';
+  el.style.color = 'var(--green)';
   el.textContent = msg;
 }
 
@@ -58,7 +71,7 @@ async function handleLogin() {
   $('loginBtn').disabled = true;
   $('loginBtn').textContent = 'Signing in...';
 
-  // Server auth
+  // Server auth (signInWithEmailAndPassword)
   if (dbConnected) {
     try {
       const res = await fetch(API + '/auth', {
@@ -69,12 +82,14 @@ async function handleLogin() {
       const data = await res.json();
 
       if (res.ok) {
+        console.log('[AUTH] Login successful:', data.user.email);
         localStorage.setItem('ct_auth_token', data.token);
         localStorage.setItem('ct_refresh_token', data.refreshToken);
         localStorage.setItem('ct_user_profile', JSON.stringify(data.user));
         enterApp(data.user.name, data.user.role);
         return;
       } else {
+        console.error('[AUTH] Login failed:', data.code || '', data.error);
         showError('loginError', data.error || 'Login failed.');
         $('loginBtn').disabled = false;
         $('loginBtn').textContent = 'Sign In';
@@ -82,7 +97,7 @@ async function handleLogin() {
       }
     } catch (e) {
       // Server unreachable — fall through to offline
-      console.warn('Server auth failed, trying offline:', e);
+      console.error('[AUTH] Server unreachable:', e.message || e);
     }
   }
 
@@ -122,30 +137,34 @@ async function handleRegister() {
   $('regBtn').disabled = true;
   $('regBtn').textContent = 'Creating account...';
 
-  // Server auth
+  // Server auth (createUserWithEmailAndPassword)
   if (dbConnected) {
     try {
+      const project = $('regProject') ? $('regProject').value : 'ksia';
       const res = await fetch(API + '/auth', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'register', name, email, password, role: selectedRegRole })
+        body: JSON.stringify({ action: 'register', name, email, password, role: selectedRegRole, project })
       });
       const data = await res.json();
 
       if (res.ok) {
+        console.log('[AUTH] Account created successfully:', data.user.email, data.user.role);
         localStorage.setItem('ct_auth_token', data.token);
         localStorage.setItem('ct_refresh_token', data.refreshToken);
         localStorage.setItem('ct_user_profile', JSON.stringify(data.user));
-        enterApp(data.user.name, data.user.role);
+        showSuccess('regError', 'Account created successfully! Redirecting...');
+        setTimeout(() => enterApp(data.user.name, data.user.role), 1000);
         return;
       } else {
+        console.error('[AUTH] Registration failed:', data.code || '', data.error);
         showError('regError', data.error || 'Registration failed.');
         $('regBtn').disabled = false;
         $('regBtn').textContent = 'Create Account';
         return;
       }
     } catch (e) {
-      console.warn('Server auth failed, trying offline:', e);
+      console.error('[AUTH] Server unreachable:', e.message || e);
     }
   }
 

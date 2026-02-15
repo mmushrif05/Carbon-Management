@@ -68,7 +68,7 @@ async function handleRegister(body) {
   if (!role || !VALID_ROLES.includes(role)) return respond(400, { error: 'Please select a valid role.' });
 
   try {
-    // Create user via Firebase Auth REST API
+    // Create user via Firebase Auth REST API (createUserWithEmailAndPassword)
     const signUpData = await firebaseSignUp(email.trim(), password);
     const uid = signUpData.localId;
 
@@ -76,23 +76,28 @@ async function handleRegister(body) {
     const auth = getAuth();
     await auth.updateUser(uid, { displayName: name.trim() });
 
-    // Save profile to database
+    // Save profile to Realtime Database at /users/{uid}
     const db = getDb();
+    const project = body.project || 'ksia';
     await db.ref('users/' + uid).set({
-      name: name.trim(),
       email: email.trim(),
       role,
+      project,
       createdAt: new Date().toISOString()
     });
+
+    console.log('[AUTH] User registered:', uid, email.trim(), role);
 
     return respond(200, {
       token: signUpData.idToken,
       refreshToken: signUpData.refreshToken,
-      user: { uid, name: name.trim(), email: email.trim(), role }
+      user: { uid, name: name.trim(), email: email.trim(), role, project }
     });
   } catch (e) {
-    return respond(400, { error: authErrorMessage(e.code || e.message) });
-  }
+    const errorCode = e.code || e.message || 'UNKNOWN';
+    const errorMsg = authErrorMessage(errorCode);
+    console.error('[AUTH] Register error:', errorCode, e.message || e);
+    return respond(400, { error: errorMsg, code: errorCode });
 }
 
 async function handleLogin(body) {
@@ -102,7 +107,7 @@ async function handleLogin(body) {
   if (!password) return respond(400, { error: 'Please enter your password.' });
 
   try {
-    // Sign in via Firebase Auth REST API
+    // Sign in via Firebase Auth REST API (signInWithEmailAndPassword)
     const signInData = await firebaseSignIn(email.trim(), password);
     const uid = signInData.localId;
 
@@ -113,18 +118,22 @@ async function handleLogin(body) {
 
     if (!profile) {
       // Profile missing — create a basic one
-      profile = { name: signInData.displayName || email.split('@')[0], email: email.trim(), role: 'contractor' };
-      await db.ref('users/' + uid).set({ ...profile, createdAt: new Date().toISOString() });
+      profile = { email: email.trim(), role: 'contractor', project: 'ksia', createdAt: new Date().toISOString() };
+      await db.ref('users/' + uid).set(profile);
     }
+
+    console.log('[AUTH] User signed in:', uid, email.trim());
 
     return respond(200, {
       token: signInData.idToken,
       refreshToken: signInData.refreshToken,
-      user: { uid, name: profile.name, email: profile.email, role: profile.role }
+      user: { uid, name: signInData.displayName || profile.name || email.split('@')[0], email: profile.email, role: profile.role }
     });
   } catch (e) {
-    return respond(401, { error: authErrorMessage(e.code || e.message) });
-  }
+    const errorCode = e.code || e.message || 'UNKNOWN';
+    const errorMsg = authErrorMessage(errorCode);
+    console.error('[AUTH] Login error:', errorCode, e.message || e);
+    return respond(401, { error: errorMsg, code: errorCode });
 }
 
 async function handleVerify(event) {
@@ -179,6 +188,7 @@ exports.handler = async (event) => {
       default:         return respond(400, { error: 'Invalid action' });
     }
   } catch (e) {
-    return respond(500, { error: 'Server error' });
+    console.error('[AUTH] Server error:', e);
+    return respond(500, { error: 'Server error: ' + (e.message || 'Unknown') });
   }
 };
