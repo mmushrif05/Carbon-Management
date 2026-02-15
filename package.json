@@ -1,0 +1,9 @@
+{
+  "name": "carbontrack-pro",
+  "version": "2.0.0",
+  "private": true,
+  "description": "CarbonTrack Pro - Construction Embodied Carbon & Sustainability Platform",
+  "dependencies": {
+    "firebase-admin": "^12.0.0"
+  }
+}
