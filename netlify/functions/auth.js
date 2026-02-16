@@ -164,9 +164,9 @@ async function handleLogin(body) {
     let profile = snap.val();
 
     if (!profile) {
-      // Profile missing — create a basic one
-      profile = { email: email.trim(), role: 'contractor', project: 'ksia', createdAt: new Date().toISOString() };
-      await db.ref('users/' + uid).set(profile);
+      // Profile missing — user was not properly registered through invitation system
+      console.error('[AUTH] Login blocked: no profile for uid', uid, email.trim());
+      return respond(403, { error: 'Your account is not registered in this project. Please contact an admin for an invitation.' });
     }
 
     console.log('[AUTH] User signed in:', uid, email.trim());

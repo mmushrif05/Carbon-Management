@@ -259,3 +259,62 @@ function logout() {
   showLogin();
   clearErrors();
 }
+
+// ===== FIRST-TIME SETUP (Bootstrap) =====
+function showSetup() {
+  $('loginForm').style.display = 'none';
+  $('registerForm').style.display = 'none';
+  $('setupForm').style.display = 'block';
+  clearErrors();
+  if ($('setupError')) $('setupError').style.display = 'none';
+}
+
+async function handleBootstrap() {
+  const errEl = $('setupError');
+  errEl.style.display = 'none';
+
+  const name = $('setupName').value.trim();
+  const email = $('setupEmail').value.trim();
+  const password = $('setupPassword').value;
+  const setupKey = $('setupKey').value.trim();
+
+  if (!name) { showError('setupError', 'Please enter your name.'); return; }
+  if (!email) { showError('setupError', 'Please enter your email.'); return; }
+  if (!password) { showError('setupError', 'Please enter a password.'); return; }
+  if (password.length < 6) { showError('setupError', 'Password must be at least 6 characters.'); return; }
+  if (!setupKey) { showError('setupError', 'Please enter the setup key from your Netlify environment variables.'); return; }
+
+  if (!dbConnected) {
+    showError('setupError', 'Server connection required. Please check that your Netlify environment variables (FIREBASE_API_KEY, FIREBASE_SERVICE_ACCOUNT, FIREBASE_DATABASE_URL) are configured correctly.');
+    return;
+  }
+
+  $('setupBtn').disabled = true;
+  $('setupBtn').textContent = 'Creating admin account...';
+
+  try {
+    const res = await fetch(API + '/bootstrap', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, email, password, setupKey })
+    });
+    const data = await res.json();
+
+    if (res.ok) {
+      localStorage.setItem('ct_auth_token', data.token);
+      localStorage.setItem('ct_refresh_token', data.refreshToken);
+      localStorage.setItem('ct_user_profile', JSON.stringify(data.user));
+      localStorage.setItem('ct_server_verified', 'true');
+      showSuccess('setupError', 'Admin account created! Redirecting...');
+      setTimeout(() => enterApp(data.user.name, data.user.role), 1000);
+    } else {
+      showError('setupError', data.error || 'Setup failed.');
+      $('setupBtn').disabled = false;
+      $('setupBtn').textContent = 'Create Admin Account';
+    }
+  } catch (e) {
+    showError('setupError', 'Server unreachable: ' + (e.message || 'Unknown error'));
+    $('setupBtn').disabled = false;
+    $('setupBtn').textContent = 'Create Admin Account';
+  }
+}

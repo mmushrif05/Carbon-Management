@@ -44,6 +44,7 @@
       <button class="login-btn" id="loginBtn" onclick="handleLogin()">Sign In</button>
 
       <div class="login-toggle"><span style="color:var(--slate5);font-size:11px">🔒 Registration is by invitation only</span></div>
+      <div class="login-toggle" style="margin-top:4px"><a onclick="showSetup()" style="font-size:11px;color:var(--slate5);opacity:0.6">First-time setup?</a></div>
     </div>
 
     <!-- REGISTER FORM -->
@@ -76,6 +77,43 @@
       <button class="login-btn" id="regBtn" onclick="handleRegister()">Create Account</button>
 
       <div class="login-toggle">Already have an account? <a onclick="showLogin()">Sign in</a></div>
+    </div>
+
+    <!-- FIRST-TIME SETUP FORM (Bootstrap) -->
+    <div id="setupForm" style="display:none">
+      <div class="invite-banner" style="margin-bottom:16px;background:rgba(251,191,36,0.08);border-color:rgba(251,191,36,0.2)">
+        <div class="invite-banner-icon">⚡</div>
+        <div class="invite-banner-text" style="font-size:12px">
+          <strong style="color:#fbbf24">First-Time Setup</strong><br>
+          <span style="color:var(--slate5)">Create the first Client admin account. This can only be done once.</span>
+        </div>
+      </div>
+
+      <div class="login-input">
+        <div class="login-label">Your Name</div>
+        <input id="setupName" placeholder="Enter your full name" autocomplete="name" />
+      </div>
+
+      <div class="login-input">
+        <div class="login-label">Email</div>
+        <input id="setupEmail" type="email" placeholder="Enter your email" autocomplete="email" />
+      </div>
+
+      <div class="login-input">
+        <div class="login-label">Password</div>
+        <input id="setupPassword" type="password" placeholder="Minimum 6 characters" autocomplete="new-password" />
+      </div>
+
+      <div class="login-input">
+        <div class="login-label">Setup Key</div>
+        <input id="setupKey" type="password" placeholder="Enter the BOOTSTRAP_KEY from Netlify" />
+      </div>
+
+      <div class="login-error" id="setupError"></div>
+
+      <button class="login-btn" id="setupBtn" onclick="handleBootstrap()">Create Admin Account</button>
+
+      <div class="login-toggle"><a onclick="showLogin()">Back to Sign In</a></div>
     </div>
 
     <div class="login-footer">v2.1 • Invitation-Only Access • KSIA Sustainability Program</div>
