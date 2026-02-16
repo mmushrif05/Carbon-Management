@@ -1,12 +1,17 @@
 // ===== AUTHENTICATION =====
 // All auth operations go through the secure server API.
 // No Firebase SDK or credentials on the client.
-let selectedRegRole = null;
+// Registration is invitation-only — no self-registration allowed.
 let currentInviteToken = null;
 let currentInvitation = null;
 
 // Show/hide login vs register forms
 function showRegister() {
+  // Only show register form if user has a valid invitation token
+  if (!currentInviteToken) {
+    showError('loginError', 'Registration requires an invitation. Please contact a client or consultant to get an invitation link.');
+    return;
+  }
   $('loginForm').style.display = 'none';
   $('registerForm').style.display = 'block';
   clearErrors();
@@ -19,18 +24,10 @@ function showLogin() {
   currentInviteToken = null;
   currentInvitation = null;
   if ($('inviteInfo')) $('inviteInfo').style.display = 'none';
-  if ($('regRoleGrid')) $('regRoleGrid').style.display = 'grid';
 }
 function clearErrors() {
   $('loginError').style.display = 'none';
   $('regError').style.display = 'none';
-}
-
-// Role selection during registration (only visible when no invite token)
-function selectRole(role, el) {
-  selectedRegRole = role;
-  document.querySelectorAll('#regRoleGrid .role-btn').forEach(b => b.classList.remove('selected'));
-  el.classList.add('selected');
 }
 
 // Show an error on a given error element
@@ -71,19 +68,22 @@ async function validateAndShowInvite(token) {
     const data = await DB.validateInviteToken(token);
     if (data.valid) {
       currentInvitation = data.invitation;
-      showRegister();
+      // Show the register form (invitation link bypasses the block)
+      $('loginForm').style.display = 'none';
+      $('registerForm').style.display = 'block';
+      clearErrors();
       // Pre-fill email and lock it
       $('regEmail').value = data.invitation.email;
       $('regEmail').readOnly = true;
       $('regEmail').style.opacity = '0.7';
-      // Hide role selection (role comes from invitation)
-      if ($('regRoleGrid')) $('regRoleGrid').style.display = 'none';
-      if ($('regRoleLabel')) $('regRoleLabel').style.display = 'none';
       // Show invitation info banner
       showInviteInfo(data.invitation);
+      // Show the "Create Account" toggle link
+      if ($('regToggle')) $('regToggle').style.display = 'block';
     }
   } catch (e) {
     // Show login with error
+    currentInviteToken = null;
     showLogin();
     showError('loginError', e.message || 'Invalid invitation link.');
   }
@@ -95,25 +95,12 @@ function showInviteInfo(invitation) {
   if (el) {
     el.style.display = 'block';
     el.innerHTML = `<div class="invite-banner">
-      <div class="invite-banner-icon">✉️</div>
+      <div class="invite-banner-icon">\u2709\ufe0f</div>
       <div class="invite-banner-text">
         <strong>${invitation.invitedByName}</strong> invited you as a <strong style="color:var(--green)">${roleLabels[invitation.role] || invitation.role}</strong>
       </div>
     </div>`;
   }
-}
-
-// ===== OFFLINE AUTH (localStorage fallback when server is unavailable) =====
-function offlineGetUsers() {
-  return JSON.parse(localStorage.getItem('ct_auth_users') || '{}');
-}
-function offlineSaveUsers(users) {
-  localStorage.setItem('ct_auth_users', JSON.stringify(users));
-}
-function simpleHash(str) {
-  let h = 0;
-  for (let i = 0; i < str.length; i++) { h = ((h << 5) - h + str.charCodeAt(i)) | 0; }
-  return 'h_' + Math.abs(h).toString(36);
 }
 
 // Handle login form submission
@@ -128,54 +115,44 @@ async function handleLogin() {
   $('loginBtn').disabled = true;
   $('loginBtn').textContent = 'Signing in...';
 
-  // Server auth (signInWithEmailAndPassword)
-  if (dbConnected) {
-    try {
-      const res = await fetch(API + '/auth', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'login', email, password })
-      });
-      const data = await res.json();
+  // Server auth ONLY — no offline fallback for login
+  if (!dbConnected) {
+    showError('loginError', 'Server connection required. Please check your internet connection and try again.');
+    $('loginBtn').disabled = false;
+    $('loginBtn').textContent = 'Sign In';
+    return;
+  }
 
-      if (res.ok) {
-        console.log('[AUTH] Login successful:', data.user.email);
-        localStorage.setItem('ct_auth_token', data.token);
-        localStorage.setItem('ct_refresh_token', data.refreshToken);
-        localStorage.setItem('ct_user_profile', JSON.stringify(data.user));
-        enterApp(data.user.name, data.user.role);
-        return;
-      } else {
-        console.error('[AUTH] Login failed:', data.code || '', data.error);
-        showError('loginError', data.error || 'Login failed.');
-        $('loginBtn').disabled = false;
-        $('loginBtn').textContent = 'Sign In';
-        return;
-      }
-    } catch (e) {
-      // Server unreachable — fall through to offline
-      console.error('[AUTH] Server unreachable:', e.message || e);
+  try {
+    const res = await fetch(API + '/auth', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'login', email, password })
+    });
+    const data = await res.json();
+
+    if (res.ok) {
+      console.log('[AUTH] Login successful:', data.user.email);
+      localStorage.setItem('ct_auth_token', data.token);
+      localStorage.setItem('ct_refresh_token', data.refreshToken);
+      localStorage.setItem('ct_user_profile', JSON.stringify(data.user));
+      // Mark this session as server-verified
+      localStorage.setItem('ct_server_verified', 'true');
+      enterApp(data.user.name, data.user.role);
+      return;
+    } else {
+      console.error('[AUTH] Login failed:', data.code || '', data.error);
+      showError('loginError', data.error || 'Login failed.');
+      $('loginBtn').disabled = false;
+      $('loginBtn').textContent = 'Sign In';
+      return;
     }
-  }
-
-  // Offline auth fallback
-  const users = offlineGetUsers();
-  const user = users[email];
-  if (!user) {
-    showError('loginError', 'No account found with this email. You need an invitation to register.');
+  } catch (e) {
+    console.error('[AUTH] Server unreachable:', e.message || e);
+    showError('loginError', 'Unable to reach server. Please check your connection.');
     $('loginBtn').disabled = false;
     $('loginBtn').textContent = 'Sign In';
-    return;
   }
-  if (user.passHash !== simpleHash(password)) {
-    showError('loginError', 'Incorrect password.');
-    $('loginBtn').disabled = false;
-    $('loginBtn').textContent = 'Sign In';
-    return;
-  }
-  // Success — save session and enter app
-  localStorage.setItem('ct_auth_session', JSON.stringify({ email: email, uid: user.uid }));
-  enterApp(user.name, user.role);
 }
 
 // Handle registration form submission
@@ -190,55 +167,53 @@ async function handleRegister() {
   if (!password) { showError('regError', 'Please enter a password.'); return; }
   if (password.length < 6) { showError('regError', 'Password must be at least 6 characters.'); return; }
 
-  // If no invite token, show error — registration is invite-only
+  // Registration is strictly invitation-only
   if (!currentInviteToken) {
     showError('regError', 'Registration requires an invitation. Please contact a client or consultant to get an invitation link.');
+    return;
+  }
+
+  if (!dbConnected) {
+    showError('regError', 'Server connection required for registration. Please check your internet connection.');
     return;
   }
 
   $('regBtn').disabled = true;
   $('regBtn').textContent = 'Creating account...';
 
-  // Server auth with invitation token
-  if (dbConnected) {
-    try {
-      const res = await fetch(API + '/auth', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'register',
-          name,
-          email,
-          password,
-          inviteToken: currentInviteToken
-        })
-      });
-      const data = await res.json();
+  try {
+    const res = await fetch(API + '/auth', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'register',
+        name,
+        email,
+        password,
+        inviteToken: currentInviteToken
+      })
+    });
+    const data = await res.json();
 
-      if (res.ok) {
-        console.log('[AUTH] Account created successfully:', data.user.email, data.user.role);
-        localStorage.setItem('ct_auth_token', data.token);
-        localStorage.setItem('ct_refresh_token', data.refreshToken);
-        localStorage.setItem('ct_user_profile', JSON.stringify(data.user));
-        showSuccess('regError', 'Account created successfully! Redirecting...');
-        setTimeout(() => enterApp(data.user.name, data.user.role), 1000);
-        return;
-      } else {
-        console.error('[AUTH] Registration failed:', data.code || '', data.error);
-        showError('regError', data.error || 'Registration failed.');
-        $('regBtn').disabled = false;
-        $('regBtn').textContent = 'Create Account';
-        return;
-      }
-    } catch (e) {
-      console.error('[AUTH] Server unreachable:', e.message || e);
-      showError('regError', 'Server unreachable. Invitation-based registration requires server connection.');
+    if (res.ok) {
+      console.log('[AUTH] Account created successfully:', data.user.email, data.user.role);
+      localStorage.setItem('ct_auth_token', data.token);
+      localStorage.setItem('ct_refresh_token', data.refreshToken);
+      localStorage.setItem('ct_user_profile', JSON.stringify(data.user));
+      localStorage.setItem('ct_server_verified', 'true');
+      showSuccess('regError', 'Account created successfully! Redirecting...');
+      setTimeout(() => enterApp(data.user.name, data.user.role), 1000);
+      return;
+    } else {
+      console.error('[AUTH] Registration failed:', data.code || '', data.error);
+      showError('regError', data.error || 'Registration failed.');
       $('regBtn').disabled = false;
       $('regBtn').textContent = 'Create Account';
       return;
     }
-  } else {
-    showError('regError', 'Server connection required for invitation-based registration.');
+  } catch (e) {
+    console.error('[AUTH] Server unreachable:', e.message || e);
+    showError('regError', 'Server unreachable. Registration requires server connection.');
     $('regBtn').disabled = false;
     $('regBtn').textContent = 'Create Account';
   }
@@ -258,11 +233,14 @@ function enterApp(name, role) {
   navigate('dashboard');
 }
 
-// Logout
+// Logout — clears all session data
 function logout() {
   localStorage.removeItem('ct_auth_token');
   localStorage.removeItem('ct_refresh_token');
   localStorage.removeItem('ct_auth_session');
+  localStorage.removeItem('ct_server_verified');
+  // Keep ct_user_profile cleared so offline re-entry is blocked
+  localStorage.removeItem('ct_user_profile');
   state.role = null;
   state.name = '';
   state.invitations = [];
@@ -276,11 +254,8 @@ function logout() {
   // Reset invitation state
   currentInviteToken = null;
   currentInvitation = null;
-  $('regEmail').readOnly = false;
-  $('regEmail').style.opacity = '1';
+  if ($('regEmail')) { $('regEmail').readOnly = false; $('regEmail').style.opacity = '1'; }
   if ($('inviteInfo')) $('inviteInfo').style.display = 'none';
-  if ($('regRoleGrid')) $('regRoleGrid').style.display = 'grid';
-  if ($('regRoleLabel')) $('regRoleLabel').style.display = 'block';
   showLogin();
   clearErrors();
 }

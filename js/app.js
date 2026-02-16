@@ -30,15 +30,22 @@ function navigate(page) {
 // ===== INIT =====
 async function init() {
   setTimeout(async () => {
+    // Clear old insecure offline auth data (pre-invitation system)
+    localStorage.removeItem('ct_auth_users');
+    localStorage.removeItem('ct_auth_session');
+
     // Check if server/database is reachable
     await checkDbConnection();
 
     // Check for invitation token in URL
     checkInviteToken();
 
-    // Try to restore session from stored token
+    // Try to restore session from stored token (SERVER VERIFIED ONLY)
     const token = localStorage.getItem('ct_auth_token');
+    const serverVerified = localStorage.getItem('ct_server_verified');
+
     if (token && dbConnected) {
+      // Server is reachable — verify the token is still valid
       try {
         const res = await apiCall('/auth', {
           method: 'POST',
@@ -47,6 +54,7 @@ async function init() {
         const data = await res.json();
 
         if (data.authenticated) {
+          localStorage.setItem('ct_server_verified', 'true');
           await loadAllData();
           $('loadingOverlay').style.display = 'none';
           enterApp(data.user.name, data.user.role);
@@ -57,26 +65,28 @@ async function init() {
       }
     }
 
-    // No valid server session — check offline session
-    await loadAllData();
-    $('loadingOverlay').style.display = 'none';
-
-    const session = JSON.parse(localStorage.getItem('ct_auth_session') || 'null');
-    if (session) {
-      const users = offlineGetUsers();
-      const user = users[session.email];
-      if (user) {
-        enterApp(user.name, user.role);
+    // Server not reachable but user was previously server-verified
+    // Allow temporary offline access with cached profile
+    if (token && serverVerified === 'true' && !dbConnected) {
+      const profile = JSON.parse(localStorage.getItem('ct_user_profile') || 'null');
+      if (profile && profile.name && profile.role) {
+        console.log('[AUTH] Offline mode — using server-verified cached profile');
+        await loadAllData();
+        $('loadingOverlay').style.display = 'none';
+        enterApp(profile.name, profile.role);
         return;
       }
     }
 
-    // Also check stored profile (for page refresh after server login)
-    const profile = JSON.parse(localStorage.getItem('ct_user_profile') || 'null');
-    if (profile && token) {
-      enterApp(profile.name, profile.role);
-      return;
-    }
+    // No valid session — show login screen
+    await loadAllData();
+    $('loadingOverlay').style.display = 'none';
+
+    // Clear any stale auth data since session is invalid
+    localStorage.removeItem('ct_auth_token');
+    localStorage.removeItem('ct_refresh_token');
+    localStorage.removeItem('ct_server_verified');
+    localStorage.removeItem('ct_user_profile');
 
     $('loginScreen').style.display = 'flex';
   }, 1500);
