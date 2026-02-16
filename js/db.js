@@ -102,6 +102,78 @@ const DB = {
     localStorage.setItem('ct_a5entries', JSON.stringify(entries));
   },
 
+  // === INVITATIONS ===
+  async getInvitations() {
+    if (dbConnected) {
+      try {
+        const res = await apiCall('/invitations', {
+          method: 'POST',
+          body: JSON.stringify({ action: 'list' })
+        });
+        if (res.ok) {
+          const data = await res.json();
+          return data.invitations || [];
+        }
+      } catch (e) { console.warn('API error (getInvitations):', e); }
+    }
+    return [];
+  },
+
+  async createInvitation(email, role, message) {
+    if (!dbConnected) throw new Error('Server connection required to send invitations.');
+    const res = await apiCall('/invitations', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'create', email, role, message })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to create invitation.');
+    return data;
+  },
+
+  async revokeInvitation(inviteId) {
+    if (!dbConnected) throw new Error('Server connection required.');
+    const res = await apiCall('/invitations', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'revoke', inviteId })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to revoke invitation.');
+    return data;
+  },
+
+  async resendInvitation(inviteId) {
+    if (!dbConnected) throw new Error('Server connection required.');
+    const res = await apiCall('/invitations', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'resend', inviteId })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to resend invitation.');
+    return data;
+  },
+
+  async sendInvitationEmail(inviteId) {
+    if (!dbConnected) throw new Error('Server connection required.');
+    const res = await apiCall('/send-email', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'send-invite', inviteId })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to send email.');
+    return data;
+  },
+
+  async validateInviteToken(token) {
+    const res = await fetch(API + '/invitations', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'validate', token })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Invalid invitation.');
+    return data;
+  },
+
   // Poll for updates from other users (replaces Firebase real-time listeners)
   onEntriesChange(callback) {
     if (dbConnected) {

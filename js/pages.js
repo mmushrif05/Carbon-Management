@@ -167,6 +167,205 @@ function renderCerts(el){
   </tbody></table></div></div>`;
 }
 
+// ===== TEAM & INVITATIONS =====
+function renderTeam(el) {
+  const r = state.role;
+  const canInvite = r === 'client' || r === 'consultant';
+  const allowedRoles = r === 'client' ? ['consultant', 'contractor'] : r === 'consultant' ? ['contractor'] : [];
+
+  el.innerHTML = `
+  ${canInvite ? `
+  <div class="card">
+    <div class="card-title">Send Invitation</div>
+    <div class="invite-form">
+      <div class="form-row c3">
+        <div class="fg">
+          <label>Email Address</label>
+          <input type="email" id="invEmail" placeholder="contractor@company.com" />
+        </div>
+        <div class="fg">
+          <label>Role</label>
+          <select id="invRole">
+            ${allowedRoles.map(role => `<option value="${role}">${role.charAt(0).toUpperCase() + role.slice(1)}</option>`).join('')}
+          </select>
+        </div>
+        <div class="fg">
+          <label>Message (optional)</label>
+          <input id="invMsg" placeholder="Welcome to the project..." />
+        </div>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-primary" onclick="sendInvitation()">✉️ Send Invitation</button>
+      </div>
+      <div class="login-error" id="invError" style="margin-top:12px"></div>
+      <div class="login-error" id="invSuccess" style="margin-top:12px"></div>
+    </div>
+  </div>` : `
+  <div class="card">
+    <div class="card-title">Team</div>
+    <div class="empty"><div class="empty-icon">👥</div>Only clients and consultants can manage invitations.</div>
+  </div>`}
+
+  <div class="card">
+    <div class="card-title">Invitations</div>
+    <div id="invList">
+      <div class="empty"><div class="empty-icon">⏳</div>Loading invitations...</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Roles & Permissions</div>
+    <div class="tbl-wrap">
+      <table>
+        <thead>
+          <tr><th>Role</th><th>Data Entry</th><th>Review</th><th>Approve</th><th>Invite</th><th>Reports</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="badge" style="background:rgba(167,139,250,0.1);color:var(--purple);border:1px solid rgba(167,139,250,0.2)">Client</span></td>
+            <td style="color:var(--red)">—</td>
+            <td style="color:var(--red)">—</td>
+            <td style="color:var(--green)">✓ Final</td>
+            <td style="color:var(--green)">✓ Consultants, Contractors</td>
+            <td style="color:var(--green)">✓ All</td>
+          </tr>
+          <tr>
+            <td><span class="badge" style="background:rgba(52,211,153,0.1);color:var(--green);border:1px solid rgba(52,211,153,0.2)">Consultant</span></td>
+            <td style="color:var(--green)">✓</td>
+            <td style="color:var(--green)">✓ Forward/Reject</td>
+            <td style="color:var(--red)">—</td>
+            <td style="color:var(--green)">✓ Contractors</td>
+            <td style="color:var(--green)">✓ All</td>
+          </tr>
+          <tr>
+            <td><span class="badge" style="background:rgba(96,165,250,0.1);color:var(--blue);border:1px solid rgba(96,165,250,0.2)">Contractor</span></td>
+            <td style="color:var(--green)">✓</td>
+            <td style="color:var(--red)">—</td>
+            <td style="color:var(--red)">—</td>
+            <td style="color:var(--red)">—</td>
+            <td style="color:var(--green)">✓ Own</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>`;
+
+  // Load invitations
+  if (canInvite) loadInvitations();
+}
+
+async function loadInvitations() {
+  try {
+    const invitations = await DB.getInvitations();
+    state.invitations = invitations;
+    renderInvitationList(invitations);
+  } catch (e) {
+    const el = $('invList');
+    if (el) el.innerHTML = '<div class="empty"><div class="empty-icon">⚠️</div>' + (e.message || 'Failed to load invitations.') + '</div>';
+  }
+}
+
+function renderInvitationList(invitations) {
+  const el = $('invList');
+  if (!el) return;
+
+  if (!invitations.length) {
+    el.innerHTML = '<div class="empty"><div class="empty-icon">📭</div>No invitations sent yet. Use the form above to invite team members.</div>';
+    return;
+  }
+
+  const statusBadge = (s) => {
+    const map = {
+      pending: 'pending',
+      accepted: 'approved',
+      revoked: 'rejected',
+      expired: 'rejected'
+    };
+    return `<span class="badge ${map[s] || 'pending'}">${s}</span>`;
+  };
+
+  el.innerHTML = `<div class="tbl-wrap"><table>
+    <thead><tr><th>Email</th><th>Role</th><th>Status</th><th>Invited By</th><th>Sent</th><th>Expires</th><th>Actions</th></tr></thead>
+    <tbody>${invitations.map(inv => {
+      const expired = new Date(inv.expiresAt) < new Date() && inv.status === 'pending';
+      const status = expired ? 'expired' : inv.status;
+      return `<tr>
+        <td style="font-weight:600">${inv.email}</td>
+        <td><span class="badge ${inv.role === 'contractor' ? 'review' : inv.role === 'consultant' ? 'approved' : 'pending'}" style="text-transform:capitalize">${inv.role}</span></td>
+        <td>${statusBadge(status)}</td>
+        <td>${inv.invitedByName || '—'}</td>
+        <td style="color:var(--slate5);font-size:11px">${new Date(inv.createdAt).toLocaleDateString()}</td>
+        <td style="color:${expired ? 'var(--red)' : 'var(--slate5)'};font-size:11px">${new Date(inv.expiresAt).toLocaleDateString()}</td>
+        <td>${status === 'pending' ? `<button class="btn btn-secondary btn-sm" onclick="resendInvite('${inv.id}')">↻ Resend</button> <button class="btn btn-danger btn-sm" onclick="revokeInvite('${inv.id}')">✕ Revoke</button>` : status === 'accepted' ? '<span style="color:var(--green);font-size:11px">✓ Joined</span>' : '—'}</td>
+      </tr>`;
+    }).join('')}</tbody>
+  </table></div>`;
+}
+
+async function sendInvitation() {
+  const errEl = $('invError');
+  const sucEl = $('invSuccess');
+  errEl.style.display = 'none';
+  sucEl.style.display = 'none';
+
+  const email = $('invEmail').value.trim();
+  const role = $('invRole').value;
+  const message = $('invMsg').value.trim();
+
+  if (!email) { showError('invError', 'Please enter an email address.'); return; }
+  if (!role) { showError('invError', 'Please select a role.'); return; }
+
+  try {
+    // Create invitation
+    const result = await DB.createInvitation(email, role, message);
+
+    // Send email notification
+    try {
+      await DB.sendInvitationEmail(result.invitation.id);
+      showSuccess('invSuccess', '✓ Invitation sent to ' + email + ' — Email delivered!');
+    } catch (emailErr) {
+      // Invitation was created but email failed
+      showSuccess('invSuccess', '✓ Invitation created for ' + email + '. Note: Email delivery failed — ' + emailErr.message);
+    }
+
+    // Clear form
+    $('invEmail').value = '';
+    $('invMsg').value = '';
+
+    // Reload invitation list
+    loadInvitations();
+  } catch (e) {
+    showError('invError', e.message || 'Failed to send invitation.');
+  }
+}
+
+async function revokeInvite(id) {
+  if (!confirm('Revoke this invitation? The user will no longer be able to register with this link.')) return;
+  try {
+    await DB.revokeInvitation(id);
+    loadInvitations();
+  } catch (e) {
+    alert(e.message || 'Failed to revoke invitation.');
+  }
+}
+
+async function resendInvite(id) {
+  try {
+    // Resend generates new token and extends expiry
+    const result = await DB.resendInvitation(id);
+    // Send email with new token
+    try {
+      await DB.sendInvitationEmail(id);
+      alert('Invitation resent with new link — email delivered!');
+    } catch (emailErr) {
+      alert('Invitation renewed but email failed: ' + emailErr.message);
+    }
+    loadInvitations();
+  } catch (e) {
+    alert(e.message || 'Failed to resend invitation.');
+  }
+}
+
 // ===== INTEGRATIONS =====
 function renderIntegrations(el){
   const apis=[{i:"\ud83d\udd17",n:"EPD Hub API",d:"Auto-fetch emission factors"},{i:"\ud83d\udcca",n:"EC3 / Building Transparency",d:"Material carbon benchmarks"},{i:"\ud83c\udf10",n:"One Click LCA",d:"Whole-building LCA sync"},{i:"\ud83d\udce1",n:"IEA Data API",d:"Grid emission factors by region"},{i:"\ud83d\udcc1",n:"Power BI Export",d:"Advanced analytics export"},{i:"\ud83d\udd10",n:"KSIA Portal",d:"Project management sync"},{i:"\u2601\ufe0f",n:"Firebase Cloud DB",d:"Real-time cloud database",on:dbConnected},{i:"\ud83d\udce7",n:"Email Notifications",d:"Stakeholder alerts"}];

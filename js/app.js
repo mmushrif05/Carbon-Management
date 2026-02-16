@@ -8,6 +8,7 @@ function buildSidebar() {
   items.push({section:"Workflow"},{id:'approvals',icon:'\u2705',label:'Approvals',badge:r==='consultant'?pending:(r==='client'?review:0)});
   items.push({section:"Reports"},{id:'monthly',icon:'\ud83d\udcc5',label:'Monthly Report'},{id:'cumulative',icon:'\ud83d\udcc8',label:'Cumulative'});
   if(r==='consultant'||r==='client'){items.push({section:"Config"},{id:'baselines',icon:'\u2699\ufe0f',label:'Baseline EFs'});}
+  items.push({section:"Manage"},{id:'team',icon:'\ud83d\udc65',label:'Team'});
   items.push({id:'certifications',icon:'\ud83c\udfc6',label:'Certifications'},{id:'integrations',icon:'\ud83d\udd0c',label:'API Hub'});
 
   $('sidebarNav').innerHTML = items.map(it => it.section ? `<div class="sb-section">${it.section}</div>` :
@@ -18,10 +19,10 @@ function buildSidebar() {
 // ===== NAV =====
 function navigate(page) {
   state.page = page; buildSidebar();
-  const titles={dashboard:["Dashboard","Project carbon performance & sustainability metrics"],entry_a13:["A1-A3 Material Entry","Enter material quantities and emission factors"],entry_a5:["A5 Site Emissions","Monthly fuel and water consumption"],approvals:["Approval Workflow","Review and approve carbon data"],monthly:["Monthly Report","Monthly emissions breakdown"],cumulative:["Cumulative Report","Running totals and trends"],baselines:["Baseline EFs","Emission factor reference data"],certifications:["Certifications","Track sustainability certification credits"],integrations:["API Hub","External integrations and data sources"]};
+  const titles={dashboard:["Dashboard","Project carbon performance & sustainability metrics"],entry_a13:["A1-A3 Material Entry","Enter material quantities and emission factors"],entry_a5:["A5 Site Emissions","Monthly fuel and water consumption"],approvals:["Approval Workflow","Review and approve carbon data"],monthly:["Monthly Report","Monthly emissions breakdown"],cumulative:["Cumulative Report","Running totals and trends"],baselines:["Baseline EFs","Emission factor reference data"],team:["Team Management","Invite and manage project team members"],certifications:["Certifications","Track sustainability certification credits"],integrations:["API Hub","External integrations and data sources"]};
   const[t,d]=titles[page]||["",""];
   $('pageTitle').textContent=t; $('pageDesc').textContent=d;
-  const R={dashboard:renderDashboard,entry_a13:renderEntry,entry_a5:renderA5,approvals:renderApprovals,monthly:renderMonthly,cumulative:renderCumulative,baselines:renderBaselines,certifications:renderCerts,integrations:renderIntegrations};
+  const R={dashboard:renderDashboard,entry_a13:renderEntry,entry_a5:renderA5,approvals:renderApprovals,monthly:renderMonthly,cumulative:renderCumulative,baselines:renderBaselines,team:renderTeam,certifications:renderCerts,integrations:renderIntegrations};
   if(R[page]) R[page]($('pageBody'));
   $('sidebar').classList.remove('open');
 }
@@ -29,12 +30,22 @@ function navigate(page) {
 // ===== INIT =====
 async function init() {
   setTimeout(async () => {
+    // Clear old insecure offline auth data (pre-invitation system)
+    localStorage.removeItem('ct_auth_users');
+    localStorage.removeItem('ct_auth_session');
+
     // Check if server/database is reachable
     await checkDbConnection();
 
-    // Try to restore session from stored token
+    // Check for invitation token in URL
+    checkInviteToken();
+
+    // Try to restore session from stored token (SERVER VERIFIED ONLY)
     const token = localStorage.getItem('ct_auth_token');
+    const serverVerified = localStorage.getItem('ct_server_verified');
+
     if (token && dbConnected) {
+      // Server is reachable — verify the token is still valid
       try {
         const res = await apiCall('/auth', {
           method: 'POST',
@@ -43,6 +54,7 @@ async function init() {
         const data = await res.json();
 
         if (data.authenticated) {
+          localStorage.setItem('ct_server_verified', 'true');
           await loadAllData();
           $('loadingOverlay').style.display = 'none';
           enterApp(data.user.name, data.user.role);
@@ -53,26 +65,28 @@ async function init() {
       }
     }
 
-    // No valid server session — check offline session
-    await loadAllData();
-    $('loadingOverlay').style.display = 'none';
-
-    const session = JSON.parse(localStorage.getItem('ct_auth_session') || 'null');
-    if (session) {
-      const users = offlineGetUsers();
-      const user = users[session.email];
-      if (user) {
-        enterApp(user.name, user.role);
+    // Server not reachable but user was previously server-verified
+    // Allow temporary offline access with cached profile
+    if (token && serverVerified === 'true' && !dbConnected) {
+      const profile = JSON.parse(localStorage.getItem('ct_user_profile') || 'null');
+      if (profile && profile.name && profile.role) {
+        console.log('[AUTH] Offline mode — using server-verified cached profile');
+        await loadAllData();
+        $('loadingOverlay').style.display = 'none';
+        enterApp(profile.name, profile.role);
         return;
       }
     }
 
-    // Also check stored profile (for page refresh after server login)
-    const profile = JSON.parse(localStorage.getItem('ct_user_profile') || 'null');
-    if (profile && token) {
-      enterApp(profile.name, profile.role);
-      return;
-    }
+    // No valid session — show login screen
+    await loadAllData();
+    $('loadingOverlay').style.display = 'none';
+
+    // Clear any stale auth data since session is invalid
+    localStorage.removeItem('ct_auth_token');
+    localStorage.removeItem('ct_refresh_token');
+    localStorage.removeItem('ct_server_verified');
+    localStorage.removeItem('ct_user_profile');
 
     $('loginScreen').style.display = 'flex';
   }, 1500);

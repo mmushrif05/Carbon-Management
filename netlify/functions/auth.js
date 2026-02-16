@@ -1,4 +1,5 @@
 const { getDb, getAuth, verifyToken, respond, optionsResponse } = require('./utils/firebase');
+const crypto = require('crypto');
 
 const VALID_ROLES = ['contractor', 'consultant', 'client'];
 
@@ -59,17 +60,55 @@ function authErrorMessage(code) {
 // === HANDLERS ===
 
 async function handleRegister(body) {
-  const { name, email, password, role } = body;
+  const { name, email, password, inviteToken } = body;
 
   if (!name || !name.trim()) return respond(400, { error: 'Please enter your name.' });
   if (!email || !email.trim()) return respond(400, { error: 'Please enter your email.' });
   if (!password) return respond(400, { error: 'Please enter a password.' });
   if (password.length < 6) return respond(400, { error: 'Password must be at least 6 characters.' });
-  if (!role || !VALID_ROLES.includes(role)) return respond(400, { error: 'Please select a valid role.' });
+
+  const trimmedEmail = email.trim().toLowerCase();
+  const db = getDb();
+
+  // === INVITATION ENFORCEMENT ===
+  // Registration requires a valid invitation token
+  if (!inviteToken) {
+    return respond(403, { error: 'Registration requires an invitation. Please contact a client or consultant to get an invitation link.' });
+  }
+
+  // Look up invitation by token
+  const invSnap = await db.ref('invitations')
+    .orderByChild('token')
+    .equalTo(inviteToken)
+    .once('value');
+
+  const invData = invSnap.val();
+  if (!invData) {
+    return respond(403, { error: 'Invalid invitation link. Please request a new invitation.' });
+  }
+
+  const inviteId = Object.keys(invData)[0];
+  const invitation = invData[inviteId];
+
+  if (invitation.status !== 'pending') {
+    return respond(400, { error: 'This invitation has already been ' + invitation.status + '.' });
+  }
+
+  if (new Date(invitation.expiresAt) < new Date()) {
+    return respond(400, { error: 'This invitation has expired. Please request a new one.' });
+  }
+
+  if (invitation.email !== trimmedEmail) {
+    return respond(400, { error: 'This invitation was sent to a different email address. Please use the email: ' + invitation.email });
+  }
+
+  // Use the role from the invitation (not user-selected)
+  const role = invitation.role;
+  const project = invitation.project || 'ksia';
 
   try {
     // Create user via Firebase Auth REST API (createUserWithEmailAndPassword)
-    const signUpData = await firebaseSignUp(email.trim(), password);
+    const signUpData = await firebaseSignUp(trimmedEmail, password);
     const uid = signUpData.localId;
 
     // Update display name via Admin SDK
@@ -77,27 +116,35 @@ async function handleRegister(body) {
     await auth.updateUser(uid, { displayName: name.trim() });
 
     // Save profile to Realtime Database at /users/{uid}
-    const db = getDb();
-    const project = body.project || 'ksia';
     await db.ref('users/' + uid).set({
-      email: email.trim(),
+      email: trimmedEmail,
+      name: name.trim(),
       role,
       project,
+      invitedBy: invitation.invitedBy,
       createdAt: new Date().toISOString()
     });
 
-    console.log('[AUTH] User registered:', uid, email.trim(), role);
+    // Mark invitation as accepted
+    await db.ref('invitations/' + inviteId).update({
+      status: 'accepted',
+      acceptedAt: new Date().toISOString(),
+      acceptedBy: uid
+    });
+
+    console.log('[AUTH] User registered via invitation:', uid, trimmedEmail, role, 'invited by', invitation.invitedBy);
 
     return respond(200, {
       token: signUpData.idToken,
       refreshToken: signUpData.refreshToken,
-      user: { uid, name: name.trim(), email: email.trim(), role, project }
+      user: { uid, name: name.trim(), email: trimmedEmail, role, project }
     });
   } catch (e) {
     const errorCode = e.code || e.message || 'UNKNOWN';
     const errorMsg = authErrorMessage(errorCode);
     console.error('[AUTH] Register error:', errorCode, e.message || e);
     return respond(400, { error: errorMsg, code: errorCode });
+  }
 }
 
 async function handleLogin(body) {
@@ -134,6 +181,7 @@ async function handleLogin(body) {
     const errorMsg = authErrorMessage(errorCode);
     console.error('[AUTH] Login error:', errorCode, e.message || e);
     return respond(401, { error: errorMsg, code: errorCode });
+  }
 }
 
 async function handleVerify(event) {
