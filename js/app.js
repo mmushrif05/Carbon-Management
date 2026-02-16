@@ -8,6 +8,7 @@ function buildSidebar() {
   items.push({section:"Workflow"},{id:'approvals',icon:'\u2705',label:'Approvals',badge:r==='consultant'?pending:(r==='client'?review:0)});
   items.push({section:"Reports"},{id:'monthly',icon:'\ud83d\udcc5',label:'Monthly Report'},{id:'cumulative',icon:'\ud83d\udcc8',label:'Cumulative'});
   if(r==='consultant'||r==='client'){items.push({section:"Config"},{id:'baselines',icon:'\u2699\ufe0f',label:'Baseline EFs'});}
+  items.push({section:"Manage"},{id:'team',icon:'\ud83d\udc65',label:'Team'});
   items.push({id:'certifications',icon:'\ud83c\udfc6',label:'Certifications'},{id:'integrations',icon:'\ud83d\udd0c',label:'API Hub'});
 
   $('sidebarNav').innerHTML = items.map(it => it.section ? `<div class="sb-section">${it.section}</div>` :
@@ -18,10 +19,10 @@ function buildSidebar() {
 // ===== NAV =====
 function navigate(page) {
   state.page = page; buildSidebar();
-  const titles={dashboard:["Dashboard","Project carbon performance & sustainability metrics"],entry_a13:["A1-A3 Material Entry","Enter material quantities and emission factors"],entry_a5:["A5 Site Emissions","Monthly fuel and water consumption"],approvals:["Approval Workflow","Review and approve carbon data"],monthly:["Monthly Report","Monthly emissions breakdown"],cumulative:["Cumulative Report","Running totals and trends"],baselines:["Baseline EFs","Emission factor reference data"],certifications:["Certifications","Track sustainability certification credits"],integrations:["API Hub","External integrations and data sources"]};
+  const titles={dashboard:["Dashboard","Project carbon performance & sustainability metrics"],entry_a13:["A1-A3 Material Entry","Enter material quantities and emission factors"],entry_a5:["A5 Site Emissions","Monthly fuel and water consumption"],approvals:["Approval Workflow","Review and approve carbon data"],monthly:["Monthly Report","Monthly emissions breakdown"],cumulative:["Cumulative Report","Running totals and trends"],baselines:["Baseline EFs","Emission factor reference data"],team:["Team Management","Invite and manage project team members"],certifications:["Certifications","Track sustainability certification credits"],integrations:["API Hub","External integrations and data sources"]};
   const[t,d]=titles[page]||["",""];
   $('pageTitle').textContent=t; $('pageDesc').textContent=d;
-  const R={dashboard:renderDashboard,entry_a13:renderEntry,entry_a5:renderA5,approvals:renderApprovals,monthly:renderMonthly,cumulative:renderCumulative,baselines:renderBaselines,certifications:renderCerts,integrations:renderIntegrations};
+  const R={dashboard:renderDashboard,entry_a13:renderEntry,entry_a5:renderA5,approvals:renderApprovals,monthly:renderMonthly,cumulative:renderCumulative,baselines:renderBaselines,team:renderTeam,certifications:renderCerts,integrations:renderIntegrations};
   if(R[page]) R[page]($('pageBody'));
   $('sidebar').classList.remove('open');
 }
@@ -31,6 +32,9 @@ async function init() {
   setTimeout(async () => {
     // Check if server/database is reachable
     await checkDbConnection();
+
+    // Check for invitation token in URL
+    checkInviteToken();
 
     // Try to restore session from stored token
     const token = localStorage.getItem('ct_auth_token');

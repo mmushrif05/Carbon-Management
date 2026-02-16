@@ -1,5 +1,5 @@
 // ===== APPLICATION STATE & UTILITIES =====
-let state = { role:null, name:'', page:'dashboard', entries:[], a5entries:[] };
+let state = { role:null, name:'', page:'dashboard', entries:[], a5entries:[], invitations:[] };
 
 const fmt=v=>(v==null||isNaN(v))?"\u2014":v.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});
 const fmtI=v=>(v==null||isNaN(v))?"\u2014":Math.round(v).toLocaleString();

@@ -48,6 +48,9 @@
 
     <!-- REGISTER FORM -->
     <div id="registerForm" style="display:none">
+      <!-- Invitation info banner (shown when registering via invite link) -->
+      <div id="inviteInfo" style="display:none;margin-bottom:16px"></div>
+
       <div class="login-input">
         <div class="login-label">Full Name</div>
         <input id="regName" placeholder="Enter your full name" autocomplete="name" />
@@ -63,18 +66,9 @@
         <input id="regPassword" type="password" placeholder="Minimum 6 characters" autocomplete="new-password" />
       </div>
 
-      <div class="login-project">
-        <div class="login-label">Project</div>
-        <select id="regProject">
-          <option value="ksia">King Salman International Airport (KSIA)</option>
-        </select>
-      </div>
-
-      <div class="login-label">Select Your Role</div>
-      <div class="role-grid" id="regRoleGrid">
-        <div class="role-btn" onclick="selectRole('contractor',this)"><div class="r-icon">🏗️</div><div class="r-name">Contractor</div><div class="r-desc">Enter actual material data & EPDs</div></div>
-        <div class="role-btn" onclick="selectRole('consultant',this)"><div class="r-icon">📋</div><div class="r-name">Consultant</div><div class="r-desc">Review, approve & set baselines</div></div>
-        <div class="role-btn" onclick="selectRole('client',this)"><div class="r-icon">👔</div><div class="r-name">Client</div><div class="r-desc">Dashboard, approvals & reports</div></div>
+      <div class="invite-notice">
+        <div class="invite-notice-icon">🔒</div>
+        <div class="invite-notice-text">Registration is by invitation only. You need an invitation link from a client or consultant to create an account.</div>
       </div>
 
       <div class="login-error" id="regError"></div>

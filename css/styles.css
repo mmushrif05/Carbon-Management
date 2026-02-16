@@ -182,6 +182,16 @@ td.mono{font-family:'Courier New',monospace;font-size:11px}
 .menu-toggle{display:none;position:fixed;top:16px;left:16px;z-index:200;width:40px;height:40px;background:var(--bg2);border:1px solid var(--border);border-radius:10px;cursor:pointer;font-size:18px;color:var(--green);align-items:center;justify-content:center}
 @media(max-width:768px){.sidebar{transform:translateX(-100%)}.sidebar.open{transform:translateX(0)}.main-content{margin-left:0}.menu-toggle{display:flex}.page-body{padding:16px}.page-header{padding:16px 16px 14px 60px}}
 
+/* INVITATION SYSTEM */
+.invite-banner{display:flex;align-items:center;gap:12px;padding:14px 18px;background:rgba(52,211,153,0.08);border:1.5px solid rgba(52,211,153,0.2);border-radius:12px}
+.invite-banner-icon{font-size:24px}
+.invite-banner-text{font-size:13px;color:var(--text2);line-height:1.5}
+.invite-banner-text strong{color:var(--text)}
+.invite-notice{display:flex;align-items:flex-start;gap:10px;padding:12px 16px;background:rgba(251,191,36,0.06);border:1px solid rgba(251,191,36,0.15);border-radius:10px;margin-bottom:16px}
+.invite-notice-icon{font-size:18px;flex-shrink:0;margin-top:1px}
+.invite-notice-text{font-size:11px;color:var(--slate4);line-height:1.5}
+.invite-form .form-row{margin-bottom:14px}
+
 /* LOADING OVERLAY */
 .loading-overlay{position:fixed;inset:0;background:rgba(11,15,14,0.9);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:9999}
 .loading-spinner{width:40px;height:40px;border:3px solid var(--border);border-top-color:var(--green);border-radius:50%;animation:spin 1s linear infinite}

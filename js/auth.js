@@ -2,6 +2,8 @@
 // All auth operations go through the secure server API.
 // No Firebase SDK or credentials on the client.
 let selectedRegRole = null;
+let currentInviteToken = null;
+let currentInvitation = null;
 
 // Show/hide login vs register forms
 function showRegister() {
@@ -13,13 +15,18 @@ function showLogin() {
   $('registerForm').style.display = 'none';
   $('loginForm').style.display = 'block';
   clearErrors();
+  // Reset invitation state when going back to login
+  currentInviteToken = null;
+  currentInvitation = null;
+  if ($('inviteInfo')) $('inviteInfo').style.display = 'none';
+  if ($('regRoleGrid')) $('regRoleGrid').style.display = 'grid';
 }
 function clearErrors() {
   $('loginError').style.display = 'none';
   $('regError').style.display = 'none';
 }
 
-// Role selection during registration
+// Role selection during registration (only visible when no invite token)
 function selectRole(role, el) {
   selectedRegRole = role;
   document.querySelectorAll('#regRoleGrid .role-btn').forEach(b => b.classList.remove('selected'));
@@ -44,6 +51,56 @@ function showSuccess(elId, msg) {
   el.style.borderColor = 'rgba(52,211,153,0.2)';
   el.style.color = 'var(--green)';
   el.textContent = msg;
+}
+
+// ===== INVITATION HANDLING =====
+// Check URL for invitation token on page load
+function checkInviteToken() {
+  const params = new URLSearchParams(window.location.search);
+  const token = params.get('invite');
+  if (token) {
+    currentInviteToken = token;
+    validateAndShowInvite(token);
+    // Clean URL without reload
+    window.history.replaceState({}, document.title, window.location.pathname);
+  }
+}
+
+async function validateAndShowInvite(token) {
+  try {
+    const data = await DB.validateInviteToken(token);
+    if (data.valid) {
+      currentInvitation = data.invitation;
+      showRegister();
+      // Pre-fill email and lock it
+      $('regEmail').value = data.invitation.email;
+      $('regEmail').readOnly = true;
+      $('regEmail').style.opacity = '0.7';
+      // Hide role selection (role comes from invitation)
+      if ($('regRoleGrid')) $('regRoleGrid').style.display = 'none';
+      if ($('regRoleLabel')) $('regRoleLabel').style.display = 'none';
+      // Show invitation info banner
+      showInviteInfo(data.invitation);
+    }
+  } catch (e) {
+    // Show login with error
+    showLogin();
+    showError('loginError', e.message || 'Invalid invitation link.');
+  }
+}
+
+function showInviteInfo(invitation) {
+  const roleLabels = { contractor: 'Contractor', consultant: 'Consultant', client: 'Client' };
+  const el = $('inviteInfo');
+  if (el) {
+    el.style.display = 'block';
+    el.innerHTML = `<div class="invite-banner">
+      <div class="invite-banner-icon">✉️</div>
+      <div class="invite-banner-text">
+        <strong>${invitation.invitedByName}</strong> invited you as a <strong style="color:var(--green)">${roleLabels[invitation.role] || invitation.role}</strong>
+      </div>
+    </div>`;
+  }
 }
 
 // ===== OFFLINE AUTH (localStorage fallback when server is unavailable) =====
@@ -105,7 +162,7 @@ async function handleLogin() {
   const users = offlineGetUsers();
   const user = users[email];
   if (!user) {
-    showError('loginError', 'No account found with this email. Please register first.');
+    showError('loginError', 'No account found with this email. You need an invitation to register.');
     $('loginBtn').disabled = false;
     $('loginBtn').textContent = 'Sign In';
     return;
@@ -132,19 +189,29 @@ async function handleRegister() {
   if (!email) { showError('regError', 'Please enter your email.'); return; }
   if (!password) { showError('regError', 'Please enter a password.'); return; }
   if (password.length < 6) { showError('regError', 'Password must be at least 6 characters.'); return; }
-  if (!selectedRegRole) { showError('regError', 'Please select a role.'); return; }
+
+  // If no invite token, show error — registration is invite-only
+  if (!currentInviteToken) {
+    showError('regError', 'Registration requires an invitation. Please contact a client or consultant to get an invitation link.');
+    return;
+  }
 
   $('regBtn').disabled = true;
   $('regBtn').textContent = 'Creating account...';
 
-  // Server auth (createUserWithEmailAndPassword)
+  // Server auth with invitation token
   if (dbConnected) {
     try {
-      const project = $('regProject') ? $('regProject').value : 'ksia';
       const res = await fetch(API + '/auth', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'register', name, email, password, role: selectedRegRole, project })
+        body: JSON.stringify({
+          action: 'register',
+          name,
+          email,
+          password,
+          inviteToken: currentInviteToken
+        })
       });
       const data = await res.json();
 
@@ -165,23 +232,16 @@ async function handleRegister() {
       }
     } catch (e) {
       console.error('[AUTH] Server unreachable:', e.message || e);
+      showError('regError', 'Server unreachable. Invitation-based registration requires server connection.');
+      $('regBtn').disabled = false;
+      $('regBtn').textContent = 'Create Account';
+      return;
     }
-  }
-
-  // Offline auth fallback
-  const users = offlineGetUsers();
-  if (users[email]) {
-    showError('regError', 'An account with this email already exists.');
+  } else {
+    showError('regError', 'Server connection required for invitation-based registration.');
     $('regBtn').disabled = false;
     $('regBtn').textContent = 'Create Account';
-    return;
   }
-  const uid = 'offline_' + Date.now();
-  users[email] = { uid, name, email, role: selectedRegRole, passHash: simpleHash(password), createdAt: new Date().toISOString() };
-  offlineSaveUsers(users);
-  localStorage.setItem('ct_user_profile', JSON.stringify({ uid, name, email, role: selectedRegRole }));
-  localStorage.setItem('ct_auth_session', JSON.stringify({ email, uid }));
-  enterApp(name, selectedRegRole);
 }
 
 // Enter the app after authentication
@@ -205,6 +265,7 @@ function logout() {
   localStorage.removeItem('ct_auth_session');
   state.role = null;
   state.name = '';
+  state.invitations = [];
   $('appShell').style.display = 'none';
   $('loginScreen').style.display = 'flex';
   // Reset form fields
@@ -212,6 +273,14 @@ function logout() {
   $('loginPassword').value = '';
   $('loginBtn').disabled = false;
   $('loginBtn').textContent = 'Sign In';
+  // Reset invitation state
+  currentInviteToken = null;
+  currentInvitation = null;
+  $('regEmail').readOnly = false;
+  $('regEmail').style.opacity = '1';
+  if ($('inviteInfo')) $('inviteInfo').style.display = 'none';
+  if ($('regRoleGrid')) $('regRoleGrid').style.display = 'grid';
+  if ($('regRoleLabel')) $('regRoleLabel').style.display = 'block';
   showLogin();
   clearErrors();
 }
