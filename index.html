@@ -43,8 +43,31 @@
 
       <button class="login-btn" id="loginBtn" onclick="handleLogin()">Sign In</button>
 
+      <div class="login-toggle"><a onclick="showForgotPassword()" style="font-size:12px">Forgot password?</a></div>
       <div class="login-toggle"><span style="color:var(--slate5);font-size:11px">🔒 Registration is by invitation only</span></div>
       <div class="login-toggle" style="margin-top:4px"><a onclick="showSetup()" style="font-size:11px;color:var(--slate5);opacity:0.6">First-time setup?</a></div>
+    </div>
+
+    <!-- FORGOT PASSWORD FORM -->
+    <div id="forgotForm" style="display:none">
+      <div class="invite-banner" style="margin-bottom:16px;background:rgba(96,165,250,0.08);border-color:rgba(96,165,250,0.2)">
+        <div class="invite-banner-icon">🔑</div>
+        <div class="invite-banner-text" style="font-size:12px">
+          <strong style="color:var(--blue)">Reset Password</strong><br>
+          <span style="color:var(--slate5)">Enter your email and we'll send you a link to reset your password.</span>
+        </div>
+      </div>
+
+      <div class="login-input">
+        <div class="login-label">Email Address</div>
+        <input id="forgotEmail" type="email" placeholder="Enter your registered email" autocomplete="email" />
+      </div>
+
+      <div class="login-error" id="forgotError"></div>
+
+      <button class="login-btn" id="forgotBtn" onclick="handleForgotPassword()">Send Reset Link</button>
+
+      <div class="login-toggle"><a onclick="showLogin()">Back to Sign In</a></div>
     </div>
 
     <!-- REGISTER FORM -->

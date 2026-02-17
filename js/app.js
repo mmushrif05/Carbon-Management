@@ -107,5 +107,10 @@ document.addEventListener('keydown', function(e) {
         handleRegister();
       }
     }
+    if ($('forgotForm') && $('forgotForm').style.display !== 'none') {
+      if (document.activeElement === $('forgotEmail')) {
+        handleForgotPassword();
+      }
+    }
   }
 });

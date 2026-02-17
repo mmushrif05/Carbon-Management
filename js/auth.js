@@ -19,6 +19,8 @@ function showRegister() {
 function showLogin() {
   $('registerForm').style.display = 'none';
   $('loginForm').style.display = 'block';
+  if ($('forgotForm')) $('forgotForm').style.display = 'none';
+  if ($('setupForm')) $('setupForm').style.display = 'none';
   clearErrors();
   // Reset invitation state when going back to login
   currentInviteToken = null;
@@ -100,6 +102,62 @@ function showInviteInfo(invitation) {
         <strong>${invitation.invitedByName}</strong> invited you as a <strong style="color:var(--green)">${roleLabels[invitation.role] || invitation.role}</strong>
       </div>
     </div>`;
+  }
+}
+
+// ===== FORGOT PASSWORD =====
+function showForgotPassword() {
+  $('loginForm').style.display = 'none';
+  $('registerForm').style.display = 'none';
+  if ($('setupForm')) $('setupForm').style.display = 'none';
+  $('forgotForm').style.display = 'block';
+  clearErrors();
+  if ($('forgotError')) $('forgotError').style.display = 'none';
+}
+
+async function handleForgotPassword() {
+  const errEl = $('forgotError');
+  errEl.style.display = 'none';
+
+  const email = $('forgotEmail').value.trim();
+  if (!email) { showError('forgotError', 'Please enter your email address.'); return; }
+
+  $('forgotBtn').disabled = true;
+  $('forgotBtn').textContent = 'Sending...';
+
+  if (!dbConnected) {
+    showError('forgotError', 'Server connection required. Please check your internet connection.');
+    $('forgotBtn').disabled = false;
+    $('forgotBtn').textContent = 'Send Reset Link';
+    return;
+  }
+
+  try {
+    const res = await fetch(API + '/auth', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'forgot-password', email })
+    });
+    const data = await res.json();
+
+    if (res.ok && data.success) {
+      showSuccess('forgotError', data.message || 'Password reset link sent! Check your email.');
+      $('forgotBtn').textContent = 'Sent!';
+      // Auto-return to login after 3 seconds
+      setTimeout(() => {
+        showLogin();
+        $('forgotBtn').disabled = false;
+        $('forgotBtn').textContent = 'Send Reset Link';
+      }, 3000);
+    } else {
+      showError('forgotError', data.error || 'Failed to send reset link.');
+      $('forgotBtn').disabled = false;
+      $('forgotBtn').textContent = 'Send Reset Link';
+    }
+  } catch (e) {
+    showError('forgotError', 'Unable to reach server. Please try again.');
+    $('forgotBtn').disabled = false;
+    $('forgotBtn').textContent = 'Send Reset Link';
   }
 }
 
