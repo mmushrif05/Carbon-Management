@@ -59,6 +59,93 @@ function authErrorMessage(code) {
 
 // === HANDLERS ===
 
+async function handleForgotPassword(body) {
+  const { email } = body;
+  if (!email || !email.trim()) return respond(400, { error: 'Please enter your email address.' });
+
+  const trimmedEmail = email.trim().toLowerCase();
+  const db = getDb();
+
+  // Check if user exists in our database
+  const usersSnap = await db.ref('users')
+    .orderByChild('email')
+    .equalTo(trimmedEmail)
+    .once('value');
+
+  if (!usersSnap.val()) {
+    // Don't reveal whether email exists — always show success
+    return respond(200, { success: true, message: 'If an account exists with this email, a password reset link has been sent.' });
+  }
+
+  try {
+    const auth = getAuth();
+    const resetLink = await auth.generatePasswordResetLink(trimmedEmail);
+
+    // Try to send branded email via SMTP
+    const sent = await sendResetEmail(trimmedEmail, resetLink);
+    if (!sent) {
+      // Fallback: use Firebase REST API to send default reset email
+      const apiKey = process.env.FIREBASE_API_KEY;
+      await fetch(`${AUTH_API}:sendOobCode?key=${apiKey}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ requestType: 'PASSWORD_RESET', email: trimmedEmail })
+      });
+    }
+
+    console.log('[AUTH] Password reset sent to:', trimmedEmail);
+    return respond(200, { success: true, message: 'Password reset link has been sent to your email.' });
+  } catch (e) {
+    console.error('[AUTH] Forgot password error:', e.message || e);
+    // Don't reveal specifics — always show generic message
+    return respond(200, { success: true, message: 'If an account exists with this email, a password reset link has been sent.' });
+  }
+}
+
+async function sendResetEmail(email, resetLink) {
+  try {
+    const nodemailer = require('nodemailer');
+    const host = process.env.SMTP_HOST;
+    const port = parseInt(process.env.SMTP_PORT || '587');
+    const user = process.env.SMTP_USER;
+    const pass = process.env.SMTP_PASS;
+    if (!host || !user || !pass) return false;
+
+    const transporter = nodemailer.createTransport({
+      host, port, secure: port === 465, auth: { user, pass }
+    });
+
+    const fromEmail = process.env.SMTP_FROM || user;
+
+    await transporter.sendMail({
+      from: `"CarbonTrack Pro" <${fromEmail}>`,
+      to: email,
+      subject: 'Reset Your CarbonTrack Pro Password',
+      text: `Password Reset Request\n\nYou requested a password reset for your CarbonTrack Pro account.\n\nClick the link below to reset your password:\n${resetLink}\n\nIf you did not request this, you can safely ignore this email.\n\nCarbonTrack Pro — KSIA Sustainability Program`,
+      html: `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"></head>
+<body style="margin:0;padding:0;background:#0b0f0e;font-family:'Segoe UI',system-ui,sans-serif">
+<div style="max-width:560px;margin:40px auto;background:#111916;border:1px solid rgba(52,211,153,0.12);border-radius:16px;overflow:hidden">
+<div style="padding:32px 32px 24px;text-align:center;border-bottom:1px solid rgba(52,211,153,0.08)">
+<div style="font-size:36px;margin-bottom:8px">🌍</div>
+<div style="font-size:22px;font-weight:800;color:#ecfdf5;letter-spacing:-0.5px">Carbon<span style="color:#34d399">Track</span> Pro</div>
+<div style="font-size:12px;color:#64748b;margin-top:4px">Construction Embodied Carbon Platform</div></div>
+<div style="padding:32px">
+<h2 style="color:#ecfdf5;font-size:18px;margin:0 0 16px">Password Reset</h2>
+<p style="color:#94a3b8;font-size:14px;line-height:1.6;margin:0 0 24px">You requested a password reset for your CarbonTrack Pro account. Click the button below to set a new password.</p>
+<div style="text-align:center;margin-bottom:24px">
+<a href="${resetLink}" style="display:inline-block;padding:14px 40px;background:linear-gradient(135deg,#047857,#059669);color:#fff;text-decoration:none;border-radius:10px;font-size:14px;font-weight:700;letter-spacing:0.3px">Reset Password</a></div>
+<p style="color:#64748b;font-size:11px;text-align:center;margin:0">If the button doesn't work, copy and paste this link:<br>
+<a href="${resetLink}" style="color:#34d399;word-break:break-all">${resetLink}</a></p></div>
+<div style="padding:20px 32px;border-top:1px solid rgba(52,211,153,0.08);text-align:center">
+<p style="color:#475569;font-size:10px;margin:0">If you did not request this reset, you can safely ignore this email.<br>CarbonTrack Pro v2.0 — KSIA Sustainability Program</p></div></div></body></html>`
+    });
+    return true;
+  } catch (e) {
+    console.warn('[AUTH] SMTP reset email failed, using Firebase fallback:', e.message);
+    return false;
+  }
+}
+
 async function handleRegister(body) {
   const { name, email, password, inviteToken } = body;
 
@@ -229,11 +316,12 @@ exports.handler = async (event) => {
     const { action } = body;
 
     switch (action) {
-      case 'register': return await handleRegister(body);
-      case 'login':    return await handleLogin(body);
-      case 'verify':   return await handleVerify(event);
-      case 'refresh':  return await handleRefresh(body);
-      default:         return respond(400, { error: 'Invalid action' });
+      case 'register':        return await handleRegister(body);
+      case 'login':           return await handleLogin(body);
+      case 'verify':          return await handleVerify(event);
+      case 'refresh':         return await handleRefresh(body);
+      case 'forgot-password': return await handleForgotPassword(body);
+      default:                return respond(400, { error: 'Invalid action' });
     }
   } catch (e) {
     console.error('[AUTH] Server error:', e);
