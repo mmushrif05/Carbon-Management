@@ -49,6 +49,15 @@ async function handleCreate(body, decoded) {
   const project = inviterProfile.project || 'ksia';
   const trimmedEmail = email.trim().toLowerCase();
 
+  // Check if user already registered — one email, one role only
+  const usersSnap = await db.ref('users')
+    .orderByChild('email')
+    .equalTo(trimmedEmail)
+    .once('value');
+  if (usersSnap.val()) {
+    return respond(400, { error: 'A user with this email is already registered. One email can only have one role.' });
+  }
+
   // Check if invitation already exists for this email+project
   const existingSnap = await db.ref('invitations')
     .orderByChild('email')
@@ -57,24 +66,19 @@ async function handleCreate(body, decoded) {
 
   const existing = existingSnap.val();
   if (existing) {
-    const existingInvite = Object.values(existing).find(
-      inv => inv.project === project && (inv.status === 'pending' || inv.status === 'accepted')
-    );
-    if (existingInvite) {
-      if (existingInvite.status === 'accepted') {
-        return respond(400, { error: 'This user has already accepted an invitation.' });
-      }
-      return respond(400, { error: 'An invitation is already pending for this email.' });
-    }
-  }
+    const allInvites = Object.values(existing).filter(inv => inv.project === project);
 
-  // Check if user already registered
-  const usersSnap = await db.ref('users')
-    .orderByChild('email')
-    .equalTo(trimmedEmail)
-    .once('value');
-  if (usersSnap.val()) {
-    return respond(400, { error: 'A user with this email is already registered.' });
+    // Block if there's already an accepted invitation
+    const accepted = allInvites.find(inv => inv.status === 'accepted');
+    if (accepted) {
+      return respond(400, { error: 'This user has already accepted an invitation as ' + accepted.role + '. One email can only have one role.' });
+    }
+
+    // Block if there's already a pending invitation
+    const pending = allInvites.find(inv => inv.status === 'pending');
+    if (pending) {
+      return respond(400, { error: 'An invitation is already pending for this email (as ' + pending.role + '). Revoke it first to send a new one.' });
+    }
   }
 
   // Create invitation
