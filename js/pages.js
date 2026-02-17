@@ -172,7 +172,7 @@ function renderCerts(el){
 function renderTeam(el) {
   const r = state.role;
   const canInvite = r === 'client' || r === 'consultant';
-  const allowedRoles = r === 'consultant' ? ['client', 'consultant', 'contractor'] : r === 'client' ? ['consultant', 'contractor'] : [];
+  const allowedRoles = r === 'consultant' || r === 'client' ? ['client', 'consultant', 'contractor'] : [];
 
   el.innerHTML = `
   ${canInvite ? `
@@ -227,7 +227,7 @@ function renderTeam(el) {
             <td style="color:var(--red)">—</td>
             <td style="color:var(--red)">—</td>
             <td style="color:var(--green)">✓ Final</td>
-            <td style="color:var(--green)">✓ Consultants, Contractors</td>
+            <td style="color:var(--green)">✓ All Roles</td>
             <td style="color:var(--green)">✓ All</td>
           </tr>
           <tr>
@@ -310,12 +310,16 @@ function renderInvitationList(invitations) {
     '<tbody>' + rows + '</tbody></table></div>';
 
   // Attach click handlers via event delegation (more reliable than inline onclick)
-  el.addEventListener('click', function(e) {
-    var btn = e.target.closest('.inv-revoke');
-    if (btn) { revokeInvite(btn.getAttribute('data-id')); return; }
-    btn = e.target.closest('.inv-resend');
-    if (btn) { resendInvite(btn.getAttribute('data-id')); return; }
-  });
+  // Remove previous listener to prevent stacking on list refresh
+  el.removeEventListener('click', handleInvListClick);
+  el.addEventListener('click', handleInvListClick);
+}
+
+function handleInvListClick(e) {
+  var btn = e.target.closest('.inv-revoke');
+  if (btn) { revokeInvite(btn.getAttribute('data-id')); return; }
+  btn = e.target.closest('.inv-resend');
+  if (btn) { resendInvite(btn.getAttribute('data-id')); return; }
 }
 
 async function sendInvitation() {
