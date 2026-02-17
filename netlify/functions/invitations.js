@@ -9,7 +9,7 @@ const INVITER_ROLES = ['client', 'consultant'];
 // Role hierarchy: who can invite whom
 // Consultant-centric: consultants have full invitation permissions
 const INVITE_PERMISSIONS = {
-  client: ['consultant', 'contractor'],
+  client: ['client', 'consultant', 'contractor'],
   consultant: ['client', 'consultant', 'contractor']
 };
 
