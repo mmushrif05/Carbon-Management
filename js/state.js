@@ -12,7 +12,7 @@ async function loadAllData() {
   state.tenderScenarios = await DB.getTenderScenarios();
 
   // Setup real-time listeners
-  DB.onEntriesChange(data => { state.entries = data; if (state.page) navigate(state.page); });
+  DB.onEntriesChange(data => { state.entries = data; if (state.page === 'dashboard' || state.page === 'entry_a13' || state.page === 'approvals' || state.page === 'monthly' || state.page === 'cumulative') navigate(state.page); });
   DB.onA5Change(data => { state.a5entries = data; if (state.page === 'entry_a5' || state.page === 'dashboard') navigate(state.page); });
   DB.onTenderChange(data => { state.tenderScenarios = data; if (state.page === 'tender_entry' || state.page === 'tender_compare') navigate(state.page); });
 }
