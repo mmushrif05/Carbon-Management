@@ -38,8 +38,16 @@ async function init() {
     // Check if server/database is reachable
     await checkDbConnection();
 
-    // Check for invitation token in URL
-    checkInviteToken();
+    // Check for invitation token in URL — must await so register form is ready
+    const hasInvite = await checkInviteToken();
+
+    // If invite link was clicked, skip session restore and show login/register screen
+    if (hasInvite) {
+      await loadAllData();
+      $('loadingOverlay').style.display = 'none';
+      $('loginScreen').style.display = 'flex';
+      return;
+    }
 
     // Try to restore session from stored token (SERVER VERIFIED ONLY)
     const token = localStorage.getItem('ct_auth_token');

@@ -54,15 +54,19 @@ function showSuccess(elId, msg) {
 
 // ===== INVITATION HANDLING =====
 // Check URL for invitation token on page load
-function checkInviteToken() {
+// Returns true if an invite token was found (so init can skip session restore)
+async function checkInviteToken() {
   const params = new URLSearchParams(window.location.search);
   const token = params.get('invite');
   if (token) {
     currentInviteToken = token;
-    validateAndShowInvite(token);
     // Clean URL without reload
     window.history.replaceState({}, document.title, window.location.pathname);
+    // Await validation so the register form is ready before init continues
+    await validateAndShowInvite(token);
+    return true;
   }
+  return false;
 }
 
 async function validateAndShowInvite(token) {
