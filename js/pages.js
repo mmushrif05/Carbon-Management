@@ -275,32 +275,47 @@ function renderInvitationList(invitations) {
     return;
   }
 
-  const statusBadge = (s) => {
-    const map = {
-      pending: 'pending',
-      accepted: 'approved',
-      revoked: 'rejected',
-      expired: 'rejected'
-    };
-    return `<span class="badge ${map[s] || 'pending'}">${s}</span>`;
+  const statusBadge = function(s) {
+    const map = { pending: 'pending', accepted: 'approved', revoked: 'rejected', expired: 'rejected' };
+    return '<span class="badge ' + (map[s] || 'pending') + '">' + s + '</span>';
   };
 
-  el.innerHTML = `<div class="tbl-wrap"><table>
-    <thead><tr><th>Email</th><th>Role</th><th>Status</th><th>Invited By</th><th>Sent</th><th>Expires</th><th>Actions</th></tr></thead>
-    <tbody>${invitations.map(inv => {
-      const expired = new Date(inv.expiresAt) < new Date() && inv.status === 'pending';
-      const status = expired ? 'expired' : inv.status;
-      return `<tr>
-        <td style="font-weight:600">${inv.email}</td>
-        <td><span class="badge ${inv.role === 'contractor' ? 'review' : inv.role === 'consultant' ? 'approved' : 'pending'}" style="text-transform:capitalize">${inv.role}</span></td>
-        <td>${statusBadge(status)}</td>
-        <td>${inv.invitedByName || '—'}</td>
-        <td style="color:var(--slate5);font-size:11px">${new Date(inv.createdAt).toLocaleDateString()}</td>
-        <td style="color:${expired ? 'var(--red)' : 'var(--slate5)'};font-size:11px">${new Date(inv.expiresAt).toLocaleDateString()}</td>
-        <td>${status === 'pending' ? `<button class="btn btn-secondary btn-sm" onclick="resendInvite('${inv.id}')">↻ Resend</button> <button class="btn btn-danger btn-sm" onclick="revokeInvite('${inv.id}')">✕ Revoke</button>` : status === 'accepted' ? '<span style="color:var(--green);font-size:11px">✓ Joined</span>' : '—'}</td>
-      </tr>`;
-    }).join('')}</tbody>
-  </table></div>`;
+  var rows = '';
+  for (var i = 0; i < invitations.length; i++) {
+    var inv = invitations[i];
+    var expired = new Date(inv.expiresAt) < new Date() && inv.status === 'pending';
+    var status = expired ? 'expired' : inv.status;
+    var roleBadge = inv.role === 'contractor' ? 'review' : inv.role === 'consultant' ? 'approved' : 'pending';
+    var actions = '';
+    if (status === 'pending') {
+      actions = '<button class="btn btn-secondary btn-sm inv-resend" data-id="' + inv.id + '">↻ Resend</button> <button class="btn btn-danger btn-sm inv-revoke" data-id="' + inv.id + '">✕ Revoke</button>';
+    } else if (status === 'accepted') {
+      actions = '<span style="color:var(--green);font-size:11px">✓ Joined</span>';
+    } else {
+      actions = '—';
+    }
+    rows += '<tr>' +
+      '<td style="font-weight:600">' + inv.email + '</td>' +
+      '<td><span class="badge ' + roleBadge + '" style="text-transform:capitalize">' + inv.role + '</span></td>' +
+      '<td>' + statusBadge(status) + '</td>' +
+      '<td>' + (inv.invitedByName || '—') + '</td>' +
+      '<td style="color:var(--slate5);font-size:11px">' + new Date(inv.createdAt).toLocaleDateString() + '</td>' +
+      '<td style="color:' + (expired ? 'var(--red)' : 'var(--slate5)') + ';font-size:11px">' + new Date(inv.expiresAt).toLocaleDateString() + '</td>' +
+      '<td style="white-space:nowrap">' + actions + '</td>' +
+      '</tr>';
+  }
+
+  el.innerHTML = '<div class="tbl-wrap"><table>' +
+    '<thead><tr><th>Email</th><th>Role</th><th>Status</th><th>Invited By</th><th>Sent</th><th>Expires</th><th>Actions</th></tr></thead>' +
+    '<tbody>' + rows + '</tbody></table></div>';
+
+  // Attach click handlers via event delegation (more reliable than inline onclick)
+  el.addEventListener('click', function(e) {
+    var btn = e.target.closest('.inv-revoke');
+    if (btn) { revokeInvite(btn.getAttribute('data-id')); return; }
+    btn = e.target.closest('.inv-resend');
+    if (btn) { resendInvite(btn.getAttribute('data-id')); return; }
+  });
 }
 
 async function sendInvitation() {
