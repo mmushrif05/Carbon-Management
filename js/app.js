@@ -5,6 +5,7 @@ function buildSidebar() {
   const review=state.entries.filter(e=>e.status==='review').length;
   let items=[{section:"Main"},{id:'dashboard',icon:'\ud83d\udcca',label:'Dashboard'}];
   if(r==='contractor'||r==='consultant'){items.push({section:"Data Entry"},{id:'entry_a13',icon:'\ud83e\uddf1',label:'A1-A3 Materials'},{id:'entry_a5',icon:'\u26a1',label:'A5 Site Emissions'});}
+  items.push({section:"Tender"},{id:'tender_entry',icon:'\ud83d\udccb',label:'Tender Quantities'},{id:'tender_compare',icon:'\ud83d\udcca',label:'Compare Scenarios'});
   items.push({section:"Workflow"},{id:'approvals',icon:'\u2705',label:'Approvals',badge:r==='consultant'?pending:(r==='client'?review:0)});
   items.push({section:"Reports"},{id:'monthly',icon:'\ud83d\udcc5',label:'Monthly Report'},{id:'cumulative',icon:'\ud83d\udcc8',label:'Cumulative'});
   if(r==='consultant'||r==='client'){items.push({section:"Config"},{id:'baselines',icon:'\u2699\ufe0f',label:'Baseline EFs'});}
@@ -19,10 +20,10 @@ function buildSidebar() {
 // ===== NAV =====
 function navigate(page) {
   state.page = page; buildSidebar();
-  const titles={dashboard:["Dashboard","Project carbon performance & sustainability metrics"],entry_a13:["A1-A3 Material Entry","Enter material quantities and emission factors"],entry_a5:["A5 Site Emissions","Monthly fuel and water consumption"],approvals:["Approval Workflow","Review and approve carbon data"],monthly:["Monthly Report","Monthly emissions breakdown"],cumulative:["Cumulative Report","Running totals and trends"],baselines:["Baseline EFs","Emission factor reference data"],team:["Team Management","Invite and manage project team members"],certifications:["Certifications","Track sustainability certification credits"],integrations:["API Hub","External integrations and data sources"]};
+  const titles={dashboard:["Dashboard","Project carbon performance & sustainability metrics"],entry_a13:["A1-A3 Material Entry","Enter material quantities and emission factors"],entry_a5:["A5 Site Emissions","Monthly fuel and water consumption"],approvals:["Approval Workflow","Review and approve carbon data"],monthly:["Monthly Report","Monthly emissions breakdown"],cumulative:["Cumulative Report","Running totals and trends"],baselines:["Baseline EFs","Emission factor reference data"],team:["Team Management","Invite and manage project team members"],certifications:["Certifications","Track sustainability certification credits"],integrations:["API Hub","External integrations and data sources"],tender_entry:["Tender Quantities","Create and manage tender emission scenarios from BOQ quantities"],tender_compare:["Compare Scenarios","Side-by-side comparison of tender emission projections"]};
   const[t,d]=titles[page]||["",""];
   $('pageTitle').textContent=t; $('pageDesc').textContent=d;
-  const R={dashboard:renderDashboard,entry_a13:renderEntry,entry_a5:renderA5,approvals:renderApprovals,monthly:renderMonthly,cumulative:renderCumulative,baselines:renderBaselines,team:renderTeam,certifications:renderCerts,integrations:renderIntegrations};
+  const R={dashboard:renderDashboard,entry_a13:renderEntry,entry_a5:renderA5,approvals:renderApprovals,monthly:renderMonthly,cumulative:renderCumulative,baselines:renderBaselines,team:renderTeam,certifications:renderCerts,integrations:renderIntegrations,tender_entry:renderTenderEntry,tender_compare:renderTenderCompare};
   if(R[page]) R[page]($('pageBody'));
   $('sidebar').classList.remove('open');
 }

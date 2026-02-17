@@ -174,6 +174,64 @@ const DB = {
     return data;
   },
 
+  // === TENDER SCENARIOS ===
+  async getTenderScenarios() {
+    if (dbConnected) {
+      try {
+        const res = await apiCall('/tender');
+        if (res.ok) {
+          const data = await res.json();
+          localStorage.setItem('ct_tender', JSON.stringify(data.scenarios || []));
+          return data.scenarios || [];
+        }
+      } catch (e) { console.warn('API error (getTenderScenarios):', e); }
+    }
+    return JSON.parse(localStorage.getItem('ct_tender') || '[]');
+  },
+
+  async saveTenderScenario(scenario) {
+    if (dbConnected) {
+      try {
+        await apiCall('/tender', {
+          method: 'POST',
+          body: JSON.stringify({ action: 'save', scenario })
+        });
+      } catch (e) { console.warn('API error (saveTenderScenario):', e); }
+    }
+    const scenarios = JSON.parse(localStorage.getItem('ct_tender') || '[]');
+    const idx = scenarios.findIndex(s => s.id === scenario.id);
+    if (idx !== -1) scenarios[idx] = scenario; else scenarios.push(scenario);
+    localStorage.setItem('ct_tender', JSON.stringify(scenarios));
+  },
+
+  async updateTenderScenario(id, updates) {
+    if (dbConnected) {
+      try {
+        await apiCall('/tender', {
+          method: 'POST',
+          body: JSON.stringify({ action: 'update', id, updates })
+        });
+      } catch (e) { console.warn('API error (updateTenderScenario):', e); }
+    }
+    const scenarios = JSON.parse(localStorage.getItem('ct_tender') || '[]');
+    const idx = scenarios.findIndex(s => s.id === id);
+    if (idx !== -1) { Object.assign(scenarios[idx], updates); localStorage.setItem('ct_tender', JSON.stringify(scenarios)); }
+  },
+
+  async deleteTenderScenario(id) {
+    if (dbConnected) {
+      try {
+        await apiCall('/tender', {
+          method: 'POST',
+          body: JSON.stringify({ action: 'delete', id })
+        });
+      } catch (e) { console.warn('API error (deleteTenderScenario):', e); }
+    }
+    let scenarios = JSON.parse(localStorage.getItem('ct_tender') || '[]');
+    scenarios = scenarios.filter(s => s.id !== id);
+    localStorage.setItem('ct_tender', JSON.stringify(scenarios));
+  },
+
   // Poll for updates from other users (replaces Firebase real-time listeners)
   onEntriesChange(callback) {
     if (dbConnected) {
@@ -197,6 +255,20 @@ const DB = {
           if (res.ok) {
             const data = await res.json();
             callback(data.entries || []);
+          }
+        } catch (e) {}
+      }, 30000);
+    }
+  },
+
+  onTenderChange(callback) {
+    if (dbConnected) {
+      setInterval(async () => {
+        try {
+          const res = await apiCall('/tender');
+          if (res.ok) {
+            const data = await res.json();
+            callback(data.scenarios || []);
           }
         } catch (e) {}
       }, 30000);
