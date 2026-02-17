@@ -125,7 +125,11 @@ async function handleList(decoded) {
     .once('value');
 
   const data = snap.val() || {};
-  const invitations = Object.values(data)
+
+  // Use Object.entries to get Firebase keys — old invitations may not have an 'id' field
+  // or their 'id' may not match the Firebase path key, which is what revoke/resend use
+  const invitations = Object.entries(data)
+    .map(([key, inv]) => ({ ...inv, id: key }))
     .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
   // Don't send tokens to client for security
