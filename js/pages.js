@@ -122,10 +122,11 @@ async function dA5(id){await DB.deleteA5Entry(id);state.a5entries=state.a5entrie
 // ===== APPROVALS =====
 function renderApprovals(el){
   const r=state.role;
-  const items=r==='consultant'?state.entries.filter(e=>e.status==='pending'):r==='client'?state.entries.filter(e=>e.status==='review'):state.entries;
+  // Consultant sees both pending (to forward/approve) and review (to approve) items
+  const items=r==='consultant'?state.entries.filter(e=>e.status==='pending'||e.status==='review'):r==='client'?state.entries.filter(e=>e.status==='review'):state.entries;
   el.innerHTML=`<div class="card"><div class="card-title">Workflow</div>
-  <div class="flow-steps"><div class="flow-step"><div class="flow-dot done">\ud83c\udfd7\ufe0f</div><div class="flow-label">Contractor</div></div><div class="flow-line done"></div><div class="flow-step"><div class="flow-dot ${r==='consultant'?'current':'done'}">\ud83d\udccb</div><div class="flow-label">Consultant</div></div><div class="flow-line ${r==='client'?'done':''}"></div><div class="flow-step"><div class="flow-dot ${r==='client'?'current':''}">\ud83d\udc54</div><div class="flow-label">Client</div></div></div></div>
-  <div class="card"><div class="card-title">${items.length} Items</div><div class="tbl-wrap"><table><thead><tr><th>Month</th><th>Material</th><th>Type</th><th>By</th><th class="r">Baseline</th><th class="r">Actual</th><th class="r">Reduction</th><th>Status</th>${r!=='contractor'?'<th>Actions</th>':''}</tr></thead><tbody>${items.length?items.map(e=>`<tr><td>${e.monthLabel}</td><td>${e.category}</td><td>${e.type}</td><td>${e.submittedBy||'\u2014'}</td><td class="r mono">${fmt(e.a13B)}</td><td class="r mono">${fmt(e.a13A)}</td><td class="r mono" style="color:${e.pct>20?'var(--green)':'var(--orange)'};font-weight:700">${fmt(e.pct)}%</td><td><span class="badge ${e.status}">${e.status}</span></td>${r==='consultant'?`<td><button class="btn btn-approve btn-sm" onclick="appr(${e.id},'review')">\u2713 Forward</button> <button class="btn btn-danger btn-sm" onclick="appr(${e.id},'rejected')">\u2715</button></td>`:''}${r==='client'?`<td><button class="btn btn-approve btn-sm" onclick="appr(${e.id},'approved')">\u2713 Approve</button> <button class="btn btn-danger btn-sm" onclick="appr(${e.id},'rejected')">\u2715</button></td>`:''}</tr>`).join(''):'<tr><td colspan="9" class="empty">No pending items</td></tr>'}</tbody></table></div></div>`;
+  <div class="flow-steps"><div class="flow-step"><div class="flow-dot done">\ud83c\udfd7\ufe0f</div><div class="flow-label">Contractor</div></div><div class="flow-line done"></div><div class="flow-step"><div class="flow-dot ${r==='consultant'?'current':'done'}">\ud83d\udccb</div><div class="flow-label">Consultant</div></div><div class="flow-line ${r==='client'||r==='consultant'?'done':''}"></div><div class="flow-step"><div class="flow-dot ${r==='client'?'current':(r==='consultant'?'done':'')}">\ud83d\udc54</div><div class="flow-label">Client</div></div></div></div>
+  <div class="card"><div class="card-title">${items.length} Items</div><div class="tbl-wrap"><table><thead><tr><th>Month</th><th>Material</th><th>Type</th><th>By</th><th class="r">Baseline</th><th class="r">Actual</th><th class="r">Reduction</th><th>Status</th>${r!=='contractor'?'<th>Actions</th>':''}</tr></thead><tbody>${items.length?items.map(e=>`<tr><td>${e.monthLabel}</td><td>${e.category}</td><td>${e.type}</td><td>${e.submittedBy||'\u2014'}</td><td class="r mono">${fmt(e.a13B)}</td><td class="r mono">${fmt(e.a13A)}</td><td class="r mono" style="color:${e.pct>20?'var(--green)':'var(--orange)'};font-weight:700">${fmt(e.pct)}%</td><td><span class="badge ${e.status}">${e.status}</span></td>${r==='consultant'?`<td>${e.status==='pending'?`<button class="btn btn-approve btn-sm" onclick="appr(${e.id},'review')">\u2713 Forward</button> `:''}${e.status==='pending'||e.status==='review'?`<button class="btn btn-primary btn-sm" onclick="appr(${e.id},'approved')">\u2713 Approve</button> `:''}<button class="btn btn-danger btn-sm" onclick="appr(${e.id},'rejected')">\u2715 Reject</button></td>`:''}${r==='client'?`<td><button class="btn btn-approve btn-sm" onclick="appr(${e.id},'approved')">\u2713 Approve</button> <button class="btn btn-danger btn-sm" onclick="appr(${e.id},'rejected')">\u2715 Reject</button></td>`:''}</tr>`).join(''):'<tr><td colspan="9" class="empty">No pending items</td></tr>'}</tbody></table></div></div>`;
 }
 async function appr(id,s){await DB.updateEntry(id,{status:s,[state.role+'At']:new Date().toISOString(),[state.role+'By']:state.name});const e=state.entries.find(x=>x.id===id);if(e)e.status=s;buildSidebar();navigate('approvals');}
 
@@ -171,7 +172,7 @@ function renderCerts(el){
 function renderTeam(el) {
   const r = state.role;
   const canInvite = r === 'client' || r === 'consultant';
-  const allowedRoles = r === 'client' ? ['consultant', 'contractor'] : r === 'consultant' ? ['contractor'] : [];
+  const allowedRoles = r === 'consultant' ? ['client', 'consultant', 'contractor'] : r === 'client' ? ['consultant', 'contractor'] : [];
 
   el.innerHTML = `
   ${canInvite ? `
@@ -233,8 +234,8 @@ function renderTeam(el) {
             <td><span class="badge" style="background:rgba(52,211,153,0.1);color:var(--green);border:1px solid rgba(52,211,153,0.2)">Consultant</span></td>
             <td style="color:var(--green)">✓</td>
             <td style="color:var(--green)">✓ Forward/Reject</td>
-            <td style="color:var(--red)">—</td>
-            <td style="color:var(--green)">✓ Contractors</td>
+            <td style="color:var(--green)">✓ Full</td>
+            <td style="color:var(--green)">✓ All Roles</td>
             <td style="color:var(--green)">✓ All</td>
           </tr>
           <tr>
