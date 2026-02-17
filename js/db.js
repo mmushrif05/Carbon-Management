@@ -174,6 +174,105 @@ const DB = {
     return data;
   },
 
+  // === SUBMISSIONS ===
+  async getSubmissions() {
+    if (dbConnected) {
+      try {
+        const res = await apiCall('/submissions', {
+          method: 'POST',
+          body: JSON.stringify({ action: 'list' })
+        });
+        if (res.ok) {
+          const data = await res.json();
+          return data.submissions || [];
+        }
+      } catch (e) { console.warn('API error (getSubmissions):', e); }
+    }
+    return [];
+  },
+
+  async submitPackage(month) {
+    if (!dbConnected) throw new Error('Server connection required.');
+    const res = await apiCall('/submissions', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'submit', month })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to submit package.');
+    return data;
+  },
+
+  async reviewSubmission(submissionId, reviewAction, lineItemReviews) {
+    if (!dbConnected) throw new Error('Server connection required.');
+    const res = await apiCall('/submissions', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'review', submissionId, reviewAction, lineItemReviews })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to review submission.');
+    return data;
+  },
+
+  async resubmitPackage(submissionId) {
+    if (!dbConnected) throw new Error('Server connection required.');
+    const res = await apiCall('/submissions', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'resubmit', submissionId })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to resubmit package.');
+    return data;
+  },
+
+  async getSubmission(submissionId) {
+    if (!dbConnected) throw new Error('Server connection required.');
+    const res = await apiCall('/submissions', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'get', submissionId })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to load submission.');
+    return data;
+  },
+
+  async editEntry(entry) {
+    if (!dbConnected) throw new Error('Server connection required.');
+    const res = await apiCall('/entries', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'edit', entry })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to edit entry.');
+    return data;
+  },
+
+  async sendSubmissionNotification(submissionId, type) {
+    if (!dbConnected) return;
+    try {
+      await apiCall('/send-email', {
+        method: 'POST',
+        body: JSON.stringify({ action: 'submission-notify', submissionId, type })
+      });
+    } catch (e) { console.warn('Email notification failed:', e); }
+  },
+
+  onSubmissionsChange(callback) {
+    if (dbConnected) {
+      setInterval(async () => {
+        try {
+          const res = await apiCall('/submissions', {
+            method: 'POST',
+            body: JSON.stringify({ action: 'list' })
+          });
+          if (res.ok) {
+            const data = await res.json();
+            callback(data.submissions || []);
+          }
+        } catch (e) {}
+      }, 30000);
+    }
+  },
+
   // === TENDER SCENARIOS ===
   async getTenderScenarios() {
     if (dbConnected) {

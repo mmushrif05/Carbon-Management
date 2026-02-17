@@ -283,6 +283,8 @@ async function handleRegister() {
 
 // Enter the app after authentication
 function enterApp(name, role) {
+  const profile = JSON.parse(localStorage.getItem('ct_user_profile') || '{}');
+  state.uid = profile.uid || '';
   state.role = role;
   state.name = name;
   $('loginScreen').style.display = 'none';

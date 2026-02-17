@@ -9,6 +9,7 @@ function renderDashboard(el) {
   const mArr=Object.entries(mMap).sort((a,b)=>a[0].localeCompare(b[0]));
   const cols={Concrete:'var(--slate4)',Steel:'var(--blue)',Asphalt:'var(--orange)',Aluminum:'var(--purple)',Glass:'var(--cyan)',Pipes:'var(--yellow)',Earthwork:'#a3e635'};
 
+  const subs=state.submissions;
   el.innerHTML=`
   <div class="stats-row">
     <div class="stat-card slate"><div class="sc-label">A1-A3 Baseline</div><div class="sc-value">${fmt(tB)}</div><div class="sc-sub">ton CO\u2082eq</div></div>
@@ -22,11 +23,11 @@ function renderDashboard(el) {
     <div class="card"><div class="card-title">Monthly Trend</div>${mArr.length?`<div class="bar-chart" id="dc"></div><div class="chart-legend"><span><span class="chart-legend-dot" style="background:rgba(148,163,184,0.4)"></span> Baseline</span><span><span class="chart-legend-dot" style="background:rgba(96,165,250,0.5)"></span> Actual</span></div>`:'<div class="empty"><div class="empty-icon">\ud83d\udcca</div>Add entries to see trends</div>'}</div>
     <div class="card"><div class="card-title">By Material</div>${Object.keys(matB).length?`<div class="donut-wrap"><svg class="donut-svg" viewBox="0 0 140 140" id="dn"></svg><div class="donut-legend" id="dl"></div></div>`:'<div class="empty"><div class="empty-icon">\ud83e\uddf1</div>No data yet</div>'}</div>
   </div>
-  <div class="card"><div class="card-title">Approvals</div><div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;text-align:center">
-    <div><div style="font-size:24px;font-weight:800;color:var(--yellow)">${d.filter(e=>e.status==='pending').length}</div><div style="font-size:10px;color:var(--slate5)">Pending</div></div>
-    <div><div style="font-size:24px;font-weight:800;color:var(--blue)">${d.filter(e=>e.status==='review').length}</div><div style="font-size:10px;color:var(--slate5)">Review</div></div>
-    <div><div style="font-size:24px;font-weight:800;color:var(--green)">${d.filter(e=>e.status==='approved').length}</div><div style="font-size:10px;color:var(--slate5)">Approved</div></div>
-    <div><div style="font-size:24px;font-weight:800;color:var(--red)">${d.filter(e=>e.status==='rejected').length}</div><div style="font-size:10px;color:var(--slate5)">Rejected</div></div>
+  <div class="card"><div class="card-title">Monthly Packages</div><div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;text-align:center">
+    <div><div style="font-size:24px;font-weight:800;color:var(--yellow)">${d.filter(e=>e.status==='draft').length}</div><div style="font-size:10px;color:var(--slate5)">Draft</div></div>
+    <div><div style="font-size:24px;font-weight:800;color:var(--blue)">${subs.filter(s=>s.status==='submitted').length}</div><div style="font-size:10px;color:var(--slate5)">Submitted</div></div>
+    <div><div style="font-size:24px;font-weight:800;color:var(--orange)">${subs.filter(s=>s.status==='returned').length}</div><div style="font-size:10px;color:var(--slate5)">Returned</div></div>
+    <div><div style="font-size:24px;font-weight:800;color:var(--green)">${subs.filter(s=>s.status==='approved').length}</div><div style="font-size:10px;color:var(--slate5)">Approved</div></div>
   </div></div>`;
 
   if(mArr.length){const mx=Math.max(...mArr.map(([k,v])=>Math.max(v.b,v.a)),1);$('dc').innerHTML=mArr.map(([k,v])=>`<div class="bar-group"><div class="bar-pair"><div class="bar baseline" style="height:${(v.b/mx)*170}px"></div><div class="bar actual" style="height:${(v.a/mx)*170}px"></div></div><div class="bar-label">${v.l}</div></div>`).join('');}
@@ -82,18 +83,18 @@ async function submitEntry(){
     road:rd,sea:se,train:tr,a13B:b,a13A:ac,a4,a14:ac+a4,pct:b>0?((b-ac)/b)*100:0,
     year:yr,month:mo,monthKey:yr+'-'+mo,monthLabel:MONTHS[parseInt(mo)-1]+' '+yr,
     district:$('eD').value,contract:$('eC').value,notes:$('eN').value,
-    status:'pending',submittedBy:state.name,role:state.role,submittedAt:new Date().toISOString()};
+    status:'draft',submittedBy:state.name,role:state.role,createdByUid:state.uid,submittedAt:new Date().toISOString()};
 
   await DB.saveEntry(entry);
   state.entries.push(entry);
   buildSidebar(); renderRecent();
-  $('ePrev').innerHTML='<div style="padding:12px;background:rgba(52,211,153,0.1);border-radius:10px;color:var(--green);text-align:center;font-weight:600">\u2705 Entry submitted'+(dbConnected?' & synced to cloud':'')+'</div>';
+  $('ePrev').innerHTML='<div style="padding:12px;background:rgba(52,211,153,0.1);border-radius:10px;color:var(--green);text-align:center;font-weight:600">\u2705 Entry saved as draft'+(dbConnected?' & synced to cloud':'')+'. Go to Monthly Packages to submit.</div>';
 }
 
 function renderRecent(){
   const t=$('reTbl');if(!t)return;
   const r=[...state.entries].reverse().slice(0,15);
-  t.innerHTML=r.length?r.map(e=>`<tr><td>${e.monthLabel}</td><td>${e.category}</td><td>${e.type}</td><td class="r mono">${fmtI(e.qty)}</td><td class="r mono">${fmt(e.a13B)}</td><td class="r mono">${fmt(e.a13A)}</td><td class="r mono">${fmt(e.a4)}</td><td class="r mono" style="font-weight:700">${fmt(e.a14)}</td><td><span class="badge ${e.status}">${e.status}</span></td><td>${e.status==='pending'?`<button class="btn btn-danger btn-sm" onclick="delEntry(${e.id})">\u2715</button>`:''}</td></tr>`).join(''):'<tr><td colspan="10" class="empty">No entries</td></tr>';
+  t.innerHTML=r.length?r.map(e=>`<tr><td>${e.monthLabel}</td><td>${e.category}</td><td>${e.type}</td><td class="r mono">${fmtI(e.qty)}</td><td class="r mono">${fmt(e.a13B)}</td><td class="r mono">${fmt(e.a13A)}</td><td class="r mono">${fmt(e.a4)}</td><td class="r mono" style="font-weight:700">${fmt(e.a14)}</td><td><span class="badge ${e.status==='needs_fix'?'rejected':e.status}">${e.status}</span></td><td>${e.status==='draft'?`<button class="btn btn-danger btn-sm" onclick="delEntry(${e.id})">\u2715</button>`:''}</td></tr>`).join(''):'<tr><td colspan="10" class="empty">No entries</td></tr>';
 }
 
 async function delEntry(id){await DB.deleteEntry(id);state.entries=state.entries.filter(e=>e.id!==id);navigate(state.page);}
@@ -119,16 +120,405 @@ async function subA5(){const s=getA5S(),q=parseFloat($('a5Q').value);if(isNaN(q)
 function rA5(){const t=$('a5B');if(!t)return;const a=[...state.a5entries].reverse();t.innerHTML=a.length?a.map(e=>`<tr><td>${e.monthLabel}</td><td>${e.source}</td><td class="r mono">${fmtI(e.qty)}</td><td>${e.unit}</td><td class="r mono" style="font-weight:700">${fmt(e.emission)}</td><td><button class="btn btn-danger btn-sm" onclick="dA5(${e.id})">\u2715</button></td></tr>`).join(''):'<tr><td colspan="6" class="empty">No entries</td></tr>';}
 async function dA5(id){await DB.deleteA5Entry(id);state.a5entries=state.a5entries.filter(e=>e.id!==id);rA5();}
 
-// ===== APPROVALS =====
-function renderApprovals(el){
-  const r=state.role;
-  // Consultant sees both pending (to forward/approve) and review (to approve) items
-  const items=r==='consultant'?state.entries.filter(e=>e.status==='pending'||e.status==='review'):r==='client'?state.entries.filter(e=>e.status==='review'):state.entries;
-  el.innerHTML=`<div class="card"><div class="card-title">Workflow</div>
-  <div class="flow-steps"><div class="flow-step"><div class="flow-dot done">\ud83c\udfd7\ufe0f</div><div class="flow-label">Contractor</div></div><div class="flow-line done"></div><div class="flow-step"><div class="flow-dot ${r==='consultant'?'current':'done'}">\ud83d\udccb</div><div class="flow-label">Consultant</div></div><div class="flow-line ${r==='client'||r==='consultant'?'done':''}"></div><div class="flow-step"><div class="flow-dot ${r==='client'?'current':(r==='consultant'?'done':'')}">\ud83d\udc54</div><div class="flow-label">Client</div></div></div></div>
-  <div class="card"><div class="card-title">${items.length} Items</div><div class="tbl-wrap"><table><thead><tr><th>Month</th><th>Material</th><th>Type</th><th>By</th><th class="r">Baseline</th><th class="r">Actual</th><th class="r">Reduction</th><th>Status</th>${r!=='contractor'?'<th>Actions</th>':''}</tr></thead><tbody>${items.length?items.map(e=>`<tr><td>${e.monthLabel}</td><td>${e.category}</td><td>${e.type}</td><td>${e.submittedBy||'\u2014'}</td><td class="r mono">${fmt(e.a13B)}</td><td class="r mono">${fmt(e.a13A)}</td><td class="r mono" style="color:${e.pct>20?'var(--green)':'var(--orange)'};font-weight:700">${fmt(e.pct)}%</td><td><span class="badge ${e.status}">${e.status}</span></td>${r==='consultant'?`<td>${e.status==='pending'?`<button class="btn btn-approve btn-sm" onclick="appr(${e.id},'review')">\u2713 Forward</button> `:''}${e.status==='pending'||e.status==='review'?`<button class="btn btn-primary btn-sm" onclick="appr(${e.id},'approved')">\u2713 Approve</button> `:''}<button class="btn btn-danger btn-sm" onclick="appr(${e.id},'rejected')">\u2715 Reject</button></td>`:''}${r==='client'?`<td><button class="btn btn-approve btn-sm" onclick="appr(${e.id},'approved')">\u2713 Approve</button> <button class="btn btn-danger btn-sm" onclick="appr(${e.id},'rejected')">\u2715 Reject</button></td>`:''}</tr>`).join(''):'<tr><td colspan="9" class="empty">No pending items</td></tr>'}</tbody></table></div></div>`;
+// ===== MONTHLY PACKAGES (APPROVALS) =====
+let _expandedSub = null; // currently expanded submission ID
+let _expandedEntries = []; // entries for expanded submission
+
+function renderApprovals(el) {
+  const r = state.role;
+  if (r === 'contractor') renderContractorPackages(el);
+  else renderReviewerPackages(el);
 }
-async function appr(id,s){await DB.updateEntry(id,{status:s,[state.role+'At']:new Date().toISOString(),[state.role+'By']:state.name});const e=state.entries.find(x=>x.id===id);if(e)e.status=s;buildSidebar();navigate('approvals');}
+
+// --- CONTRACTOR VIEW ---
+function renderContractorPackages(el) {
+  // Group draft entries by month
+  const drafts = state.entries.filter(e => e.status === 'draft');
+  const byMonth = {};
+  drafts.forEach(e => {
+    if (!byMonth[e.monthKey]) byMonth[e.monthKey] = { label: e.monthLabel, items: [], b: 0, a: 0, a4: 0, t: 0 };
+    const g = byMonth[e.monthKey];
+    g.items.push(e); g.b += e.a13B || 0; g.a += e.a13A || 0; g.a4 += e.a4 || 0; g.t += e.a14 || 0;
+  });
+  const months = Object.entries(byMonth).sort((a, b) => b[0].localeCompare(a[0]));
+
+  const subs = state.submissions;
+  const returned = subs.filter(s => s.status === 'returned');
+  const submitted = subs.filter(s => s.status === 'submitted');
+  const approved = subs.filter(s => s.status === 'approved');
+
+  let h = `<div class="card"><div class="card-title">Workflow</div>
+  <div class="flow-steps"><div class="flow-step"><div class="flow-dot current">\ud83c\udfd7\ufe0f</div><div class="flow-label">Contractor</div></div><div class="flow-line"></div><div class="flow-step"><div class="flow-dot">\ud83d\udccb</div><div class="flow-label">Consultant</div></div><div class="flow-line"></div><div class="flow-step"><div class="flow-dot">\ud83d\udc54</div><div class="flow-label">Client</div></div></div></div>`;
+
+  // Draft entries ready for submission
+  if (months.length) {
+    h += `<div class="card"><div class="card-title">\ud83d\udcdd Draft Entries</div>`;
+    months.forEach(([mk, g]) => {
+      const pct = g.b > 0 ? ((g.b - g.a) / g.b) * 100 : 0;
+      h += `<div style="border:1px solid var(--border);border-radius:10px;padding:16px;margin-bottom:12px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+          <div><strong style="color:var(--text1)">${g.label}</strong> <span style="color:var(--slate5);font-size:12px">${g.items.length} item(s)</span></div>
+          <button class="btn btn-primary btn-sm" onclick="submitMonthlyPackage('${mk}',this)">\ud83d\udce6 Submit Monthly Package</button>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px;font-size:11px;text-align:center">
+          <div><div style="color:var(--slate5)">Baseline</div><div class="mono" style="font-weight:700">${fmt(g.b)}</div></div>
+          <div><div style="color:var(--slate5)">Actual</div><div class="mono" style="font-weight:700;color:var(--blue)">${fmt(g.a)}</div></div>
+          <div><div style="color:var(--slate5)">A4</div><div class="mono" style="font-weight:700">${fmt(g.a4)}</div></div>
+          <div><div style="color:var(--slate5)">Reduction</div><div class="mono" style="font-weight:700;color:${pct > 20 ? 'var(--green)' : 'var(--orange)'}">${fmt(pct)}%</div></div>
+        </div>
+        <div class="tbl-wrap"><table><thead><tr><th>Material</th><th>Type</th><th class="r">Qty</th><th class="r">Baseline</th><th class="r">Actual</th><th class="r">Total</th></tr></thead><tbody>
+        ${g.items.map(e => `<tr><td>${e.category}</td><td>${e.type}</td><td class="r mono">${fmtI(e.qty)}</td><td class="r mono">${fmt(e.a13B)}</td><td class="r mono">${fmt(e.a13A)}</td><td class="r mono" style="font-weight:700">${fmt(e.a14)}</td></tr>`).join('')}
+        </tbody></table></div></div>`;
+    });
+    h += `</div>`;
+  } else {
+    h += `<div class="card"><div class="card-title">\ud83d\udcdd Draft Entries</div><div class="empty"><div class="empty-icon">\ud83d\udce6</div>No draft entries. Add materials in A1-A3 entry page, then submit here.</div></div>`;
+  }
+
+  // Returned packages needing correction
+  if (returned.length) {
+    h += `<div class="card"><div class="card-title" style="color:var(--orange)">\ud83d\udd04 Returned for Correction</div>`;
+    returned.forEach(s => {
+      const flagged = s.lineItemReviews ? Object.values(s.lineItemReviews).filter(r => r.status === 'needs_fix').length : 0;
+      h += `<div style="border:1px solid rgba(251,191,36,0.3);border-radius:10px;padding:16px;margin-bottom:12px;background:rgba(251,191,36,0.03)">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+          <div><strong style="color:var(--text1)">${s.monthLabel}</strong> <span class="badge rejected">returned</span> <span style="color:var(--orange);font-size:11px">${flagged} item(s) flagged</span></div>
+          <div><button class="btn btn-secondary btn-sm" onclick="expandSubmission('${s.id}',this)">\u25bc Details</button> <button class="btn btn-primary btn-sm" onclick="resubmitPackage('${s.id}',this)">\ud83d\udce6 Resubmit</button></div>
+        </div>
+        <div style="font-size:11px;color:var(--slate5)">Returned by ${s.reviewedByName || '\u2014'} on ${s.returnedAt ? new Date(s.returnedAt).toLocaleDateString() : '\u2014'}</div>
+        <div id="subDetail_${s.id}"></div>
+      </div>`;
+    });
+    h += `</div>`;
+  }
+
+  // Submitted packages (waiting for review)
+  if (submitted.length) {
+    h += `<div class="card"><div class="card-title">\u23f3 Awaiting Review</div>`;
+    submitted.forEach(s => {
+      h += `<div style="border:1px solid var(--border);border-radius:10px;padding:16px;margin-bottom:12px">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div><strong style="color:var(--text1)">${s.monthLabel}</strong> <span class="badge review">submitted</span> <span style="color:var(--slate5);font-size:11px">${s.itemCount} items \u2022 ${fmt(s.totalA14)} tCO\u2082eq</span></div>
+          <div style="font-size:11px;color:var(--slate5)">Submitted ${new Date(s.submittedAt).toLocaleDateString()}</div>
+        </div>
+      </div>`;
+    });
+    h += `</div>`;
+  }
+
+  // Approved
+  if (approved.length) {
+    h += `<div class="card"><div class="card-title">\u2705 Approved</div>`;
+    approved.forEach(s => {
+      h += `<div style="border:1px solid rgba(52,211,153,0.2);border-radius:10px;padding:16px;margin-bottom:12px;background:rgba(52,211,153,0.03)">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div><strong style="color:var(--text1)">${s.monthLabel}</strong> <span class="badge approved">approved</span> <span style="color:var(--slate5);font-size:11px">${s.itemCount} items \u2022 ${fmt(s.totalA14)} tCO\u2082eq</span></div>
+          <div style="font-size:11px;color:var(--green)">Approved by ${s.reviewedByName || '\u2014'} on ${s.approvedAt ? new Date(s.approvedAt).toLocaleDateString() : '\u2014'}</div>
+        </div>
+      </div>`;
+    });
+    h += `</div>`;
+  }
+
+  el.innerHTML = h;
+}
+
+// --- REVIEWER VIEW (Consultant/Client) ---
+function renderReviewerPackages(el) {
+  const r = state.role;
+  const subs = state.submissions;
+  const submitted = subs.filter(s => s.status === 'submitted');
+  const returned = subs.filter(s => s.status === 'returned');
+  const approved = subs.filter(s => s.status === 'approved');
+
+  let h = `<div class="card"><div class="card-title">Workflow</div>
+  <div class="flow-steps"><div class="flow-step"><div class="flow-dot done">\ud83c\udfd7\ufe0f</div><div class="flow-label">Contractor</div></div><div class="flow-line done"></div><div class="flow-step"><div class="flow-dot ${r === 'consultant' ? 'current' : 'done'}">\ud83d\udccb</div><div class="flow-label">Consultant</div></div><div class="flow-line ${r === 'client' ? 'done' : ''}"></div><div class="flow-step"><div class="flow-dot ${r === 'client' ? 'current' : ''}">\ud83d\udc54</div><div class="flow-label">Client</div></div></div></div>`;
+
+  // Packages pending review
+  if (submitted.length) {
+    h += `<div class="card"><div class="card-title">\ud83d\udccb Pending Review (${submitted.length})</div>`;
+    submitted.forEach(s => {
+      const pct = s.totalA13B > 0 ? ((s.totalA13B - s.totalA13A) / s.totalA13B) * 100 : 0;
+      h += `<div style="border:1px solid var(--border);border-radius:10px;padding:16px;margin-bottom:12px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+          <div><strong style="color:var(--text1)">${s.monthLabel}</strong> by <strong style="color:var(--green)">${s.createdByName}</strong> <span style="color:var(--slate5);font-size:11px">\u2022 ${s.itemCount} items</span></div>
+          <button class="btn btn-primary btn-sm" onclick="expandReview('${s.id}',this)">\ud83d\udd0d Review Package</button>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;font-size:11px;text-align:center">
+          <div><div style="color:var(--slate5)">Baseline</div><div class="mono" style="font-weight:700">${fmt(s.totalA13B)}</div></div>
+          <div><div style="color:var(--slate5)">Actual</div><div class="mono" style="font-weight:700;color:var(--blue)">${fmt(s.totalA13A)}</div></div>
+          <div><div style="color:var(--slate5)">A4</div><div class="mono" style="font-weight:700">${fmt(s.totalA4)}</div></div>
+          <div><div style="color:var(--slate5)">Reduction</div><div class="mono" style="font-weight:700;color:${pct > 20 ? 'var(--green)' : 'var(--orange)'}">${fmt(pct)}%</div></div>
+        </div>
+        <div id="reviewDetail_${s.id}"></div>
+      </div>`;
+    });
+    h += `</div>`;
+  } else {
+    h += `<div class="card"><div class="card-title">\ud83d\udccb Pending Review</div><div class="empty"><div class="empty-icon">\u2705</div>No packages awaiting review.</div></div>`;
+  }
+
+  // Returned
+  if (returned.length) {
+    h += `<div class="card"><div class="card-title" style="color:var(--orange)">\ud83d\udd04 Returned (${returned.length})</div>`;
+    returned.forEach(s => {
+      const flagged = s.lineItemReviews ? Object.values(s.lineItemReviews).filter(r => r.status === 'needs_fix').length : 0;
+      h += `<div style="border:1px solid rgba(251,191,36,0.2);border-radius:10px;padding:12px;margin-bottom:8px">
+        <strong>${s.monthLabel}</strong> by ${s.createdByName} \u2014 <span style="color:var(--orange)">${flagged} flagged</span>
+        <span style="color:var(--slate5);font-size:11px;float:right">${s.returnedAt ? new Date(s.returnedAt).toLocaleDateString() : ''}</span>
+      </div>`;
+    });
+    h += `</div>`;
+  }
+
+  // Approved
+  if (approved.length) {
+    h += `<div class="card"><div class="card-title">\u2705 Approved (${approved.length})</div>`;
+    approved.forEach(s => {
+      h += `<div style="border:1px solid rgba(52,211,153,0.2);border-radius:10px;padding:12px;margin-bottom:8px;background:rgba(52,211,153,0.03)">
+        <strong>${s.monthLabel}</strong> by ${s.createdByName} \u2014 <span style="color:var(--green)">${s.itemCount} items \u2022 ${fmt(s.totalA14)} tCO\u2082eq</span>
+        <span style="color:var(--slate5);font-size:11px;float:right">${s.approvedAt ? new Date(s.approvedAt).toLocaleDateString() : ''}</span>
+      </div>`;
+    });
+    h += `</div>`;
+  }
+
+  el.innerHTML = h;
+}
+
+// --- SUBMIT MONTHLY PACKAGE ---
+async function submitMonthlyPackage(monthKey, btn) {
+  if (!confirm('Submit all draft entries for this month as a package? They will be locked for review.')) return;
+  btn.disabled = true; btn.textContent = 'Submitting...';
+  try {
+    const result = await DB.submitPackage(monthKey);
+    // Update local state
+    state.entries.forEach(e => {
+      if (e.monthKey === monthKey && e.status === 'draft' && e.createdByUid === state.uid) {
+        e.status = 'submitted'; e.submissionId = result.submission.id; e.locked = true;
+      }
+    });
+    state.submissions.push(result.submission);
+    buildSidebar();
+    // Send notification (fire and forget)
+    DB.sendSubmissionNotification(result.submission.id, 'submitted');
+    navigate('approvals');
+  } catch (e) {
+    alert(e.message || 'Failed to submit package.');
+    btn.disabled = false; btn.textContent = '\ud83d\udce6 Submit Monthly Package';
+  }
+}
+
+// --- RESUBMIT PACKAGE ---
+async function resubmitPackage(subId, btn) {
+  if (!confirm('Resubmit this package for review?')) return;
+  btn.disabled = true; btn.textContent = 'Resubmitting...';
+  try {
+    await DB.resubmitPackage(subId);
+    // Refresh data
+    state.submissions = await DB.getSubmissions();
+    state.entries = await DB.getEntries();
+    buildSidebar();
+    DB.sendSubmissionNotification(subId, 'submitted');
+    navigate('approvals');
+  } catch (e) {
+    alert(e.message || 'Failed to resubmit.');
+    btn.disabled = false; btn.textContent = '\ud83d\udce6 Resubmit';
+  }
+}
+
+// --- EXPAND SUBMISSION DETAILS (Contractor — returned packages) ---
+async function expandSubmission(subId, btn) {
+  const el = $('subDetail_' + subId);
+  if (!el) return;
+  if (el.innerHTML) { el.innerHTML = ''; btn.textContent = '\u25bc Details'; return; }
+  btn.textContent = 'Loading...';
+  try {
+    const data = await DB.getSubmission(subId);
+    const sub = data.submission;
+    const entries = data.entries;
+    const reviews = sub.lineItemReviews || {};
+
+    let rows = '';
+    entries.forEach(e => {
+      const rev = reviews[e.id];
+      const flagged = rev && rev.status === 'needs_fix';
+      const rowStyle = flagged ? 'background:rgba(251,191,36,0.06);' : '';
+      rows += `<tr style="${rowStyle}">
+        <td>${e.category}</td><td>${e.type}</td><td class="r mono">${fmtI(e.qty)}</td>
+        <td class="r mono">${fmt(e.a13B)}</td><td class="r mono">${fmt(e.a13A)}</td><td class="r mono">${fmt(e.a14)}</td>
+        <td>${flagged ? '<span class="badge rejected">needs fix</span>' : '<span class="badge approved">ok</span>'}</td>
+        <td>${flagged ? `<span style="color:var(--orange);font-size:11px">${rev.reason}</span>` : ''}</td>
+        <td>${flagged ? `<button class="btn btn-secondary btn-sm" onclick="editFlaggedEntry(${e.id},'${subId}')">Edit</button>` : ''}</td>
+      </tr>`;
+    });
+
+    el.innerHTML = `<div style="margin-top:12px"><div class="tbl-wrap"><table>
+      <thead><tr><th>Material</th><th>Type</th><th class="r">Qty</th><th class="r">Baseline</th><th class="r">Actual</th><th class="r">Total</th><th>Status</th><th>Reason</th><th></th></tr></thead>
+      <tbody>${rows}</tbody></table></div></div>`;
+    btn.textContent = '\u25b2 Hide';
+  } catch (e) {
+    el.innerHTML = `<div style="color:var(--red);padding:8px;font-size:12px">${e.message || 'Failed to load details.'}</div>`;
+    btn.textContent = '\u25bc Details';
+  }
+}
+
+// --- EDIT FLAGGED ENTRY (Contractor correction) ---
+async function editFlaggedEntry(entryId, subId) {
+  const entry = state.entries.find(e => e.id === entryId);
+  if (!entry) { alert('Entry not found.'); return; }
+
+  const m = MATERIALS[entry.category];
+  if (!m) { alert('Unknown material category.'); return; }
+
+  const newQty = prompt('Quantity (' + m.unit + '):', entry.qty);
+  if (newQty === null) return;
+  const q = parseFloat(newQty);
+  if (isNaN(q) || q <= 0) { alert('Invalid quantity.'); return; }
+
+  const newActual = prompt('Actual GWP/EPD (' + m.efUnit + '):', entry.actual);
+  if (newActual === null) return;
+  const a = parseFloat(newActual);
+  if (isNaN(a) || a <= 0) { alert('Invalid actual GWP.'); return; }
+
+  const rd = parseFloat(prompt('Road km:', entry.road || 0)) || 0;
+  const se = parseFloat(prompt('Sea km:', entry.sea || 0)) || 0;
+  const tr = parseFloat(prompt('Train km:', entry.train || 0)) || 0;
+  const notes = prompt('Notes:', entry.notes || '') || '';
+
+  // Recalculate
+  const mass = q * m.massFactor;
+  const b = (q * entry.baseline) / 1000;
+  const ac = (q * a) / 1000;
+  const a4 = (mass * rd * TEF.road + mass * se * TEF.sea + mass * tr * TEF.train) / 1000;
+
+  const updated = { ...entry, qty: q, actual: a, road: rd, sea: se, train: tr, notes: notes,
+    a13B: b, a13A: ac, a4: a4, a14: ac + a4, pct: b > 0 ? ((b - ac) / b) * 100 : 0 };
+
+  try {
+    await DB.editEntry(updated);
+    // Update local state
+    const idx = state.entries.findIndex(e => e.id === entryId);
+    if (idx !== -1) Object.assign(state.entries[idx], updated);
+    alert('Entry updated. You can now resubmit the package.');
+    // Refresh the expanded detail view
+    const detailEl = $('subDetail_' + subId);
+    if (detailEl) { detailEl.innerHTML = ''; expandSubmission(subId, detailEl.parentElement.querySelector('.btn-secondary')); }
+  } catch (e) {
+    alert(e.message || 'Failed to save edit.');
+  }
+}
+
+// --- EXPAND REVIEW (Reviewer — line item review form) ---
+async function expandReview(subId, btn) {
+  const el = $('reviewDetail_' + subId);
+  if (!el) return;
+  if (el.innerHTML) { el.innerHTML = ''; btn.textContent = '\ud83d\udd0d Review Package'; return; }
+  btn.textContent = 'Loading...';
+  try {
+    const data = await DB.getSubmission(subId);
+    _expandedSub = subId;
+    _expandedEntries = data.entries;
+
+    let rows = '';
+    data.entries.forEach(e => {
+      rows += `<tr>
+        <td>${e.category}</td><td>${e.type}</td><td class="r mono">${fmtI(e.qty)}</td>
+        <td class="r mono">${fmt(e.a13B)}</td><td class="r mono">${fmt(e.a13A)}</td><td class="r mono">${fmt(e.a14)}</td>
+        <td class="r mono" style="color:${e.pct > 20 ? 'var(--green)' : 'var(--orange)'}">${fmt(e.pct)}%</td>
+        <td>${e.notes || '\u2014'}</td>
+        <td><input type="checkbox" class="rev-check" data-id="${e.id}" onchange="toggleReviewReason(this)"></td>
+        <td><input type="text" class="rev-reason" data-id="${e.id}" placeholder="Reason..." style="width:100%;display:none;padding:4px 8px;border:1px solid var(--border);border-radius:6px;background:var(--bg3);color:var(--text1);font-size:11px"></td>
+      </tr>`;
+    });
+
+    el.innerHTML = `<div style="margin-top:16px">
+      <div class="tbl-wrap"><table>
+        <thead><tr><th>Material</th><th>Type</th><th class="r">Qty</th><th class="r">Baseline</th><th class="r">Actual</th><th class="r">Total</th><th class="r">Red%</th><th>Notes</th><th style="width:30px">Flag</th><th>Reason</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table></div>
+      <div class="btn-row" style="margin-top:12px">
+        <button class="btn btn-approve" onclick="approveSubmission('${subId}',this)">\u2713 Approve Package</button>
+        <button class="btn btn-danger" onclick="returnSubmission('${subId}',this)">\u2715 Return with Feedback</button>
+      </div>
+    </div>`;
+    btn.textContent = '\u25b2 Close';
+  } catch (e) {
+    el.innerHTML = `<div style="color:var(--red);padding:8px;font-size:12px">${e.message || 'Failed to load.'}</div>`;
+    btn.textContent = '\ud83d\udd0d Review Package';
+  }
+}
+
+function toggleReviewReason(cb) {
+  const id = cb.getAttribute('data-id');
+  const reason = cb.closest('tr').querySelector('.rev-reason[data-id="' + id + '"]');
+  if (reason) reason.style.display = cb.checked ? 'block' : 'none';
+}
+
+// --- APPROVE SUBMISSION ---
+async function approveSubmission(subId, btn) {
+  if (!confirm('Approve this entire monthly package?')) return;
+  btn.disabled = true; btn.textContent = 'Approving...';
+  try {
+    await DB.reviewSubmission(subId, 'approve', null);
+    state.submissions = await DB.getSubmissions();
+    state.entries = await DB.getEntries();
+    buildSidebar();
+    DB.sendSubmissionNotification(subId, 'approved');
+    navigate('approvals');
+  } catch (e) {
+    alert(e.message || 'Failed to approve.');
+    btn.disabled = false; btn.textContent = '\u2713 Approve Package';
+  }
+}
+
+// --- RETURN SUBMISSION ---
+async function returnSubmission(subId, btn) {
+  // Collect line item reviews
+  const el = $('reviewDetail_' + subId);
+  if (!el) return;
+
+  const checks = el.querySelectorAll('.rev-check');
+  const lineItemReviews = {};
+  let flaggedCount = 0;
+
+  checks.forEach(cb => {
+    const id = cb.getAttribute('data-id');
+    if (cb.checked) {
+      const reasonEl = el.querySelector('.rev-reason[data-id="' + id + '"]');
+      const reason = reasonEl ? reasonEl.value.trim() : '';
+      if (!reason) { alert('Please provide a reason for each flagged item.'); return; }
+      lineItemReviews[id] = { status: 'needs_fix', reason: reason };
+      flaggedCount++;
+    } else {
+      lineItemReviews[id] = { status: 'ok' };
+    }
+  });
+
+  if (flaggedCount === 0) { alert('Flag at least one item as needs_fix before returning.'); return; }
+
+  // Validate all flagged have reasons
+  for (const [id, rev] of Object.entries(lineItemReviews)) {
+    if (rev.status === 'needs_fix' && (!rev.reason || !rev.reason.trim())) {
+      alert('Please provide a reason for all flagged items.');
+      return;
+    }
+  }
+
+  if (!confirm('Return this package with ' + flaggedCount + ' flagged item(s)?')) return;
+  btn.disabled = true; btn.textContent = 'Returning...';
+  try {
+    await DB.reviewSubmission(subId, 'return', lineItemReviews);
+    state.submissions = await DB.getSubmissions();
+    state.entries = await DB.getEntries();
+    buildSidebar();
+    DB.sendSubmissionNotification(subId, 'returned');
+    navigate('approvals');
+  } catch (e) {
+    alert(e.message || 'Failed to return submission.');
+    btn.disabled = false; btn.textContent = '\u2715 Return with Feedback';
+  }
+}
 
 // ===== MONTHLY =====
 function renderMonthly(el){
