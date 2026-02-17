@@ -118,18 +118,16 @@ async function handleList(decoded) {
   const db = getDb();
   const project = inviterProfile.project || 'ksia';
 
-  // Get all invitations for this project
-  const snap = await db.ref('invitations')
-    .orderByChild('project')
-    .equalTo(project)
-    .once('value');
-
+  // Fetch all invitations and filter in code — old invitations may lack a 'project' field
+  // and Firebase queries skip entries missing the indexed field entirely
+  const snap = await db.ref('invitations').once('value');
   const data = snap.val() || {};
 
   // Use Object.entries to get Firebase keys — old invitations may not have an 'id' field
   // or their 'id' may not match the Firebase path key, which is what revoke/resend use
   const invitations = Object.entries(data)
     .map(([key, inv]) => ({ ...inv, id: key }))
+    .filter(inv => !inv.project || inv.project === project)
     .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
   // Don't send tokens to client for security

@@ -287,7 +287,7 @@ function renderInvitationList(invitations) {
     var status = expired ? 'expired' : inv.status;
     var roleBadge = inv.role === 'contractor' ? 'review' : inv.role === 'consultant' ? 'approved' : 'pending';
     var actions = '';
-    if (status === 'pending') {
+    if (status === 'pending' || status === 'expired') {
       actions = '<button class="btn btn-secondary btn-sm inv-resend" data-id="' + inv.id + '">↻ Resend</button> <button class="btn btn-danger btn-sm inv-revoke" data-id="' + inv.id + '">✕ Revoke</button>';
     } else if (status === 'accepted') {
       actions = '<span style="color:var(--green);font-size:11px">✓ Joined</span>';
@@ -300,7 +300,7 @@ function renderInvitationList(invitations) {
       '<td>' + statusBadge(status) + '</td>' +
       '<td>' + (inv.invitedByName || '—') + '</td>' +
       '<td style="color:var(--slate5);font-size:11px">' + new Date(inv.createdAt).toLocaleDateString() + '</td>' +
-      '<td style="color:' + (expired ? 'var(--red)' : 'var(--slate5)') + ';font-size:11px">' + new Date(inv.expiresAt).toLocaleDateString() + '</td>' +
+      '<td style="color:' + (expired ? 'var(--red)' : 'var(--slate5)') + ';font-size:11px">' + (inv.expiresAt ? new Date(inv.expiresAt).toLocaleDateString() : '—') + '</td>' +
       '<td style="white-space:nowrap">' + actions + '</td>' +
       '</tr>';
   }
