@@ -18,7 +18,7 @@ function renderTenderEntry(el) {
       <button class="btn btn-secondary" onclick="startTenderBOQUpload()">📂 Upload BOQ (Excel/CSV)</button>
     </div>
     <div style="padding:10px 14px;background:rgba(96,165,250,0.06);border:1px solid rgba(96,165,250,0.15);border-radius:10px;margin-bottom:16px;font-size:12px;color:var(--slate4);line-height:1.7">
-      <strong style="color:var(--blue)">💡 Quick Start:</strong> Upload an Excel or CSV Bill of Quantities to auto-create a tender scenario from your BOQ. Materials are automatically matched to the <strong>ICE Database v3.0</strong> (${Object.keys(MATERIALS).length} categories, ${Object.values(MATERIALS).reduce((n,m)=>n+m.types.length,0)}+ types). MEP items below 80% coverage get A1-A3 = 0.
+      <strong style="color:var(--blue)">💡 Quick Start:</strong> Upload an Excel or CSV Bill of Quantities to auto-create a tender scenario from your BOQ. Materials are automatically matched to the <strong>ICE Database v3.0</strong> (${Object.keys(ICE_MATERIALS).length} categories, ${Object.values(ICE_MATERIALS).reduce((n,m)=>n+m.types.length,0)}+ types). MEP items below 80% coverage get A1-A3 = 0.
     </div>
     ${scenarios.length ? `<div class="tbl-wrap"><table>
       <thead><tr><th>Scenario</th><th>Description</th><th class="r">Items</th><th class="r">Baseline (tCO\u2082)</th><th class="r">Target (tCO\u2082)</th><th class="r">Reduction</th><th>Status</th><th>Created By</th><th></th></tr></thead>
@@ -200,7 +200,7 @@ function renderTenderForm(el) {
     <div class="form-row c4">
       <div class="fg"><label>Category</label><select id="tiCat" onchange="onTenderCat()">
         <option value="">Select...</option>
-        ${(function(){const g=getMaterialGroups();return Object.entries(g).map(([grp,cats])=>'<optgroup label="'+grp+'">'+cats.map(c=>'<option value="'+c+'">'+c+'</option>').join('')+'</optgroup>').join('');})()}
+        ${Object.keys(MATERIALS).map(c => `<option>${c}</option>`).join('')}
         <option value="__custom__">Custom Material</option>
       </select></div>
       <div class="fg" id="tiTypeWrap"><label>Type</label><select id="tiType" onchange="onTenderType()"><option>Select category first</option></select></div>
@@ -309,12 +309,7 @@ function onTenderCat() {
     return;
   }
 
-  const m = MATERIALS[c];
-  $('tiType').innerHTML = '<option value="">Select...</option>' + m.types.map((t, i) => {
-    const cov = t.coveragePct;
-    const tag = (m.isMEP && cov !== undefined && cov < MEP_COVERAGE_THRESHOLD) ? ' [A1-A3=0, Cov: ' + cov + '%]' : '';
-    return '<option value="' + i + '">' + t.name + tag + '</option>';
-  }).join('');
+  $('tiType').innerHTML = '<option value="">Select...</option>' + MATERIALS[c].types.map((t, i) => `<option value="${i}">${t.name}</option>`).join('');
   $('tiUnit').textContent = 'Unit: ' + MATERIALS[c].unit;
   $('tiUnitCustom').value = MATERIALS[c].unit;
   $('tiBL').value = '';
@@ -333,21 +328,12 @@ function onTenderType() {
   const c = $('tiCat').value;
   const i = $('tiType').value;
   if (!c || i === '' || !MATERIALS[c]) return;
-  const m = MATERIALS[c];
-  const t = m.types[i];
+  const t = MATERIALS[c].types[i];
   if (!t) return;
-  const belowThreshold = m.isMEP && t.coveragePct !== undefined && t.coveragePct < MEP_COVERAGE_THRESHOLD;
-  if (belowThreshold) {
-    $('tiBL').value = 0;
-    $('tiTG').value = 0;
-    $('tiBLHelp').textContent = 'A1-A3 = 0 — Complex MEP assembly (Coverage: ' + t.coveragePct + '%)';
-    $('tiTGHelp').textContent = 'A1-A3 = 0 — Below 80% data coverage threshold';
-  } else {
-    $('tiBL').value = t.baseline;
-    $('tiTG').value = t.target;
-    $('tiBLHelp').textContent = t.baseline + ' ' + m.efUnit + ' (from database)' + (t.coveragePct ? ' [' + t.coveragePct + '% coverage]' : '');
-    $('tiTGHelp').textContent = t.target + ' ' + m.efUnit + ' (from database)';
-  }
+  $('tiBL').value = t.baseline;
+  $('tiTG').value = t.target;
+  $('tiBLHelp').textContent = t.baseline + ' ' + MATERIALS[c].efUnit + ' (from database)';
+  $('tiTGHelp').textContent = t.target + ' ' + MATERIALS[c].efUnit + ' (from database)';
   tenderItemPreview();
 }
 
@@ -851,7 +837,7 @@ function escAttrT(s) { return String(s).replace(/"/g, '&quot;').replace(/</g, '&
 
 function editTenderBOQRow(idx) {
   var r = _tenderBOQMatched[idx];
-  var groups = getMaterialGroups();
+  var groups = getICEGroups();
 
   var catOptions = '<option value="">Select category...</option>';
   Object.entries(groups).forEach(function(entry) {
@@ -863,9 +849,9 @@ function editTenderBOQRow(idx) {
   });
 
   var typeOptions = '<option value="">Select type...</option>';
-  if (r.category && MATERIALS[r.category]) {
-    MATERIALS[r.category].types.forEach(function(t, i) {
-      var covTag = (MATERIALS[r.category].isMEP && t.coveragePct !== undefined && t.coveragePct < MEP_COVERAGE_THRESHOLD) ? ' [A1-A3=0]' : '';
+  if (r.category && ICE_MATERIALS[r.category]) {
+    ICE_MATERIALS[r.category].types.forEach(function(t, i) {
+      var covTag = (ICE_MATERIALS[r.category].isMEP && t.coveragePct !== undefined && t.coveragePct < ICE_COVERAGE_THRESHOLD) ? ' [A1-A3=0]' : '';
       typeOptions += '<option value="' + i + '"' + (t.name === r.typeName ? ' selected' : '') + '>' + t.name + covTag + '</option>';
     });
   }
@@ -898,10 +884,10 @@ function onTBOQEditCat() {
   var cat = $('tBOQEditCat').value;
   var typeSel = $('tBOQEditType');
   typeSel.innerHTML = '<option value="">Select type...</option>';
-  if (cat && MATERIALS[cat]) {
-    MATERIALS[cat].types.forEach(function(t, i) {
-      var m = MATERIALS[cat];
-      var covTag = (m.isMEP && t.coveragePct !== undefined && t.coveragePct < MEP_COVERAGE_THRESHOLD) ? ' [A1-A3=0]' : '';
+  if (cat && ICE_MATERIALS[cat]) {
+    ICE_MATERIALS[cat].types.forEach(function(t, i) {
+      var m = ICE_MATERIALS[cat];
+      var covTag = (m.isMEP && t.coveragePct !== undefined && t.coveragePct < ICE_COVERAGE_THRESHOLD) ? ' [A1-A3=0]' : '';
       typeSel.innerHTML += '<option value="' + i + '">' + t.name + covTag + '</option>';
     });
   }
@@ -919,10 +905,10 @@ function saveTenderBOQEdit(idx) {
   r.unit = unit || r.unit;
   r.notes = notes;
 
-  if (cat && MATERIALS[cat] && !isNaN(typeIdx) && typeIdx >= 0) {
-    var m = MATERIALS[cat];
+  if (cat && ICE_MATERIALS[cat] && !isNaN(typeIdx) && typeIdx >= 0) {
+    var m = ICE_MATERIALS[cat];
     var t = m.types[typeIdx];
-    var belowThreshold = m.isMEP && t.coveragePct !== undefined && t.coveragePct < MEP_COVERAGE_THRESHOLD;
+    var belowThreshold = m.isMEP && t.coveragePct !== undefined && t.coveragePct < ICE_COVERAGE_THRESHOLD;
     r.category = cat;
     r.typeName = t.name;
     r.typeIdx = typeIdx;
@@ -967,7 +953,7 @@ function _addBOQItemsToTender(rows) {
   var count = 0;
   for (var i = 0; i < rows.length; i++) {
     var r = rows[i];
-    var m = r.mat || MATERIALS[r.category];
+    var m = r.mat || ICE_MATERIALS[r.category];
     var bl = r.belowThreshold ? 0 : r.baseline;
     var tg = r.belowThreshold ? 0 : r.target;
     var blEm = (r.qty * bl) / 1000;
