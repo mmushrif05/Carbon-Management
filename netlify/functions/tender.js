@@ -26,6 +26,9 @@ async function handleSave(event, body) {
 
   const { scenario } = body;
   if (!scenario || !scenario.id) return respond(400, { error: 'Invalid scenario data' });
+  if (typeof scenario.id !== 'string' || /[\/\.\$\#\[\]]/.test(scenario.id)) {
+    return respond(400, { error: 'Invalid scenario ID format.' });
+  }
   if (!scenario.name) return respond(400, { error: 'Scenario name is required' });
 
   try {
@@ -46,6 +49,9 @@ async function handleUpdate(event, body) {
 
   const { id, updates } = body;
   if (!id || !updates) return respond(400, { error: 'ID and updates required' });
+  if (typeof id !== 'string' || /[\/\.\$\#\[\]]/.test(id)) {
+    return respond(400, { error: 'Invalid scenario ID format.' });
+  }
 
   const allowedFields = ['name', 'description', 'status', 'items', 'totalBaseline', 'totalTarget', 'reductionPct', 'updatedAt'];
   const safeUpdates = {};

@@ -1,5 +1,62 @@
 const { getDb, verifyToken, getUserProjectId, respond, optionsResponse } = require('./utils/firebase');
 
+// ===== EMISSION FACTOR DATA (server-side copy for validation) =====
+const MATERIALS = {
+  Concrete:{unit:"m³",massFactor:2400,types:{
+    "C15-20":{baseline:323,target:220},"C20-30":{baseline:354,target:301},"C30-40":{baseline:431,target:340},
+    "C40-50":{baseline:430,target:360},"C50-60":{baseline:483,target:342},"C60-70":{baseline:522,target:345}}},
+  Steel:{unit:"kg",massFactor:1,types:{
+    "Structural (I sections)":{baseline:2.46,target:1.78},"Rebar":{baseline:2.26,target:1.30},
+    "Hollow (Tube) sections":{baseline:2.52,target:1.83},"Hot Dip Galvanized":{baseline:2.74,target:2.07}}},
+  Asphalt:{unit:"tons",massFactor:1000,types:{
+    "3% Binder":{baseline:50.1,target:40.08},"3.5% Binder":{baseline:51.1,target:40.88},"4% Binder":{baseline:52.2,target:41.76},
+    "4.5% Binder":{baseline:53.2,target:42.56},"5% Binder":{baseline:54.2,target:43.36},"5.5% Binder":{baseline:55.3,target:44.24},
+    "6% Binder":{baseline:56.3,target:45.04},"6.5% Binder":{baseline:57.3,target:45.84},"7% Binder":{baseline:58.4,target:46.72}}},
+  Aluminum:{unit:"kg",massFactor:1,types:{
+    "Profile Without Coating":{baseline:8.24,target:6.59},"Profile With Coating":{baseline:9.12,target:7.30},
+    "Sheets Without Coating":{baseline:7.85,target:6.28},"Anodized Sections":{baseline:10.20,target:8.16}}},
+  Glass:{unit:"kg",massFactor:1,types:{
+    "Annealed":{baseline:1.30,target:1.04},"Coated":{baseline:1.60,target:1.28},
+    "Laminated":{baseline:1.80,target:1.44},"IGU":{baseline:2.50,target:2.00}}},
+  Pipes:{unit:"m",massFactor:1,types:{
+    "Precast 600mm":{baseline:138.89,target:138.89},"Precast 800mm":{baseline:241.29,target:241.29},
+    "Precast 1000mm":{baseline:394.70,target:394.70},"Precast 1200mm":{baseline:543.80,target:543.80}}},
+  Earthwork:{unit:"tons",massFactor:1000,types:{
+    "Excavation/Hauling":{baseline:3.50,target:2.80},"Coarse Aggregate":{baseline:5.20,target:4.16},"Sand":{baseline:4.80,target:3.84}}}
+};
+const TEF = { road: 0.0000121, sea: 0.0000026, train: 0.0000052 };
+
+// Server-side recalculation of emission values
+function validateAndRecalcEmissions(entry) {
+  const mat = MATERIALS[entry.category];
+  if (!mat) return { valid: false, error: 'Unknown material category: ' + entry.category };
+
+  const typeData = mat.types[entry.type];
+  if (!typeData) return { valid: false, error: 'Unknown material type: ' + entry.type + ' in ' + entry.category };
+
+  const qty = parseFloat(entry.qty);
+  const actual = parseFloat(entry.actual);
+  if (isNaN(qty) || qty <= 0) return { valid: false, error: 'Invalid quantity' };
+  if (isNaN(actual) || actual <= 0) return { valid: false, error: 'Invalid actual GWP value' };
+
+  const mass = qty * mat.massFactor;
+  const road = parseFloat(entry.road) || 0;
+  const sea = parseFloat(entry.sea) || 0;
+  const train = parseFloat(entry.train) || 0;
+
+  // Recalculate server-side
+  const a13B = (qty * typeData.baseline) / 1000;
+  const a13A = (qty * actual) / 1000;
+  const a4 = (mass * road * TEF.road + mass * sea * TEF.sea + mass * train * TEF.train) / 1000;
+  const a14 = a13A + a4;
+  const pct = a13B > 0 ? ((a13B - a13A) / a13B) * 100 : 0;
+
+  return {
+    valid: true,
+    verified: { a13B, a13A, a4, a14, pct, baseline: typeData.baseline, target: typeData.target }
+  };
+}
+
 async function getUserProfile(uid) {
   const db = getDb();
   const snap = await db.ref('users/' + uid).once('value');
@@ -76,6 +133,21 @@ async function handleSave(event, body) {
     const db = getDb();
     const profile = await getUserProfile(decoded.uid);
     const projectId = profile ? (profile.projectId || profile.project || 'ksia') : 'ksia';
+
+    // Server-side emission recalculation — override client values
+    const validation = validateAndRecalcEmissions(entry);
+    if (!validation.valid) {
+      return respond(400, { error: validation.error });
+    }
+    // Overwrite client-submitted emission values with server-calculated ones
+    entry.a13B = validation.verified.a13B;
+    entry.a13A = validation.verified.a13A;
+    entry.a4 = validation.verified.a4;
+    entry.a14 = validation.verified.a14;
+    entry.pct = validation.verified.pct;
+    entry.baseline = validation.verified.baseline;
+    entry.target = validation.verified.target;
+    entry.serverVerified = true;
 
     // Set server-verified fields
     entry.submittedBy = decoded.name || decoded.email;
@@ -234,6 +306,20 @@ async function handleBatchSave(event, body) {
     // Use a multi-path update to write all entries atomically
     const updates = {};
     for (const entry of entries) {
+      // Server-side emission recalculation for each entry
+      const validation = validateAndRecalcEmissions(entry);
+      if (!validation.valid) {
+        return respond(400, { error: 'Batch validation failed for entry ' + entry.id + ': ' + validation.error });
+      }
+      entry.a13B = validation.verified.a13B;
+      entry.a13A = validation.verified.a13A;
+      entry.a4 = validation.verified.a4;
+      entry.a14 = validation.verified.a14;
+      entry.pct = validation.verified.pct;
+      entry.baseline = validation.verified.baseline;
+      entry.target = validation.verified.target;
+      entry.serverVerified = true;
+
       entry.submittedBy = submittedBy;
       entry.submittedByUid = decoded.uid;
       entry.submittedAt = now;

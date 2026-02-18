@@ -10,6 +10,10 @@ function renderDashboard(el) {
   const cols={Concrete:'var(--slate4)',Steel:'var(--blue)',Asphalt:'var(--orange)',Aluminum:'var(--purple)',Glass:'var(--cyan)',Pipes:'var(--yellow)',Earthwork:'#a3e635'};
 
   el.innerHTML=`
+  <div style="display:flex;gap:8px;margin-bottom:12px;justify-content:flex-end">
+    <button class="btn btn-secondary btn-sm" onclick="debounceAction('csv',exportCSV)">Export CSV</button>
+    <button class="btn btn-secondary btn-sm" onclick="debounceAction('pdf',exportPDF)">Export PDF</button>
+  </div>
   <div class="stats-row">
     <div class="stat-card slate"><div class="sc-label">A1-A3 Baseline</div><div class="sc-value">${fmt(tB)}</div><div class="sc-sub">ton CO\u2082eq</div></div>
     <div class="stat-card blue"><div class="sc-label">A1-A3 Actual</div><div class="sc-value">${fmt(tA)}</div><div class="sc-sub">ton CO\u2082eq</div></div>
@@ -208,7 +212,8 @@ function renderBatch() {
 }
 
 // Submit all draft entries to the server at once, then notify consultants
-async function submitBatch() {
+async function submitBatch() { if (_debounceFlags['submitBatch']) return; _debounceFlags['submitBatch'] = true; try { await _submitBatchInner(); } finally { setTimeout(() => { _debounceFlags['submitBatch'] = false; }, 3000); } }
+async function _submitBatchInner() {
   const drafts = DB.getDraftEntries();
   if (drafts.length === 0) { alert('Batch is empty. Add entries first.'); return; }
   if (!dbConnected) { alert('No server connection. Please connect to the internet and try again.'); return; }
@@ -249,7 +254,8 @@ async function submitBatch() {
 }
 
 // Direct submit (for non-contractor roles who still submit one at a time)
-async function submitEntry(){
+async function submitEntry(){ if (_debounceFlags['submitEntry']) return; _debounceFlags['submitEntry'] = true; try { await _submitEntryInner(); } finally { setTimeout(() => { _debounceFlags['submitEntry'] = false; }, 2000); } }
+async function _submitEntryInner(){
   const c=$('eCat').value,i=$('eType').value,q=parseFloat($('eQ').value),a=parseFloat($('eA').value);
   if(!c||i===''||isNaN(q)||isNaN(a)||q<=0||a<=0){alert('Fill all required fields');return;}
   const m=MATERIALS[c],t=m.types[i],mass=q*m.massFactor;
@@ -294,7 +300,7 @@ function renderA5(el){
 function getA5S(){const v=$('a5S').value;const t=v[0],i=parseInt(v.slice(1));return t==='e'?A5_EFS.energy[i]:A5_EFS.water[i];}
 function onA5S(){const s=getA5S();$('a5E').value=s.ef+' '+s.efUnit;$('a5U').textContent=s.unit;calcA5();}
 function calcA5(){const s=getA5S(),q=parseFloat($('a5Q').value);$('a5R').value=isNaN(q)?'':fmt((q*s.ef)/1000)+' tCO\u2082eq';}
-async function subA5(){const s=getA5S(),q=parseFloat($('a5Q').value);if(isNaN(q)||q<=0){alert('Enter quantity');return;}const yr=$('a5Y').value,mo=$('a5M').value;const e={id:Date.now(),source:s.name,qty:q,unit:s.unit,ef:s.ef,emission:(q*s.ef)/1000,year:yr,month:mo,monthKey:yr+'-'+mo,monthLabel:MONTHS[parseInt(mo)-1]+' '+yr};await DB.saveA5Entry(e);state.a5entries.push(e);rA5();$('a5Q').value='';$('a5R').value='\u2705 Saved';}
+async function subA5(){if(_debounceFlags['subA5'])return;_debounceFlags['subA5']=true;setTimeout(()=>{_debounceFlags['subA5']=false;},2000);const s=getA5S(),q=parseFloat($('a5Q').value);if(isNaN(q)||q<=0){alert('Enter quantity');return;}const yr=$('a5Y').value,mo=$('a5M').value;const e={id:Date.now(),source:s.name,qty:q,unit:s.unit,ef:s.ef,emission:(q*s.ef)/1000,year:yr,month:mo,monthKey:yr+'-'+mo,monthLabel:MONTHS[parseInt(mo)-1]+' '+yr};await DB.saveA5Entry(e);state.a5entries.push(e);rA5();$('a5Q').value='';$('a5R').value='\u2705 Saved';}
 function rA5(){const t=$('a5B');if(!t)return;const a=[...state.a5entries].reverse();t.innerHTML=a.length?a.map(e=>`<tr><td>${e.monthLabel}</td><td>${e.source}</td><td class="r mono">${fmtI(e.qty)}</td><td>${e.unit}</td><td class="r mono" style="font-weight:700">${fmt(e.emission)}</td><td><button class="btn btn-danger btn-sm" onclick="dA5(${e.id})">\u2715</button></td></tr>`).join(''):'<tr><td colspan="6" class="empty">No entries</td></tr>';}
 async function dA5(id){await DB.deleteA5Entry(id);state.a5entries=state.a5entries.filter(e=>e.id!==id);rA5();}
 
@@ -314,14 +320,14 @@ function renderApprovals(el){
   <div class="flow-steps"><div class="flow-step"><div class="flow-dot done">\ud83c\udfd7\ufe0f</div><div class="flow-label">Contractor</div></div><div class="flow-line done"></div><div class="flow-step"><div class="flow-dot ${r==='consultant'?'current':'done'}">\ud83d\udccb</div><div class="flow-label">Consultant</div></div><div class="flow-line ${r==='client'||r==='consultant'?'done':''}"></div><div class="flow-step"><div class="flow-dot ${r==='client'?'current':(r==='consultant'?'done':'')}">\ud83d\udc54</div><div class="flow-label">Client</div></div></div></div>
   <div class="card"><div class="card-title">${items.length} Items</div><div class="tbl-wrap"><table><thead><tr><th>Month</th><th>Material</th><th>Type</th><th>By</th><th>Org</th><th class="r">Baseline</th><th class="r">Actual</th><th class="r">Reduction</th><th>Status</th>${r!=='contractor'?'<th>Actions</th>':''}</tr></thead><tbody>${items.length?items.map(e=>`<tr><td>${e.monthLabel}</td><td>${e.category}</td><td>${e.type}</td><td>${e.submittedBy||'\u2014'}</td><td style="font-size:11px;color:var(--slate5)">${e.organizationName||'\u2014'}</td><td class="r mono">${fmt(e.a13B)}</td><td class="r mono">${fmt(e.a13A)}</td><td class="r mono" style="color:${e.pct>20?'var(--green)':'var(--orange)'};font-weight:700">${fmt(e.pct)}%</td><td><span class="badge ${e.status}">${e.status}</span></td>${r==='consultant'?`<td>${e.status==='pending'?`<button class="btn btn-approve btn-sm" onclick="appr(${e.id},'review')">\u2713 Forward</button> `:''}${e.status==='pending'||e.status==='review'?`<button class="btn btn-primary btn-sm" onclick="appr(${e.id},'approved')">\u2713 Approve</button> `:''}<button class="btn btn-danger btn-sm" onclick="appr(${e.id},'rejected')">\u2715 Reject</button></td>`:''}${r==='client'?`<td><button class="btn btn-approve btn-sm" onclick="appr(${e.id},'approved')">\u2713 Approve</button> <button class="btn btn-danger btn-sm" onclick="appr(${e.id},'rejected')">\u2715 Reject</button></td>`:''}</tr>`).join(''):'<tr><td colspan="10" class="empty">No pending items</td></tr>'}</tbody></table></div></div>`;
 }
-async function appr(id,s){await DB.updateEntry(id,{status:s,[state.role+'At']:new Date().toISOString(),[state.role+'By']:state.name,[state.role+'ByUid']:state.uid});const e=state.entries.find(x=>x.id===id);if(e)e.status=s;buildSidebar();navigate('approvals');}
+async function appr(id,s){const dk='appr_'+id;if(_debounceFlags[dk])return;_debounceFlags[dk]=true;setTimeout(()=>{_debounceFlags[dk]=false;},2000);try{await DB.updateEntry(id,{status:s,[state.role+'At']:new Date().toISOString(),[state.role+'By']:state.name,[state.role+'ByUid']:state.uid});const e=state.entries.find(x=>x.id===id);if(e)e.status=s;buildSidebar();navigate('approvals');}catch(err){alert(err.message||'Approval action failed.');_debounceFlags[dk]=false;}}
 
 // ===== MONTHLY =====
 function renderMonthly(el){
   const map={};state.entries.forEach(e=>{if(!map[e.monthKey])map[e.monthKey]={l:e.monthLabel,n:0,b:0,a:0,a4:0,t:0};const m=map[e.monthKey];m.n++;m.b+=e.a13B;m.a+=e.a13A;m.a4+=e.a4;m.t+=e.a14;});
   const arr=Object.entries(map).sort((a,b)=>a[0].localeCompare(b[0]));
   let gB=0,gA=0,gA4=0,gT=0;
-  el.innerHTML=`<div class="card"><div class="card-title">Monthly Summary</div><div class="tbl-wrap"><table><thead><tr><th>Month</th><th class="r">Entries</th><th class="r">A1-A3 Baseline</th><th class="r">A1-A3 Actual</th><th class="r">A4</th><th class="r">A1-A4 Total</th><th class="r">Reduction</th></tr></thead><tbody>${arr.length?arr.map(([k,m])=>{gB+=m.b;gA+=m.a;gA4+=m.a4;gT+=m.t;const p=m.b>0?((m.b-m.a)/m.b)*100:0;return`<tr><td>${m.l}</td><td class="r">${m.n}</td><td class="r mono">${fmt(m.b)}</td><td class="r mono">${fmt(m.a)}</td><td class="r mono">${fmt(m.a4)}</td><td class="r mono" style="font-weight:700">${fmt(m.t)}</td><td class="r mono" style="color:${p>20?'var(--green)':'var(--orange)'};font-weight:700">${fmt(p)}%</td></tr>`;}).join('')+(arr.length>1?`<tr class="total-row"><td>Total</td><td class="r">${state.entries.length}</td><td class="r">${fmt(gB)}</td><td class="r">${fmt(gA)}</td><td class="r">${fmt(gA4)}</td><td class="r">${fmt(gT)}</td><td class="r" style="color:var(--green)">${fmt(gB>0?((gB-gA)/gB)*100:0)}%</td></tr>`:''):'<tr><td colspan="7" class="empty">No data</td></tr>'}</tbody></table></div></div>`;
+  el.innerHTML=`<div style="display:flex;gap:8px;margin-bottom:12px;justify-content:flex-end"><button class="btn btn-secondary btn-sm" onclick="debounceAction('csv2',exportCSV)">Export CSV</button><button class="btn btn-secondary btn-sm" onclick="debounceAction('pdf2',exportPDF)">Export PDF</button></div><div class="card"><div class="card-title">Monthly Summary</div><div class="tbl-wrap"><table><thead><tr><th>Month</th><th class="r">Entries</th><th class="r">A1-A3 Baseline</th><th class="r">A1-A3 Actual</th><th class="r">A4</th><th class="r">A1-A4 Total</th><th class="r">Reduction</th></tr></thead><tbody>${arr.length?arr.map(([k,m])=>{gB+=m.b;gA+=m.a;gA4+=m.a4;gT+=m.t;const p=m.b>0?((m.b-m.a)/m.b)*100:0;return`<tr><td>${m.l}</td><td class="r">${m.n}</td><td class="r mono">${fmt(m.b)}</td><td class="r mono">${fmt(m.a)}</td><td class="r mono">${fmt(m.a4)}</td><td class="r mono" style="font-weight:700">${fmt(m.t)}</td><td class="r mono" style="color:${p>20?'var(--green)':'var(--orange)'};font-weight:700">${fmt(p)}%</td></tr>`;}).join('')+(arr.length>1?`<tr class="total-row"><td>Total</td><td class="r">${state.entries.length}</td><td class="r">${fmt(gB)}</td><td class="r">${fmt(gA)}</td><td class="r">${fmt(gA4)}</td><td class="r">${fmt(gT)}</td><td class="r" style="color:var(--green)">${fmt(gB>0?((gB-gA)/gB)*100:0)}%</td></tr>`:''):'<tr><td colspan="7" class="empty">No data</td></tr>'}</tbody></table></div></div>`;
 }
 
 // ===== CUMULATIVE =====
@@ -532,6 +538,7 @@ function handleInvListClick(e) {
 }
 
 async function sendInvitation() {
+  if (_debounceFlags['sendInv']) return; _debounceFlags['sendInv'] = true; setTimeout(() => { _debounceFlags['sendInv'] = false; }, 3000);
   const errEl = $('invError');
   const sucEl = $('invSuccess');
   errEl.style.display = 'none';
@@ -1092,6 +1099,152 @@ async function assignUserToOrganization() {
   } catch (e) {
     showError('userOrgError', e.message || 'Failed to assign user.');
   }
+}
+
+// ===== DEBOUNCE UTILITY =====
+// Prevents double-click / duplicate submissions on all action buttons
+const _debounceFlags = {};
+function debounceAction(key, fn, delay) {
+  if (_debounceFlags[key]) return;
+  _debounceFlags[key] = true;
+  fn();
+  setTimeout(() => { _debounceFlags[key] = false; }, delay || 2000);
+}
+
+// ===== CSV EXPORT =====
+function exportCSV() {
+  const entries = state.entries;
+  if (!entries.length) { alert('No entries to export.'); return; }
+
+  const headers = ['Month','Category','Type','Qty','Unit','Baseline EF','Actual GWP','A1-A3 Baseline (tCO2)','A1-A3 Actual (tCO2)','A4 Transport (tCO2)','A1-A4 Total (tCO2)','Reduction %','Status','Submitted By','Organization','District','Contract','Notes','Submitted At'];
+  const rows = entries.map(e => [
+    e.monthLabel || '', e.category || '', e.type || '', e.qty || '', e.unit || '',
+    e.baseline || '', e.actual || '',
+    (e.a13B || 0).toFixed(4), (e.a13A || 0).toFixed(4), (e.a4 || 0).toFixed(4), (e.a14 || 0).toFixed(4),
+    (e.pct || 0).toFixed(2), e.status || '', e.submittedBy || '', e.organizationName || '',
+    e.district || '', e.contract || '', (e.notes || '').replace(/"/g, '""'), e.submittedAt || ''
+  ]);
+
+  const csvContent = [headers, ...rows].map(r => r.map(c => '"' + String(c) + '"').join(',')).join('\n');
+  const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'carbon_entries_' + new Date().toISOString().split('T')[0] + '.csv';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+// ===== PDF EXPORT =====
+function exportPDF() {
+  const entries = state.entries;
+  if (!entries.length) { alert('No entries to export.'); return; }
+
+  // Calculate totals
+  let tB = 0, tA = 0, tA4 = 0;
+  entries.forEach(e => { tB += e.a13B || 0; tA += e.a13A || 0; tA4 += e.a4 || 0; });
+  const rP = tB > 0 ? ((tB - tA) / tB) * 100 : 0;
+
+  // Group by category
+  const byCat = {};
+  entries.forEach(e => {
+    if (!byCat[e.category]) byCat[e.category] = { b: 0, a: 0, a4: 0, n: 0 };
+    byCat[e.category].b += e.a13B || 0;
+    byCat[e.category].a += e.a13A || 0;
+    byCat[e.category].a4 += e.a4 || 0;
+    byCat[e.category].n++;
+  });
+
+  // Group by month
+  const byMonth = {};
+  entries.forEach(e => {
+    const k = e.monthKey;
+    if (!byMonth[k]) byMonth[k] = { l: e.monthLabel, b: 0, a: 0, a4: 0, n: 0 };
+    byMonth[k].b += e.a13B || 0;
+    byMonth[k].a += e.a13A || 0;
+    byMonth[k].a4 += e.a4 || 0;
+    byMonth[k].n++;
+  });
+  const monthArr = Object.entries(byMonth).sort((a, b) => a[0].localeCompare(b[0]));
+
+  // Status counts
+  const counts = { pending: 0, review: 0, approved: 0, rejected: 0 };
+  entries.forEach(e => { counts[e.status || 'pending']++; });
+
+  const projectName = state.projectName || state.projectId || 'KSIA';
+  const today = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+
+  // Build print-friendly HTML
+  const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Carbon Report — ${projectName}</title>
+<style>
+  @page { size: A4 landscape; margin: 15mm; }
+  body { font-family: 'Segoe UI', system-ui, sans-serif; color: #1e293b; margin: 0; padding: 20px; font-size: 11px; }
+  h1 { font-size: 20px; color: #047857; margin: 0 0 4px; }
+  h2 { font-size: 14px; color: #334155; margin: 20px 0 8px; border-bottom: 2px solid #047857; padding-bottom: 4px; }
+  .subtitle { font-size: 11px; color: #64748b; margin-bottom: 16px; }
+  .stats { display: flex; gap: 12px; margin-bottom: 16px; }
+  .stat { flex: 1; background: #f1f5f9; border-radius: 8px; padding: 10px 14px; text-align: center; }
+  .stat-val { font-size: 18px; font-weight: 800; color: #047857; }
+  .stat-label { font-size: 9px; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; }
+  table { width: 100%; border-collapse: collapse; font-size: 10px; }
+  th { background: #f1f5f9; color: #334155; font-weight: 700; text-align: left; padding: 6px 8px; border-bottom: 2px solid #e2e8f0; }
+  td { padding: 5px 8px; border-bottom: 1px solid #e2e8f0; }
+  .r { text-align: right; }
+  .mono { font-family: 'SF Mono', monospace; }
+  .green { color: #047857; font-weight: 700; }
+  .footer { margin-top: 24px; text-align: center; font-size: 9px; color: #94a3b8; border-top: 1px solid #e2e8f0; padding-top: 8px; }
+</style></head><body>
+<h1>CarbonTrack Pro — Emissions Report</h1>
+<div class="subtitle">Project: ${projectName} | Generated: ${today} | Total Entries: ${entries.length}</div>
+
+<div class="stats">
+  <div class="stat"><div class="stat-val">${fmt(tB)}</div><div class="stat-label">A1-A3 Baseline (tCO2)</div></div>
+  <div class="stat"><div class="stat-val">${fmt(tA)}</div><div class="stat-label">A1-A3 Actual (tCO2)</div></div>
+  <div class="stat"><div class="stat-val">${fmt(tA4)}</div><div class="stat-label">A4 Transport (tCO2)</div></div>
+  <div class="stat"><div class="stat-val">${fmt(tA + tA4)}</div><div class="stat-label">A1-A4 Total (tCO2)</div></div>
+  <div class="stat"><div class="stat-val">${fmt(rP)}%</div><div class="stat-label">Overall Reduction</div></div>
+</div>
+
+<div class="stats">
+  <div class="stat"><div class="stat-val" style="color:#eab308">${counts.pending}</div><div class="stat-label">Pending</div></div>
+  <div class="stat"><div class="stat-val" style="color:#3b82f6">${counts.review}</div><div class="stat-label">In Review</div></div>
+  <div class="stat"><div class="stat-val">${counts.approved}</div><div class="stat-label">Approved</div></div>
+  <div class="stat"><div class="stat-val" style="color:#ef4444">${counts.rejected}</div><div class="stat-label">Rejected</div></div>
+</div>
+
+<h2>By Material Category</h2>
+<table>
+  <thead><tr><th>Category</th><th class="r">Entries</th><th class="r">Baseline (tCO2)</th><th class="r">Actual (tCO2)</th><th class="r">A4 (tCO2)</th><th class="r">Total (tCO2)</th><th class="r">Reduction</th></tr></thead>
+  <tbody>${Object.entries(byCat).map(([c, v]) => {
+    const p = v.b > 0 ? ((v.b - v.a) / v.b) * 100 : 0;
+    return '<tr><td>' + c + '</td><td class="r">' + v.n + '</td><td class="r mono">' + fmt(v.b) + '</td><td class="r mono">' + fmt(v.a) + '</td><td class="r mono">' + fmt(v.a4) + '</td><td class="r mono" style="font-weight:700">' + fmt(v.a + v.a4) + '</td><td class="r green">' + fmt(p) + '%</td></tr>';
+  }).join('')}</tbody>
+</table>
+
+<h2>Monthly Summary</h2>
+<table>
+  <thead><tr><th>Month</th><th class="r">Entries</th><th class="r">Baseline (tCO2)</th><th class="r">Actual (tCO2)</th><th class="r">A4 (tCO2)</th><th class="r">Total (tCO2)</th><th class="r">Reduction</th></tr></thead>
+  <tbody>${monthArr.map(([k, v]) => {
+    const p = v.b > 0 ? ((v.b - v.a) / v.b) * 100 : 0;
+    return '<tr><td>' + v.l + '</td><td class="r">' + v.n + '</td><td class="r mono">' + fmt(v.b) + '</td><td class="r mono">' + fmt(v.a) + '</td><td class="r mono">' + fmt(v.a4) + '</td><td class="r mono" style="font-weight:700">' + fmt(v.a + v.a4) + '</td><td class="r green">' + fmt(p) + '%</td></tr>';
+  }).join('')}</tbody>
+</table>
+
+<h2>All Entries</h2>
+<table>
+  <thead><tr><th>Month</th><th>Category</th><th>Type</th><th class="r">Qty</th><th class="r">Baseline</th><th class="r">Actual</th><th class="r">A4</th><th class="r">Total</th><th class="r">Red%</th><th>Status</th><th>By</th><th>Org</th></tr></thead>
+  <tbody>${entries.map(e => '<tr><td>' + (e.monthLabel || '') + '</td><td>' + (e.category || '') + '</td><td>' + (e.type || '') + '</td><td class="r mono">' + fmtI(e.qty) + '</td><td class="r mono">' + fmt(e.a13B) + '</td><td class="r mono">' + fmt(e.a13A) + '</td><td class="r mono">' + fmt(e.a4) + '</td><td class="r mono" style="font-weight:700">' + fmt(e.a14) + '</td><td class="r green">' + fmt(e.pct) + '%</td><td>' + (e.status || '') + '</td><td>' + (e.submittedBy || '') + '</td><td style="font-size:9px">' + (e.organizationName || '') + '</td></tr>').join('')}</tbody>
+</table>
+
+<div class="footer">CarbonTrack Pro v2.0 — ${projectName} Sustainability Program — Generated ${today}</div>
+</body></html>`;
+
+  const printWin = window.open('', '_blank');
+  printWin.document.write(html);
+  printWin.document.close();
+  printWin.onload = function() { printWin.print(); };
 }
 
 // ===== INTEGRATIONS =====

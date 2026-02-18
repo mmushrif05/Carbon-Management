@@ -3,6 +3,47 @@ const crypto = require('crypto');
 
 const VALID_ROLES = ['contractor', 'consultant', 'client'];
 
+// ===== IN-MEMORY RATE LIMITER =====
+// Tracks attempts per IP for auth endpoints.
+// NOTE: Resets on cold-start. For production at scale, use Redis/DynamoDB.
+const rateLimitStore = {};
+const RATE_LIMIT_WINDOW_MS = 15 * 60 * 1000; // 15 minutes
+const RATE_LIMIT_MAX = { login: 10, register: 5, 'forgot-password': 3 };
+
+function checkRateLimit(event, action) {
+  const ip = (event.headers && (event.headers['x-forwarded-for'] || event.headers['client-ip'])) || 'unknown';
+  const key = ip + ':' + action;
+  const now = Date.now();
+  const max = RATE_LIMIT_MAX[action] || 20;
+
+  if (!rateLimitStore[key]) {
+    rateLimitStore[key] = { count: 1, windowStart: now };
+    return null;
+  }
+
+  const entry = rateLimitStore[key];
+  if (now - entry.windowStart > RATE_LIMIT_WINDOW_MS) {
+    entry.count = 1;
+    entry.windowStart = now;
+    return null;
+  }
+
+  entry.count++;
+  if (entry.count > max) {
+    const retryMin = Math.ceil((entry.windowStart + RATE_LIMIT_WINDOW_MS - now) / 60000);
+    return respond(429, { error: 'Too many attempts. Please try again in ' + retryMin + ' minutes.' });
+  }
+  return null;
+}
+
+// Cleanup stale entries
+function cleanupRateLimits() {
+  const now = Date.now();
+  for (const key of Object.keys(rateLimitStore)) {
+    if (now - rateLimitStore[key].windowStart > RATE_LIMIT_WINDOW_MS) delete rateLimitStore[key];
+  }
+}
+
 // Firebase Auth REST API base
 const AUTH_API = 'https://identitytoolkit.googleapis.com/v1/accounts';
 const TOKEN_API = 'https://securetoken.googleapis.com/v1/token';
@@ -313,9 +354,18 @@ exports.handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return optionsResponse();
   if (event.httpMethod !== 'POST') return respond(405, { error: 'Method not allowed' });
 
+  // Periodic cleanup of expired rate limit entries
+  cleanupRateLimits();
+
   try {
     const body = JSON.parse(event.body || '{}');
     const { action } = body;
+
+    // Apply rate limiting to auth-sensitive endpoints
+    if (['login', 'register', 'forgot-password'].includes(action)) {
+      const blocked = checkRateLimit(event, action);
+      if (blocked) return blocked;
+    }
 
     switch (action) {
       case 'register':        return await handleRegister(body);

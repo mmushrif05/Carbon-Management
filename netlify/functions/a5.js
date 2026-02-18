@@ -21,12 +21,20 @@ async function handleSave(event, body) {
 
   const { entry } = body;
   if (!entry || !entry.id) return respond(400, { error: 'Invalid entry data' });
+
+  // Validate ID format
+  if (typeof entry.id !== 'string' || /[\/\.\$\#\[\]]/.test(String(entry.id))) {
+    return respond(400, { error: 'Invalid entry ID format.' });
+  }
+
   if (!entry.source) return respond(400, { error: 'Source is required' });
   if (!entry.qty || entry.qty <= 0) return respond(400, { error: 'Valid quantity is required' });
 
   try {
     const db = getDb();
     const projectId = await getUserProjectId(decoded.uid);
+    entry.submittedByUid = decoded.uid;
+    entry.submittedBy = decoded.name || decoded.email;
     entry.submittedAt = new Date().toISOString();
     entry.projectId = projectId;
     await db.ref(`projects/${projectId}/a5entries/${entry.id}`).set(entry);
