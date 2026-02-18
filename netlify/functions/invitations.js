@@ -7,10 +7,10 @@ const VALID_ROLES = ['contractor', 'consultant', 'client'];
 const INVITER_ROLES = ['client', 'consultant'];
 
 // Role hierarchy: who can invite whom
-// Consultant-centric: consultants have full invitation permissions
+// Client has full authority; consultant can ONLY invite contractors
 const INVITE_PERMISSIONS = {
   client: ['client', 'consultant', 'contractor'],
-  consultant: ['client', 'consultant', 'contractor']
+  consultant: ['contractor']
 };
 
 function generateToken() {

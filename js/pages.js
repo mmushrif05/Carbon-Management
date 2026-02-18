@@ -27,10 +27,70 @@ function renderDashboard(el) {
     <div><div style="font-size:24px;font-weight:800;color:var(--blue)">${d.filter(e=>e.status==='review').length}</div><div style="font-size:10px;color:var(--slate5)">Review</div></div>
     <div><div style="font-size:24px;font-weight:800;color:var(--green)">${d.filter(e=>e.status==='approved').length}</div><div style="font-size:10px;color:var(--slate5)">Approved</div></div>
     <div><div style="font-size:24px;font-weight:800;color:var(--red)">${d.filter(e=>e.status==='rejected').length}</div><div style="font-size:10px;color:var(--slate5)">Rejected</div></div>
-  </div></div>`;
+  </div></div>
+  ${state.role === 'client' ? renderClientMonitorPanel(d) : ''}`;
 
   if(mArr.length){const mx=Math.max(...mArr.map(([k,v])=>Math.max(v.b,v.a)),1);$('dc').innerHTML=mArr.map(([k,v])=>`<div class="bar-group"><div class="bar-pair"><div class="bar baseline" style="height:${(v.b/mx)*170}px"></div><div class="bar actual" style="height:${(v.a/mx)*170}px"></div></div><div class="bar-label">${v.l}</div></div>`).join('');}
   if(Object.keys(matB).length){const tot=Object.values(matB).reduce((s,v)=>s+v.a,0)||1;let ang=0,sh='',lh='';Object.entries(matB).forEach(([c,v])=>{const p=v.a/tot;const a1=ang;ang+=p*360;const lg=p>.5?1:0;const r=55,cx=70,cy=70;const x1=cx+r*Math.cos((a1-90)*Math.PI/180),y1=cy+r*Math.sin((a1-90)*Math.PI/180);const x2=cx+r*Math.cos((ang-90)*Math.PI/180),y2=cy+r*Math.sin((ang-90)*Math.PI/180);const cl=cols[c]||'var(--slate4)';if(p>.001)sh+=`<path d="M${cx},${cy} L${x1},${y1} A${r},${r} 0 ${lg},1 ${x2},${y2} Z" fill="${cl}" opacity="0.7" stroke="var(--bg2)" stroke-width="1.5"/>`;lh+=`<div class="donut-legend-item"><div class="donut-legend-dot" style="background:${cl}"></div>${c}: ${fmt(v.a)} tCO\u2082 (${(p*100).toFixed(1)}%)</div>`;});$('dn').innerHTML=sh;$('dl').innerHTML=lh;}
+}
+
+// ===== CLIENT MONITORING PANEL (embedded in dashboard) =====
+function renderClientMonitorPanel(entries) {
+  // Group entries by organization/submitter
+  const byOrg = {};
+  entries.forEach(e => {
+    const org = e.organizationName || 'Unassigned';
+    if (!byOrg[org]) byOrg[org] = { total: 0, pending: 0, review: 0, approved: 0, rejected: 0, baseline: 0, actual: 0 };
+    byOrg[org].total++;
+    byOrg[org][e.status || 'pending']++;
+    byOrg[org].baseline += e.a13B || 0;
+    byOrg[org].actual += e.a13A || 0;
+  });
+
+  const orgs = Object.entries(byOrg).sort((a, b) => b[1].total - a[1].total);
+
+  // Group by submitter
+  const byUser = {};
+  entries.forEach(e => {
+    const key = e.submittedBy || 'Unknown';
+    if (!byUser[key]) byUser[key] = { total: 0, pending: 0, review: 0, approved: 0, org: e.organizationName || '—' };
+    byUser[key].total++;
+    byUser[key][e.status || 'pending']++;
+  });
+  const users = Object.entries(byUser).sort((a, b) => b[1].total - a[1].total).slice(0, 10);
+
+  if (!orgs.length) return '';
+
+  return `
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px">
+    <div class="card">
+      <div class="card-title">Submissions by Organization</div>
+      <div class="tbl-wrap"><table>
+        <thead><tr><th>Organization</th><th class="r">Total</th><th class="r">Pending</th><th class="r">Review</th><th class="r">Approved</th><th class="r">Baseline (tCO2)</th></tr></thead>
+        <tbody>${orgs.map(([org, v]) => `<tr>
+          <td style="font-weight:600">${org}</td>
+          <td class="r mono">${v.total}</td>
+          <td class="r mono" style="color:var(--yellow)">${v.pending}</td>
+          <td class="r mono" style="color:var(--blue)">${v.review}</td>
+          <td class="r mono" style="color:var(--green)">${v.approved}</td>
+          <td class="r mono">${fmt(v.baseline)}</td>
+        </tr>`).join('')}</tbody>
+      </table></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Submissions by Contractor</div>
+      <div class="tbl-wrap"><table>
+        <thead><tr><th>Contractor</th><th>Organization</th><th class="r">Total</th><th class="r">Pending</th><th class="r">Approved</th></tr></thead>
+        <tbody>${users.map(([name, v]) => `<tr>
+          <td style="font-weight:600">${name}</td>
+          <td style="color:var(--slate5);font-size:11px">${v.org}</td>
+          <td class="r mono">${v.total}</td>
+          <td class="r mono" style="color:var(--yellow)">${v.pending}</td>
+          <td class="r mono" style="color:var(--green)">${v.approved}</td>
+        </tr>`).join('')}</tbody>
+      </table></div>
+    </div>
+  </div>`;
 }
 
 // ===== ENTRY (BATCH WORKFLOW) =====
@@ -549,6 +609,10 @@ async function renderOrganizations(el) {
     return;
   }
 
+  // CLIENT: full admin view with all 4 steps
+  // CONSULTANT: limited view — only rep assignments (Step 4) and read-only org/link lists
+  const isClient = r === 'client';
+
   el.innerHTML = `
   <!-- Enterprise Workflow Overview -->
   <div class="card">
@@ -564,15 +628,14 @@ async function renderOrganizations(el) {
         <div class="flow-step"><div class="flow-dot done" style="font-size:14px">4</div><div class="flow-label">Assign Reps</div></div>
       </div>
       <div style="font-size:12px;color:var(--slate4);line-height:1.7;text-align:center">
-        <strong>Step 1:</strong> Client creates project &nbsp;→&nbsp;
-        <strong>Step 2:</strong> Assign consultant &amp; contractor firms to project &nbsp;→&nbsp;
-        <strong>Step 3:</strong> Link consultant firm to contractor company &nbsp;→&nbsp;
-        <strong>Step 4:</strong> Assign specific consultant &amp; contractor representatives
+        ${isClient ?
+          '<strong>Step 1:</strong> Create project &nbsp;→&nbsp; <strong>Step 2:</strong> Assign firms to project &nbsp;→&nbsp; <strong>Step 3:</strong> Link consultant to contractor &nbsp;→&nbsp; <strong>Step 4:</strong> Assign representatives' :
+          '<strong>Steps 1-3</strong> are managed by the client. &nbsp;→&nbsp; <strong>Step 4:</strong> You assign contractor representatives from your linked companies.'}
       </div>
     </div>
   </div>
 
-  ${r === 'client' ? `
+  ${isClient ? `
   <!-- Step 1: Projects (Client only) -->
   <div class="card">
     <div class="card-title">Step 1 — Projects</div>
@@ -580,137 +643,98 @@ async function renderOrganizations(el) {
       Create projects and manage which firms are assigned to each project.
     </div>
     <div class="form-row c3">
-      <div class="fg">
-        <label>Project Name</label>
-        <input id="projName" placeholder="e.g. KSIA Design City" />
-      </div>
-      <div class="fg">
-        <label>Description</label>
-        <input id="projDesc" placeholder="Project description..." />
-      </div>
-      <div class="fg" style="display:flex;align-items:flex-end">
-        <button class="btn btn-primary" onclick="createProject()">+ Create Project</button>
-      </div>
+      <div class="fg"><label>Project Name</label><input id="projName" placeholder="e.g. KSIA Design City" /></div>
+      <div class="fg"><label>Description</label><input id="projDesc" placeholder="Project description..." /></div>
+      <div class="fg" style="display:flex;align-items:flex-end"><button class="btn btn-primary" onclick="createProject()">+ Create Project</button></div>
     </div>
     <div class="login-error" id="projError" style="margin-top:12px"></div>
     <div id="projList" style="margin-top:12px"></div>
-  </div>` : ''}
+  </div>
 
-  <!-- Create Organization -->
+  <!-- Create Organization (Client only) -->
   <div class="card">
     <div class="card-title">Organizations</div>
     <div class="form-row c3">
-      <div class="fg">
-        <label>Organization Name</label>
-        <input id="orgName" placeholder="e.g. Parsons, Bechtel, ABC Contractors" />
-      </div>
-      <div class="fg">
-        <label>Type</label>
-        <select id="orgType">
-          ${r === 'client' ? '<option value="client_org">Client Organization</option>' : ''}
-          <option value="consultant_firm">Consultant Firm</option>
-          <option value="contractor_company">Contractor Company</option>
-        </select>
-      </div>
-      <div class="fg" style="display:flex;align-items:flex-end">
-        <button class="btn btn-primary" onclick="createOrg()">+ Add</button>
-      </div>
+      <div class="fg"><label>Organization Name</label><input id="orgName" placeholder="e.g. Parsons, Bechtel, ABC Contractors" /></div>
+      <div class="fg"><label>Type</label><select id="orgType">
+        <option value="client_org">Client Organization</option>
+        <option value="consultant_firm">Consultant Firm</option>
+        <option value="contractor_company">Contractor Company</option>
+      </select></div>
+      <div class="fg" style="display:flex;align-items:flex-end"><button class="btn btn-primary" onclick="createOrg()">+ Add</button></div>
     </div>
     <div class="login-error" id="orgError" style="margin-top:12px"></div>
     <div class="login-error" id="orgSuccess" style="margin-top:12px"></div>
     <div id="orgList" style="margin-top:12px"><div class="empty"><div class="empty-icon">...</div>Loading...</div></div>
   </div>
 
-  <!-- Step 2: Assign Firms to Projects -->
+  <!-- Step 2: Assign Firms to Projects (Client only) -->
   <div class="card">
     <div class="card-title">Step 2 — Assign Firms to Projects</div>
     <div style="padding:10px 14px;background:rgba(52,211,153,0.06);border:1px solid rgba(52,211,153,0.15);border-radius:10px;margin-bottom:14px;font-size:13px;color:var(--green)">
-      Client assigns consultant firms and contractor companies to specific projects.
+      Assign consultant firms and contractor companies to specific projects.
     </div>
     <div class="form-row c3">
-      <div class="fg">
-        <label>Project</label>
-        <select id="pfProject"><option value="">Select project...</option></select>
-      </div>
-      <div class="fg">
-        <label>Firm / Company</label>
-        <select id="pfOrg"><option value="">Select organization...</option></select>
-      </div>
-      <div class="fg" style="display:flex;align-items:flex-end">
-        <button class="btn btn-primary" onclick="assignFirmToProject()">Assign to Project</button>
-      </div>
+      <div class="fg"><label>Project</label><select id="pfProject"><option value="">Select project...</option></select></div>
+      <div class="fg"><label>Firm / Company</label><select id="pfOrg"><option value="">Select organization...</option></select></div>
+      <div class="fg" style="display:flex;align-items:flex-end"><button class="btn btn-primary" onclick="assignFirmToProject()">Assign to Project</button></div>
     </div>
     <div class="login-error" id="pfError" style="margin-top:12px"></div>
     <div id="pfList" style="margin-top:12px"></div>
   </div>
 
-  <!-- Step 3: Link Consultant Firm ↔ Contractor Company -->
+  <!-- Step 3: Link Consultant Firm to Contractor Company (Client only) -->
   <div class="card">
     <div class="card-title">Step 3 — Link Consultant Firm to Contractor Company</div>
     <div style="padding:10px 14px;background:rgba(96,165,250,0.06);border:1px solid rgba(96,165,250,0.15);border-radius:10px;margin-bottom:14px;font-size:13px;color:var(--blue)">
       Define which consultant firm oversees which contractor company.
     </div>
     <div class="form-row c3">
-      <div class="fg">
-        <label>Consultant Firm</label>
-        <select id="linkConsultantOrg"><option value="">Select...</option></select>
-      </div>
-      <div class="fg">
-        <label>Contractor Company</label>
-        <select id="linkContractorOrg"><option value="">Select...</option></select>
-      </div>
-      <div class="fg" style="display:flex;align-items:flex-end">
-        <button class="btn btn-primary" onclick="linkOrganizations()">Link</button>
-      </div>
+      <div class="fg"><label>Consultant Firm</label><select id="linkConsultantOrg"><option value="">Select...</option></select></div>
+      <div class="fg"><label>Contractor Company</label><select id="linkContractorOrg"><option value="">Select...</option></select></div>
+      <div class="fg" style="display:flex;align-items:flex-end"><button class="btn btn-primary" onclick="linkOrganizations()">Link</button></div>
     </div>
     <div class="login-error" id="linkError" style="margin-top:12px"></div>
     <div id="linkList" style="margin-top:12px"></div>
   </div>
 
-  <!-- Step 4: Assign Representatives -->
-  <div class="card">
-    <div class="card-title">Step 4 — Assign Consultant to Contractor Representative</div>
-    <div style="padding:10px 14px;background:rgba(251,191,36,0.06);border:1px solid rgba(251,191,36,0.15);border-radius:10px;margin-bottom:14px;font-size:13px;color:var(--yellow)">
-      Assign a specific consultant representative to review a specific contractor representative's submissions. This controls the approval workflow.
-    </div>
-    <div class="form-row c3">
-      <div class="fg">
-        <label>Consultant Representative</label>
-        <select id="assignConsultant"><option value="">Select consultant...</option></select>
-      </div>
-      <div class="fg">
-        <label>Contractor Representative</label>
-        <select id="assignContractor"><option value="">Select contractor...</option></select>
-      </div>
-      <div class="fg" style="display:flex;align-items:flex-end">
-        <button class="btn btn-primary" onclick="createUserAssignment()">Assign</button>
-      </div>
-    </div>
-    <div class="login-error" id="assignError" style="margin-top:12px"></div>
-    <div id="assignList" style="margin-top:12px"></div>
-  </div>
-
-  <!-- Assign Users to Organizations -->
+  <!-- Assign Users to Organizations (Client only) -->
   <div class="card">
     <div class="card-title">Assign User to Organization</div>
     <div style="padding:10px 14px;background:rgba(167,139,250,0.06);border:1px solid rgba(167,139,250,0.15);border-radius:10px;margin-bottom:14px;font-size:13px;color:var(--purple)">
       Assign team members to their organization (firm or company).
     </div>
     <div class="form-row c3">
-      <div class="fg">
-        <label>User</label>
-        <select id="userToAssign"><option value="">Select user...</option></select>
-      </div>
-      <div class="fg">
-        <label>Organization</label>
-        <select id="orgToAssignTo"><option value="">Select organization...</option></select>
-      </div>
-      <div class="fg" style="display:flex;align-items:flex-end">
-        <button class="btn btn-primary" onclick="assignUserToOrganization()">Assign</button>
-      </div>
+      <div class="fg"><label>User</label><select id="userToAssign"><option value="">Select user...</option></select></div>
+      <div class="fg"><label>Organization</label><select id="orgToAssignTo"><option value="">Select organization...</option></select></div>
+      <div class="fg" style="display:flex;align-items:flex-end"><button class="btn btn-primary" onclick="assignUserToOrganization()">Assign</button></div>
     </div>
     <div class="login-error" id="userOrgError" style="margin-top:12px"></div>
     <div id="userOrgList" style="margin-top:12px"></div>
+  </div>` : `
+  <!-- Consultant: read-only view of their linked orgs and contractors -->
+  <div class="card">
+    <div class="card-title">Your Firm & Linked Contractors</div>
+    <div style="padding:10px 14px;background:rgba(52,211,153,0.06);border:1px solid rgba(52,211,153,0.15);border-radius:10px;margin-bottom:14px;font-size:13px;color:var(--green)">
+      Organizations and firm links are managed by the client. Below are the firms and companies linked to you.
+    </div>
+    <div id="orgList" style="margin-top:12px"><div class="empty"><div class="empty-icon">...</div>Loading...</div></div>
+    <div id="linkList" style="margin-top:16px"></div>
+  </div>`}
+
+  <!-- Step 4: Assign Consultant to Contractor Rep (Client + Consultant) -->
+  <div class="card">
+    <div class="card-title">${isClient ? 'Step 4 — ' : ''}Assign Contractor Representatives</div>
+    <div style="padding:10px 14px;background:rgba(251,191,36,0.06);border:1px solid rgba(251,191,36,0.15);border-radius:10px;margin-bottom:14px;font-size:13px;color:var(--yellow)">
+      ${isClient ? 'Assign a consultant representative to review a contractor representative\'s submissions.' : 'Assign contractor representatives from your linked companies. This controls who you review in the approval workflow.'}
+    </div>
+    <div class="form-row c3">
+      <div class="fg"><label>Consultant Representative</label><select id="assignConsultant"><option value="">Select consultant...</option></select></div>
+      <div class="fg"><label>Contractor Representative</label><select id="assignContractor"><option value="">Select contractor...</option></select></div>
+      <div class="fg" style="display:flex;align-items:flex-end"><button class="btn btn-primary" onclick="createUserAssignment()">Assign</button></div>
+    </div>
+    <div class="login-error" id="assignError" style="margin-top:12px"></div>
+    <div id="assignList" style="margin-top:12px"></div>
   </div>`;
 
   // Load data
@@ -839,7 +863,7 @@ function renderLinkList(links) {
       <td style="font-weight:600;color:var(--green)">${l.consultantOrgName}</td>
       <td style="color:var(--slate5);text-align:center">→</td>
       <td style="font-weight:600;color:var(--blue)">${l.contractorOrgName}</td>
-      <td><button class="btn btn-danger btn-sm" onclick="unlinkOrganizations('${l.id}')">Unlink</button></td>
+      <td>${state.role === 'client' ? `<button class="btn btn-danger btn-sm" onclick="unlinkOrganizations('${l.id}')">Unlink</button>` : ''}</td>
     </tr>`).join('')}</tbody>
   </table></div>`;
 }
