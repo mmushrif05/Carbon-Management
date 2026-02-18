@@ -252,10 +252,32 @@ async function handleBatchNotify(body, decoded) {
 
   const db = getDb();
 
-  // Find all consultants for this project
+  // Find assigned consultants for this contractor (assignment-based routing)
+  let consultants = [];
+
+  // Check if the submitter has assignments
+  const assignSnap = await db.ref('assignments')
+    .orderByChild('contractorUid')
+    .equalTo(decoded.uid)
+    .once('value');
+
+  const assignments = assignSnap.val() || {};
+  const assignedConsultantUids = Object.values(assignments).map(a => a.consultantUid);
+
   const usersSnap = await db.ref('users').once('value');
   const usersData = usersSnap.val() || {};
-  const consultants = Object.values(usersData).filter(u => u.role === 'consultant' && u.email);
+
+  if (assignedConsultantUids.length > 0) {
+    // Only notify assigned consultants
+    consultants = Object.entries(usersData)
+      .filter(([uid, u]) => assignedConsultantUids.includes(uid) && u.email)
+      .map(([uid, u]) => u);
+    console.log('[EMAIL] Notifying assigned consultants only:', assignedConsultantUids);
+  } else {
+    // Fallback: if no assignments exist, notify all consultants (backward compatible)
+    consultants = Object.values(usersData).filter(u => u.role === 'consultant' && u.email);
+    console.log('[EMAIL] No assignments found — notifying all consultants.');
+  }
 
   if (consultants.length === 0) {
     console.log('[EMAIL] No consultants found to notify.');

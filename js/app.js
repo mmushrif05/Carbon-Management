@@ -10,6 +10,7 @@ function buildSidebar() {
   items.push({section:"Reports"},{id:'monthly',icon:'\ud83d\udcc5',label:'Monthly Report'},{id:'cumulative',icon:'\ud83d\udcc8',label:'Cumulative'});
   if(r==='consultant'||r==='client'){items.push({section:"Config"},{id:'baselines',icon:'\u2699\ufe0f',label:'Baseline EFs'});}
   items.push({section:"Manage"},{id:'team',icon:'\ud83d\udc65',label:'Team'});
+  if(r==='consultant'||r==='client'){items.push({id:'organizations',icon:'\ud83c\udfe2',label:'Organizations'});}
   items.push({id:'certifications',icon:'\ud83c\udfc6',label:'Certifications'},{id:'integrations',icon:'\ud83d\udd0c',label:'API Hub'});
 
   $('sidebarNav').innerHTML = items.map(it => it.section ? `<div class="sb-section">${it.section}</div>` :
@@ -20,10 +21,10 @@ function buildSidebar() {
 // ===== NAV =====
 function navigate(page) {
   state.page = page; buildSidebar();
-  const titles={dashboard:["Dashboard","Project carbon performance & sustainability metrics"],entry_a13:["A1-A3 Material Entry","Enter material quantities and emission factors"],entry_a5:["A5 Site Emissions","Monthly fuel and water consumption"],approvals:["Approval Workflow","Review and approve carbon data"],monthly:["Monthly Report","Monthly emissions breakdown"],cumulative:["Cumulative Report","Running totals and trends"],baselines:["Baseline EFs","Emission factor reference data"],team:["Team Management","Invite and manage project team members"],certifications:["Certifications","Track sustainability certification credits"],integrations:["API Hub","External integrations and data sources"],tender_entry:["Tender Quantities","Create and manage tender emission scenarios from BOQ quantities"],tender_compare:["Compare Scenarios","Side-by-side comparison of tender emission projections"]};
+  const titles={dashboard:["Dashboard","Project carbon performance & sustainability metrics"],entry_a13:["A1-A3 Material Entry","Enter material quantities and emission factors"],entry_a5:["A5 Site Emissions","Monthly fuel and water consumption"],approvals:["Approval Workflow","Review and approve carbon data"],monthly:["Monthly Report","Monthly emissions breakdown"],cumulative:["Cumulative Report","Running totals and trends"],baselines:["Baseline EFs","Emission factor reference data"],team:["Team Management","Invite and manage project team members"],organizations:["Organizations & Assignments","Manage firms, companies, and consultant-contractor assignments"],certifications:["Certifications","Track sustainability certification credits"],integrations:["API Hub","External integrations and data sources"],tender_entry:["Tender Quantities","Create and manage tender emission scenarios from BOQ quantities"],tender_compare:["Compare Scenarios","Side-by-side comparison of tender emission projections"]};
   const[t,d]=titles[page]||["",""];
   $('pageTitle').textContent=t; $('pageDesc').textContent=d;
-  const R={dashboard:renderDashboard,entry_a13:renderEntry,entry_a5:renderA5,approvals:renderApprovals,monthly:renderMonthly,cumulative:renderCumulative,baselines:renderBaselines,team:renderTeam,certifications:renderCerts,integrations:renderIntegrations,tender_entry:renderTenderEntry,tender_compare:renderTenderCompare};
+  const R={dashboard:renderDashboard,entry_a13:renderEntry,entry_a5:renderA5,approvals:renderApprovals,monthly:renderMonthly,cumulative:renderCumulative,baselines:renderBaselines,team:renderTeam,organizations:renderOrganizations,certifications:renderCerts,integrations:renderIntegrations,tender_entry:renderTenderEntry,tender_compare:renderTenderCompare};
   if(R[page]) R[page]($('pageBody'));
   $('sidebar').classList.remove('open');
 }
@@ -58,7 +59,7 @@ async function init() {
           localStorage.setItem('ct_server_verified', 'true');
           await loadAllData();
           $('loadingOverlay').style.display = 'none';
-          enterApp(data.user.name, data.user.role);
+          enterApp(data.user.name, data.user.role, data.user);
           return;
         }
       } catch (e) {
@@ -74,7 +75,7 @@ async function init() {
         console.log('[AUTH] Offline mode — using server-verified cached profile');
         await loadAllData();
         $('loadingOverlay').style.display = 'none';
-        enterApp(profile.name, profile.role);
+        enterApp(profile.name, profile.role, profile);
         return;
       }
     }

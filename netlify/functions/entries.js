@@ -1,14 +1,53 @@
 const { getDb, verifyToken, respond, optionsResponse } = require('./utils/firebase');
 
+async function getUserProfile(uid) {
+  const db = getDb();
+  const snap = await db.ref('users/' + uid).once('value');
+  return snap.val();
+}
+
+// Get the list of contractor UIDs that a consultant is assigned to review
+async function getAssignedContractorUids(consultantUid) {
+  const db = getDb();
+  const snap = await db.ref('assignments')
+    .orderByChild('consultantUid')
+    .equalTo(consultantUid)
+    .once('value');
+
+  const data = snap.val() || {};
+  return Object.values(data).map(a => a.contractorUid);
+}
+
 async function handleList(event) {
   const decoded = await verifyToken(event);
   if (!decoded) return respond(401, { error: 'Unauthorized' });
 
   try {
     const db = getDb();
+    const profile = await getUserProfile(decoded.uid);
     const snap = await db.ref('projects/ksia/entries').once('value');
     const data = snap.val();
-    return respond(200, { entries: data ? Object.values(data) : [] });
+    let entries = data ? Object.values(data) : [];
+
+    // Role-based filtering:
+    // - Client sees all entries
+    // - Consultant sees only entries from their assigned contractors (or their own)
+    // - Contractor sees only their own entries
+    if (profile && profile.role === 'consultant') {
+      const assignedContractors = await getAssignedContractorUids(decoded.uid);
+      if (assignedContractors.length > 0) {
+        entries = entries.filter(e =>
+          e.submittedByUid === decoded.uid ||
+          assignedContractors.includes(e.submittedByUid)
+        );
+      }
+      // If no assignments exist yet, consultant sees all (backward compatible)
+    } else if (profile && profile.role === 'contractor') {
+      entries = entries.filter(e => e.submittedByUid === decoded.uid);
+    }
+    // Client sees all — no filter
+
+    return respond(200, { entries });
   } catch (e) {
     return respond(500, { error: 'Failed to load entries' });
   }
@@ -27,9 +66,19 @@ async function handleSave(event, body) {
 
   try {
     const db = getDb();
+    const profile = await getUserProfile(decoded.uid);
+
     // Set server-verified fields
     entry.submittedBy = decoded.name || decoded.email;
+    entry.submittedByUid = decoded.uid;
     entry.submittedAt = new Date().toISOString();
+
+    // Tag with organization info
+    if (profile) {
+      entry.organizationId = profile.organizationId || null;
+      entry.organizationName = profile.organizationName || null;
+    }
+
     await db.ref('projects/ksia/entries/' + entry.id).set(entry);
     return respond(200, { success: true });
   } catch (e) {
@@ -45,7 +94,7 @@ async function handleUpdate(event, body) {
   if (!id || !updates) return respond(400, { error: 'ID and updates required' });
 
   // Only allow updating specific safe fields
-  const allowedFields = ['status', 'consultantAt', 'consultantBy', 'clientAt', 'clientBy'];
+  const allowedFields = ['status', 'consultantAt', 'consultantBy', 'consultantByUid', 'clientAt', 'clientBy', 'clientByUid'];
   const safeUpdates = {};
   for (const key of Object.keys(updates)) {
     if (allowedFields.includes(key)) {
@@ -57,6 +106,21 @@ async function handleUpdate(event, body) {
 
   try {
     const db = getDb();
+    const profile = await getUserProfile(decoded.uid);
+
+    // Enforce assignment-based access for consultants
+    if (profile && profile.role === 'consultant') {
+      const entrySnap = await db.ref('projects/ksia/entries/' + id).once('value');
+      const entry = entrySnap.val();
+      if (entry && entry.submittedByUid) {
+        const assignedContractors = await getAssignedContractorUids(decoded.uid);
+        // If assignments exist, check that this entry belongs to an assigned contractor
+        if (assignedContractors.length > 0 && !assignedContractors.includes(entry.submittedByUid) && entry.submittedByUid !== decoded.uid) {
+          return respond(403, { error: 'You are not assigned to review this contractor\'s submissions.' });
+        }
+      }
+    }
+
     await db.ref('projects/ksia/entries/' + id).update(safeUpdates);
     return respond(200, { success: true });
   } catch (e) {
@@ -87,13 +151,20 @@ async function handleBatchSave(event, body) {
     const db = getDb();
     const now = new Date().toISOString();
     const submittedBy = decoded.name || decoded.email;
+    const profile = await getUserProfile(decoded.uid);
 
     // Use a multi-path update to write all entries atomically
     const updates = {};
     for (const entry of entries) {
       entry.submittedBy = submittedBy;
+      entry.submittedByUid = decoded.uid;
       entry.submittedAt = now;
       entry.status = 'pending';
+      // Tag with organization info
+      if (profile) {
+        entry.organizationId = profile.organizationId || null;
+        entry.organizationName = profile.organizationName || null;
+      }
       updates['projects/ksia/entries/' + entry.id] = entry;
     }
 

@@ -1,5 +1,5 @@
 // ===== APPLICATION STATE & UTILITIES =====
-let state = { role:null, name:'', page:'dashboard', entries:[], a5entries:[], invitations:[], tenderScenarios:[] };
+let state = { role:null, name:'', uid:null, organizationId:null, organizationName:null, page:'dashboard', entries:[], a5entries:[], invitations:[], tenderScenarios:[], organizations:[], orgLinks:[], assignments:[], users:[] };
 
 const fmt=v=>(v==null||isNaN(v))?"\u2014":v.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});
 const fmtI=v=>(v==null||isNaN(v))?"\u2014":Math.round(v).toLocaleString();
@@ -7,9 +7,22 @@ const $=id=>document.getElementById(id);
 
 // ===== LOAD DATA =====
 async function loadAllData() {
-  state.entries = await DB.getEntries();
-  state.a5entries = await DB.getA5Entries();
-  state.tenderScenarios = await DB.getTenderScenarios();
+  // Load core data
+  const [entries, a5entries, tenderScenarios] = await Promise.all([
+    DB.getEntries(),
+    DB.getA5Entries(),
+    DB.getTenderScenarios()
+  ]);
+  state.entries = entries;
+  state.a5entries = a5entries;
+  state.tenderScenarios = tenderScenarios;
+
+  // Load assignments (needed for approval workflow info display)
+  try {
+    state.assignments = await DB.getAssignments();
+  } catch (e) {
+    state.assignments = [];
+  }
 
   // Setup real-time listeners
   DB.onEntriesChange(data => { state.entries = data; if (state.page) navigate(state.page); });

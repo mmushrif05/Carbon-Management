@@ -119,11 +119,16 @@ const DB = {
     return [];
   },
 
-  async createInvitation(email, role, message) {
+  async createInvitation(email, role, message, organizationId, organizationName) {
     if (!dbConnected) throw new Error('Server connection required to send invitations.');
+    const payload = { action: 'create', email, role, message };
+    if (organizationId) {
+      payload.organizationId = organizationId;
+      payload.organizationName = organizationName || '';
+    }
     const res = await apiCall('/invitations', {
       method: 'POST',
-      body: JSON.stringify({ action: 'create', email, role, message })
+      body: JSON.stringify(payload)
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Failed to create invitation.');
@@ -320,5 +325,157 @@ const DB = {
         } catch (e) {}
       }, 30000);
     }
+  },
+
+  // === ORGANIZATIONS ===
+  async getOrganizations() {
+    if (!dbConnected) return [];
+    try {
+      const res = await apiCall('/organizations', {
+        method: 'POST',
+        body: JSON.stringify({ action: 'list-orgs' })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        return data.organizations || [];
+      }
+    } catch (e) { console.warn('API error (getOrganizations):', e); }
+    return [];
+  },
+
+  async createOrganization(name, type) {
+    if (!dbConnected) throw new Error('Server connection required.');
+    const res = await apiCall('/organizations', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'create-org', name, type })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to create organization.');
+    return data;
+  },
+
+  async updateOrganization(orgId, name) {
+    if (!dbConnected) throw new Error('Server connection required.');
+    const res = await apiCall('/organizations', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'update-org', orgId, name })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to update organization.');
+    return data;
+  },
+
+  async deleteOrganization(orgId) {
+    if (!dbConnected) throw new Error('Server connection required.');
+    const res = await apiCall('/organizations', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'delete-org', orgId })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to delete organization.');
+    return data;
+  },
+
+  async assignUserToOrg(userId, orgId) {
+    if (!dbConnected) throw new Error('Server connection required.');
+    const res = await apiCall('/organizations', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'assign-user-to-org', userId, orgId })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to assign user.');
+    return data;
+  },
+
+  // Org links (consultant firm ↔ contractor company)
+  async getOrgLinks() {
+    if (!dbConnected) return [];
+    try {
+      const res = await apiCall('/organizations', {
+        method: 'POST',
+        body: JSON.stringify({ action: 'list-links' })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        return data.links || [];
+      }
+    } catch (e) { console.warn('API error (getOrgLinks):', e); }
+    return [];
+  },
+
+  async linkOrgs(consultantOrgId, contractorOrgId) {
+    if (!dbConnected) throw new Error('Server connection required.');
+    const res = await apiCall('/organizations', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'link-orgs', consultantOrgId, contractorOrgId })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to link organizations.');
+    return data;
+  },
+
+  async unlinkOrgs(linkId) {
+    if (!dbConnected) throw new Error('Server connection required.');
+    const res = await apiCall('/organizations', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'unlink-orgs', linkId })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to unlink organizations.');
+    return data;
+  },
+
+  // Assignments (consultant ↔ contractor user-level)
+  async getAssignments() {
+    if (!dbConnected) return [];
+    try {
+      const res = await apiCall('/organizations', {
+        method: 'POST',
+        body: JSON.stringify({ action: 'list-assignments' })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        return data.assignments || [];
+      }
+    } catch (e) { console.warn('API error (getAssignments):', e); }
+    return [];
+  },
+
+  async createAssignment(consultantUid, contractorUid) {
+    if (!dbConnected) throw new Error('Server connection required.');
+    const res = await apiCall('/organizations', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'create-assignment', consultantUid, contractorUid })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to create assignment.');
+    return data;
+  },
+
+  async deleteAssignment(assignmentId) {
+    if (!dbConnected) throw new Error('Server connection required.');
+    const res = await apiCall('/organizations', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'delete-assignment', assignmentId })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to delete assignment.');
+    return data;
+  },
+
+  // Users list (for assignment UI)
+  async getUsers() {
+    if (!dbConnected) return [];
+    try {
+      const res = await apiCall('/organizations', {
+        method: 'POST',
+        body: JSON.stringify({ action: 'list-users' })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        return data.users || [];
+      }
+    } catch (e) { console.warn('API error (getUsers):', e); }
+    return [];
   }
 };
