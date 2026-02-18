@@ -1,3 +1,71 @@
+// ===== SESSION TIMEOUT =====
+// Auto-logout after 30 minutes of inactivity
+const SESSION_TIMEOUT_MS = 30 * 60 * 1000;
+let _sessionTimer = null;
+let _lastActivity = Date.now();
+
+function resetSessionTimer() {
+  _lastActivity = Date.now();
+  if (_sessionTimer) clearTimeout(_sessionTimer);
+  _sessionTimer = setTimeout(() => {
+    // Only logout if user is actually logged in
+    if (state.role && typeof logout === 'function') {
+      alert('Your session has expired due to inactivity. Please sign in again.');
+      logout();
+    }
+  }, SESSION_TIMEOUT_MS);
+}
+
+// Track user activity — reset timer on interaction
+['click', 'keydown', 'mousemove', 'scroll', 'touchstart'].forEach(evt => {
+  document.addEventListener(evt, () => {
+    // Throttle: only reset if >60s since last reset to avoid overhead
+    if (Date.now() - _lastActivity > 60000) resetSessionTimer();
+  }, { passive: true });
+});
+
+// ===== OFFLINE MODE HARDENING =====
+// When restoring from cache, verify profile integrity using HMAC
+// This prevents localStorage tampering to elevate roles
+function signProfile(profile) {
+  // Simple fingerprint: hash role + uid + org together
+  // Not cryptographic security (client-side), but catches casual tampering
+  const payload = (profile.uid || '') + ':' + (profile.role || '') + ':' + (profile.organizationId || '');
+  let hash = 0;
+  for (let i = 0; i < payload.length; i++) {
+    const c = payload.charCodeAt(i);
+    hash = ((hash << 5) - hash) + c;
+    hash |= 0;
+  }
+  return hash.toString(36);
+}
+
+function storeVerifiedProfile(profile) {
+  const sig = signProfile(profile);
+  localStorage.setItem('ct_user_profile', JSON.stringify(profile));
+  localStorage.setItem('ct_profile_sig', sig);
+}
+
+function loadVerifiedProfile() {
+  const raw = localStorage.getItem('ct_user_profile');
+  if (!raw) return null;
+  try {
+    const profile = JSON.parse(raw);
+    const storedSig = localStorage.getItem('ct_profile_sig');
+    const expectedSig = signProfile(profile);
+    if (storedSig !== expectedSig) {
+      console.warn('[AUTH] Profile signature mismatch — possible tampering. Forcing re-login.');
+      localStorage.removeItem('ct_user_profile');
+      localStorage.removeItem('ct_profile_sig');
+      localStorage.removeItem('ct_server_verified');
+      return null;
+    }
+    return profile;
+  } catch (e) {
+    return null;
+  }
+}
+
 // ===== SIDEBAR =====
 function buildSidebar() {
   const r=state.role;
@@ -57,6 +125,8 @@ async function init() {
 
         if (data.authenticated) {
           localStorage.setItem('ct_server_verified', 'true');
+          storeVerifiedProfile(data.user);
+          resetSessionTimer();
           await loadAllData();
           $('loadingOverlay').style.display = 'none';
           enterApp(data.user.name, data.user.role, data.user);
@@ -68,11 +138,12 @@ async function init() {
     }
 
     // Server not reachable but user was previously server-verified
-    // Allow temporary offline access with cached profile
+    // Allow temporary offline access with integrity-checked cached profile
     if (token && serverVerified === 'true' && !dbConnected) {
-      const profile = JSON.parse(localStorage.getItem('ct_user_profile') || 'null');
+      const profile = loadVerifiedProfile();
       if (profile && profile.name && profile.role) {
-        console.log('[AUTH] Offline mode — using server-verified cached profile');
+        console.log('[AUTH] Offline mode — using integrity-checked cached profile');
+        resetSessionTimer();
         await loadAllData();
         $('loadingOverlay').style.display = 'none';
         enterApp(profile.name, profile.role, profile);

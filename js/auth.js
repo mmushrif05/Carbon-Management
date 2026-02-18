@@ -193,9 +193,9 @@ async function handleLogin() {
       console.log('[AUTH] Login successful:', data.user.email);
       localStorage.setItem('ct_auth_token', data.token);
       localStorage.setItem('ct_refresh_token', data.refreshToken);
-      localStorage.setItem('ct_user_profile', JSON.stringify(data.user));
-      // Mark this session as server-verified
+      storeVerifiedProfile(data.user);
       localStorage.setItem('ct_server_verified', 'true');
+      resetSessionTimer();
       enterApp(data.user.name, data.user.role, data.user);
       return;
     } else {
@@ -257,8 +257,9 @@ async function handleRegister() {
       console.log('[AUTH] Account created successfully:', data.user.email, data.user.role);
       localStorage.setItem('ct_auth_token', data.token);
       localStorage.setItem('ct_refresh_token', data.refreshToken);
-      localStorage.setItem('ct_user_profile', JSON.stringify(data.user));
+      storeVerifiedProfile(data.user);
       localStorage.setItem('ct_server_verified', 'true');
+      resetSessionTimer();
       showSuccess('regError', 'Account created successfully! Redirecting...');
       setTimeout(() => enterApp(data.user.name, data.user.role, data.user), 1000);
       return;
@@ -304,8 +305,9 @@ function logout() {
   localStorage.removeItem('ct_refresh_token');
   localStorage.removeItem('ct_auth_session');
   localStorage.removeItem('ct_server_verified');
-  // Keep ct_user_profile cleared so offline re-entry is blocked
   localStorage.removeItem('ct_user_profile');
+  localStorage.removeItem('ct_profile_sig');
+  if (_sessionTimer) { clearTimeout(_sessionTimer); _sessionTimer = null; }
   state.role = null;
   state.name = '';
   state.uid = null;
@@ -379,8 +381,9 @@ async function handleBootstrap() {
     if (res.ok) {
       localStorage.setItem('ct_auth_token', data.token);
       localStorage.setItem('ct_refresh_token', data.refreshToken);
-      localStorage.setItem('ct_user_profile', JSON.stringify(data.user));
+      storeVerifiedProfile(data.user);
       localStorage.setItem('ct_server_verified', 'true');
+      resetSessionTimer();
       showSuccess('setupError', 'Admin account created! Redirecting...');
       setTimeout(() => enterApp(data.user.name, data.user.role, data.user), 1000);
     } else {

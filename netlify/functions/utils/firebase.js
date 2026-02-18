@@ -37,19 +37,33 @@ async function verifyToken(event) {
   }
 }
 
-const headers = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-  'Content-Type': 'application/json'
-};
+// CORS: restrict to site origin. Falls back to same-origin ('') if env var not set.
+// On Netlify, functions and frontend share the same domain, so CORS is implicit.
+// The SITE_URL env var is auto-set by Netlify (e.g., https://your-site.netlify.app).
+function getAllowedOrigin() {
+  return process.env.SITE_URL || process.env.URL || '';
+}
+
+function getHeaders() {
+  const origin = getAllowedOrigin();
+  return {
+    'Access-Control-Allow-Origin': origin,
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+    'Access-Control-Allow-Credentials': 'true',
+    'Content-Type': 'application/json'
+  };
+}
+
+// Keep a static reference for backward compatibility
+const headers = getHeaders();
 
 function respond(statusCode, body) {
-  return { statusCode, headers, body: JSON.stringify(body) };
+  return { statusCode, headers: getHeaders(), body: JSON.stringify(body) };
 }
 
 function optionsResponse() {
-  return { statusCode: 204, headers, body: '' };
+  return { statusCode: 204, headers: getHeaders(), body: '' };
 }
 
 // Get user profile and resolve their projectId

@@ -19,7 +19,7 @@
             ".validate": "newData.hasChildren(['id', 'category', 'type', 'qty', 'submittedByUid'])"
           },
           ".read": "auth != null",
-          ".indexOn": ["submittedByUid", "organizationId", "status"]
+          ".indexOn": ["submittedByUid", "organizationId", "status", "category", "monthKey", "submittedAt", "serverVerified"]
         },
         "a5entries": {
           "$entryId": {
@@ -28,7 +28,7 @@
             ".validate": "newData.hasChildren(['id', 'source', 'qty'])"
           },
           ".read": "auth != null",
-          ".indexOn": ["submittedByUid"]
+          ".indexOn": ["submittedByUid", "source", "month"]
         },
         "tenderScenarios": {
           "$scenarioId": {
@@ -37,7 +37,7 @@
             ".validate": "newData.hasChildren(['id', 'name'])"
           },
           ".read": "auth != null",
-          ".indexOn": ["createdBy"]
+          ".indexOn": ["createdBy", "updatedAt"]
         },
         "_meta": {
           ".read": "auth != null",
@@ -82,7 +82,7 @@
         ".write": "auth != null"
       },
       ".read": "auth != null && (root.child('users').child(auth.uid).child('role').val() === 'client' || root.child('users').child(auth.uid).child('role').val() === 'consultant')",
-      ".indexOn": ["email", "token", "project", "status"]
+      ".indexOn": ["email", "token", "project", "status", "invitedByUid", "createdAt"]
     },
 
     "$other": {

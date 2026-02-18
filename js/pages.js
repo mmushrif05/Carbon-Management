@@ -304,21 +304,51 @@ async function subA5(){if(_debounceFlags['subA5'])return;_debounceFlags['subA5']
 function rA5(){const t=$('a5B');if(!t)return;const a=[...state.a5entries].reverse();t.innerHTML=a.length?a.map(e=>`<tr><td>${e.monthLabel}</td><td>${e.source}</td><td class="r mono">${fmtI(e.qty)}</td><td>${e.unit}</td><td class="r mono" style="font-weight:700">${fmt(e.emission)}</td><td><button class="btn btn-danger btn-sm" onclick="dA5(${e.id})">\u2715</button></td></tr>`).join(''):'<tr><td colspan="6" class="empty">No entries</td></tr>';}
 async function dA5(id){await DB.deleteA5Entry(id);state.a5entries=state.a5entries.filter(e=>e.id!==id);rA5();}
 
+// ===== PAGINATION UTILITY =====
+const PAGE_SIZE = 50;
+let _currentPages = {};
+function getPage(key) { return _currentPages[key] || 1; }
+function setPage(key, p) { _currentPages[key] = p; }
+
+function renderPagination(total, currentPage, pageKey, rerenderFn) {
+  const totalPages = Math.ceil(total / PAGE_SIZE);
+  if (totalPages <= 1) return '';
+  const start = (currentPage - 1) * PAGE_SIZE + 1;
+  const end = Math.min(currentPage * PAGE_SIZE, total);
+  let btns = '';
+  btns += `<button class="btn btn-secondary btn-sm" ${currentPage<=1?'disabled':''} onclick="setPage('${pageKey}',${currentPage-1});${rerenderFn}">Prev</button>`;
+  // Show up to 5 page buttons around current
+  const lo = Math.max(1, currentPage - 2);
+  const hi = Math.min(totalPages, currentPage + 2);
+  if (lo > 1) btns += `<button class="btn btn-secondary btn-sm" onclick="setPage('${pageKey}',1);${rerenderFn}">1</button>`;
+  if (lo > 2) btns += `<span style="color:var(--slate5);padding:0 4px">...</span>`;
+  for (let i = lo; i <= hi; i++) {
+    btns += `<button class="btn ${i===currentPage?'btn-primary':'btn-secondary'} btn-sm" onclick="setPage('${pageKey}',${i});${rerenderFn}">${i}</button>`;
+  }
+  if (hi < totalPages - 1) btns += `<span style="color:var(--slate5);padding:0 4px">...</span>`;
+  if (hi < totalPages) btns += `<button class="btn btn-secondary btn-sm" onclick="setPage('${pageKey}',${totalPages});${rerenderFn}">${totalPages}</button>`;
+  btns += `<button class="btn btn-secondary btn-sm" ${currentPage>=totalPages?'disabled':''} onclick="setPage('${pageKey}',${currentPage+1});${rerenderFn}">Next</button>`;
+  return `<div style="display:flex;align-items:center;gap:6px;justify-content:space-between;margin-top:12px;flex-wrap:wrap"><span style="font-size:11px;color:var(--slate5)">Showing ${start}–${end} of ${total}</span><div style="display:flex;gap:4px;align-items:center">${btns}</div></div>`;
+}
+
 // ===== APPROVALS =====
 function renderApprovals(el){
   const r=state.role;
-  // Consultant sees both pending (to forward/approve) and review (to approve) items
-  // Entries are already filtered server-side by assignment
   const items=r==='consultant'?state.entries.filter(e=>e.status==='pending'||e.status==='review'):r==='client'?state.entries.filter(e=>e.status==='review'):state.entries;
 
-  // Show assignment info banner for consultants
+  const page = getPage('appr');
+  const totalPages = Math.ceil(items.length / PAGE_SIZE);
+  const safeP = Math.min(page, totalPages || 1);
+  if (safeP !== page) setPage('appr', safeP);
+  const paged = items.slice((safeP - 1) * PAGE_SIZE, safeP * PAGE_SIZE);
+
   const assignInfo = r==='consultant' && state.assignments.length > 0
     ? `<div class="card"><div class="card-title">Your Assignments</div><div style="padding:10px 14px;background:rgba(96,165,250,0.08);border:1px solid rgba(96,165,250,0.2);border-radius:10px;font-size:13px;color:var(--blue)">You are reviewing submissions from <strong>${state.assignments.map(a=>a.contractorName).join(', ')}</strong>. Only their entries appear here.</div></div>`
     : '';
 
   el.innerHTML=`${assignInfo}<div class="card"><div class="card-title">Workflow</div>
   <div class="flow-steps"><div class="flow-step"><div class="flow-dot done">\ud83c\udfd7\ufe0f</div><div class="flow-label">Contractor</div></div><div class="flow-line done"></div><div class="flow-step"><div class="flow-dot ${r==='consultant'?'current':'done'}">\ud83d\udccb</div><div class="flow-label">Consultant</div></div><div class="flow-line ${r==='client'||r==='consultant'?'done':''}"></div><div class="flow-step"><div class="flow-dot ${r==='client'?'current':(r==='consultant'?'done':'')}">\ud83d\udc54</div><div class="flow-label">Client</div></div></div></div>
-  <div class="card"><div class="card-title">${items.length} Items</div><div class="tbl-wrap"><table><thead><tr><th>Month</th><th>Material</th><th>Type</th><th>By</th><th>Org</th><th class="r">Baseline</th><th class="r">Actual</th><th class="r">Reduction</th><th>Status</th>${r!=='contractor'?'<th>Actions</th>':''}</tr></thead><tbody>${items.length?items.map(e=>`<tr><td>${e.monthLabel}</td><td>${e.category}</td><td>${e.type}</td><td>${e.submittedBy||'\u2014'}</td><td style="font-size:11px;color:var(--slate5)">${e.organizationName||'\u2014'}</td><td class="r mono">${fmt(e.a13B)}</td><td class="r mono">${fmt(e.a13A)}</td><td class="r mono" style="color:${e.pct>20?'var(--green)':'var(--orange)'};font-weight:700">${fmt(e.pct)}%</td><td><span class="badge ${e.status}">${e.status}</span></td>${r==='consultant'?`<td>${e.status==='pending'?`<button class="btn btn-approve btn-sm" onclick="appr(${e.id},'review')">\u2713 Forward</button> `:''}${e.status==='pending'||e.status==='review'?`<button class="btn btn-primary btn-sm" onclick="appr(${e.id},'approved')">\u2713 Approve</button> `:''}<button class="btn btn-danger btn-sm" onclick="appr(${e.id},'rejected')">\u2715 Reject</button></td>`:''}${r==='client'?`<td><button class="btn btn-approve btn-sm" onclick="appr(${e.id},'approved')">\u2713 Approve</button> <button class="btn btn-danger btn-sm" onclick="appr(${e.id},'rejected')">\u2715 Reject</button></td>`:''}</tr>`).join(''):'<tr><td colspan="10" class="empty">No pending items</td></tr>'}</tbody></table></div></div>`;
+  <div class="card"><div class="card-title">${items.length} Items</div><div class="tbl-wrap"><table><thead><tr><th>Month</th><th>Material</th><th>Type</th><th>By</th><th>Org</th><th class="r">Baseline</th><th class="r">Actual</th><th class="r">Reduction</th><th>Status</th>${r!=='contractor'?'<th>Actions</th>':''}</tr></thead><tbody>${paged.length?paged.map(e=>`<tr><td>${e.monthLabel}</td><td>${e.category}</td><td>${e.type}</td><td>${e.submittedBy||'\u2014'}</td><td style="font-size:11px;color:var(--slate5)">${e.organizationName||'\u2014'}</td><td class="r mono">${fmt(e.a13B)}</td><td class="r mono">${fmt(e.a13A)}</td><td class="r mono" style="color:${e.pct>20?'var(--green)':'var(--orange)'};font-weight:700">${fmt(e.pct)}%</td><td><span class="badge ${e.status}">${e.status}</span></td>${r==='consultant'?`<td>${e.status==='pending'?`<button class="btn btn-approve btn-sm" onclick="appr('${e.id}','review')">Forward</button> `:''}${e.status==='pending'||e.status==='review'?`<button class="btn btn-primary btn-sm" onclick="appr('${e.id}','approved')">Approve</button> `:''}<button class="btn btn-danger btn-sm" onclick="appr('${e.id}','rejected')">Reject</button></td>`:''}${r==='client'?`<td><button class="btn btn-approve btn-sm" onclick="appr('${e.id}','approved')">Approve</button> <button class="btn btn-danger btn-sm" onclick="appr('${e.id}','rejected')">Reject</button></td>`:''}</tr>`).join(''):'<tr><td colspan="10" class="empty">No pending items</td></tr>'}</tbody></table></div>${renderPagination(items.length, safeP, 'appr', "navigate('approvals')")}</div>`;
 }
 async function appr(id,s){const dk='appr_'+id;if(_debounceFlags[dk])return;_debounceFlags[dk]=true;setTimeout(()=>{_debounceFlags[dk]=false;},2000);try{await DB.updateEntry(id,{status:s,[state.role+'At']:new Date().toISOString(),[state.role+'By']:state.name,[state.role+'ByUid']:state.uid});const e=state.entries.find(x=>x.id===id);if(e)e.status=s;buildSidebar();navigate('approvals');}catch(err){alert(err.message||'Approval action failed.');_debounceFlags[dk]=false;}}
 
