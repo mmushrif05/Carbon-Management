@@ -1,9 +1,19 @@
 const { getDb, verifyToken, respond, optionsResponse } = require('./utils/firebase');
 
-// ===== ORGANIZATIONS & ASSIGNMENTS API =====
-// Manages the enterprise hierarchy:
-//   Client (KSIA) → Consultant Firms (Parsons, Bechtel) → Contractor Companies
-// And the assignment of specific consultants to specific contractors.
+// ===== ENTERPRISE GOVERNANCE API =====
+// Full assignment chain:
+//   1. Client creates project → assigns consultant firm to project
+//   2. Consultant firm assigns their representative
+//   3. Client selects contractor firm for the project
+//   4. Consultant assigns contractor representative
+//
+// Database structure:
+//   projects_registry/{projectId}  — project metadata (name, clientOrgId)
+//   organizations/{orgId}          — firms and companies
+//   project_firms/{id}             — firm-to-project assignments (which firm works on which project)
+//   org_links/{id}                 — consultant firm → contractor company oversight
+//   assignments/{id}               — consultant rep → contractor rep (user-level)
+//   users/{uid}                    — user profiles
 
 async function getUserProfile(uid) {
   const db = getDb();
@@ -11,32 +21,101 @@ async function getUserProfile(uid) {
   return snap.val();
 }
 
-// === CREATE ORGANIZATION ===
+// ========== PROJECTS ==========
+
+async function handleCreateProject(body, decoded) {
+  const { name, description } = body;
+  if (!name || !name.trim()) return respond(400, { error: 'Project name is required.' });
+
+  const profile = await getUserProfile(decoded.uid);
+  if (!profile) return respond(403, { error: 'Profile not found.' });
+  if (profile.role !== 'client') return respond(403, { error: 'Only clients can create projects.' });
+
+  const db = getDb();
+  const projectId = 'proj_' + Date.now().toString();
+
+  const project = {
+    id: projectId,
+    name: name.trim(),
+    description: (description || '').trim(),
+    clientOrgId: profile.organizationId || null,
+    clientOrgName: profile.organizationName || null,
+    createdBy: decoded.uid,
+    createdByName: profile.name || profile.email,
+    createdAt: new Date().toISOString(),
+    status: 'active'
+  };
+
+  await db.ref('projects_registry/' + projectId).set(project);
+
+  // Also create the project data path
+  await db.ref('projects/' + projectId).update({ _meta: { name: name.trim(), createdAt: project.createdAt } });
+
+  console.log('[ORG] Created project:', projectId, name.trim());
+  return respond(200, { project });
+}
+
+async function handleListProjects(decoded) {
+  const profile = await getUserProfile(decoded.uid);
+  if (!profile) return respond(403, { error: 'Profile not found.' });
+
+  const db = getDb();
+  const snap = await db.ref('projects_registry').once('value');
+  const data = snap.val() || {};
+  let projects = Object.values(data);
+
+  // Filter by access: client sees all, consultant/contractor sees projects they're assigned to
+  if (profile.role === 'consultant' || profile.role === 'contractor') {
+    // Get project_firms entries for the user's org
+    const firmSnap = await db.ref('project_firms').once('value');
+    const firmData = firmSnap.val() || {};
+    const myOrgId = profile.organizationId;
+    const myProjectIds = new Set();
+
+    // User's own project from profile
+    const userProjectId = profile.projectId || profile.project;
+    if (userProjectId) myProjectIds.add(userProjectId);
+
+    // Projects where user's org is assigned
+    if (myOrgId) {
+      Object.values(firmData).forEach(pf => {
+        if (pf.orgId === myOrgId) myProjectIds.add(pf.projectId);
+      });
+    }
+
+    projects = projects.filter(p => myProjectIds.has(p.id));
+  }
+
+  projects.sort((a, b) => a.name.localeCompare(b.name));
+  return respond(200, { projects });
+}
+
+// ========== ORGANIZATIONS ==========
+
 async function handleCreateOrg(body, decoded) {
   const { name, type } = body;
 
   if (!name || !name.trim()) return respond(400, { error: 'Organization name is required.' });
-  if (!type || !['consultant_firm', 'contractor_company'].includes(type)) {
-    return respond(400, { error: 'Type must be "consultant_firm" or "contractor_company".' });
+  if (!type || !['consultant_firm', 'contractor_company', 'client_org'].includes(type)) {
+    return respond(400, { error: 'Type must be "consultant_firm", "contractor_company", or "client_org".' });
   }
 
   const profile = await getUserProfile(decoded.uid);
   if (!profile) return respond(403, { error: 'Profile not found.' });
 
-  // Only clients and consultants can create organizations
   if (!['client', 'consultant'].includes(profile.role)) {
     return respond(403, { error: 'Only clients and consultants can create organizations.' });
   }
 
   const db = getDb();
-  const project = profile.project || 'ksia';
-  const orgId = Date.now().toString();
+  const projectId = profile.projectId || profile.project || 'ksia';
+  const orgId = 'org_' + Date.now().toString();
 
   const org = {
     id: orgId,
     name: name.trim(),
     type,
-    project,
+    project: projectId,
     createdBy: decoded.uid,
     createdByName: profile.name || profile.email,
     createdAt: new Date().toISOString()
@@ -48,27 +127,21 @@ async function handleCreateOrg(body, decoded) {
   return respond(200, { organization: org });
 }
 
-// === LIST ORGANIZATIONS ===
 async function handleListOrgs(decoded) {
   const profile = await getUserProfile(decoded.uid);
   if (!profile) return respond(403, { error: 'Profile not found.' });
 
   const db = getDb();
-  const project = profile.project || 'ksia';
-
-  const snap = await db.ref('organizations')
-    .orderByChild('project')
-    .equalTo(project)
-    .once('value');
-
+  const snap = await db.ref('organizations').once('value');
   const data = snap.val() || {};
+
+  // Show all orgs for now (project-level filtering can be added later for multi-tenant)
   const organizations = Object.values(data)
     .sort((a, b) => a.name.localeCompare(b.name));
 
   return respond(200, { organizations });
 }
 
-// === UPDATE ORGANIZATION ===
 async function handleUpdateOrg(body, decoded) {
   const { orgId, name } = body;
   if (!orgId) return respond(400, { error: 'Organization ID is required.' });
@@ -94,7 +167,6 @@ async function handleUpdateOrg(body, decoded) {
   return respond(200, { success: true });
 }
 
-// === DELETE ORGANIZATION ===
 async function handleDeleteOrg(body, decoded) {
   const { orgId } = body;
   if (!orgId) return respond(400, { error: 'Organization ID is required.' });
@@ -102,7 +174,6 @@ async function handleDeleteOrg(body, decoded) {
   const profile = await getUserProfile(decoded.uid);
   if (!profile) return respond(403, { error: 'Profile not found.' });
 
-  // Only clients can delete organizations
   if (profile.role !== 'client') {
     return respond(403, { error: 'Only clients can delete organizations.' });
   }
@@ -140,7 +211,8 @@ async function handleDeleteOrg(body, decoded) {
   return respond(200, { success: true });
 }
 
-// === ASSIGN USER TO ORGANIZATION ===
+// ========== ASSIGN USER TO ORGANIZATION ==========
+
 async function handleAssignUserToOrg(body, decoded) {
   const { userId, orgId } = body;
   if (!userId || !orgId) return respond(400, { error: 'User ID and Organization ID are required.' });
@@ -154,25 +226,25 @@ async function handleAssignUserToOrg(body, decoded) {
 
   const db = getDb();
 
-  // Verify the organization exists
   const orgSnap = await db.ref('organizations/' + orgId).once('value');
   const org = orgSnap.val();
   if (!org) return respond(404, { error: 'Organization not found.' });
 
-  // Verify the user exists
   const userSnap = await db.ref('users/' + userId).once('value');
   const user = userSnap.val();
   if (!user) return respond(404, { error: 'User not found.' });
 
-  // Validate: consultants go to consultant_firm, contractors go to contractor_company
+  // Validate role/type match
   if (user.role === 'consultant' && org.type !== 'consultant_firm') {
     return respond(400, { error: 'Consultants can only be assigned to consultant firms.' });
   }
   if (user.role === 'contractor' && org.type !== 'contractor_company') {
     return respond(400, { error: 'Contractors can only be assigned to contractor companies.' });
   }
+  if (user.role === 'client' && org.type !== 'client_org') {
+    return respond(400, { error: 'Clients can only be assigned to client organizations.' });
+  }
 
-  // Update user profile with organization
   await db.ref('users/' + userId).update({
     organizationId: orgId,
     organizationName: org.name
@@ -182,8 +254,95 @@ async function handleAssignUserToOrg(body, decoded) {
   return respond(200, { success: true });
 }
 
-// === LINK CONTRACTOR COMPANY TO CONSULTANT FIRM ===
-// This creates the relationship: which consultant firm oversees which contractor company
+// ========== ASSIGN FIRM TO PROJECT (Step 1 & 3) ==========
+// Client assigns a consultant firm or contractor company to a specific project
+
+async function handleAssignFirmToProject(body, decoded) {
+  const { orgId, projectId, role } = body;
+  if (!orgId || !projectId) return respond(400, { error: 'Organization ID and Project ID are required.' });
+
+  const profile = await getUserProfile(decoded.uid);
+  if (!profile) return respond(403, { error: 'Profile not found.' });
+
+  // Client assigns firms; consultant can assign contractor companies
+  if (profile.role !== 'client' && profile.role !== 'consultant') {
+    return respond(403, { error: 'Only clients and consultants can assign firms to projects.' });
+  }
+
+  const db = getDb();
+
+  const orgSnap = await db.ref('organizations/' + orgId).once('value');
+  const org = orgSnap.val();
+  if (!org) return respond(404, { error: 'Organization not found.' });
+
+  const projSnap = await db.ref('projects_registry/' + projectId).once('value');
+  if (!projSnap.val()) return respond(404, { error: 'Project not found.' });
+
+  // Check for existing assignment
+  const existSnap = await db.ref('project_firms').once('value');
+  const existing = existSnap.val() || {};
+  const duplicate = Object.values(existing).find(
+    pf => pf.orgId === orgId && pf.projectId === projectId
+  );
+  if (duplicate) return respond(400, { error: 'This firm is already assigned to this project.' });
+
+  const assignId = 'pf_' + Date.now().toString();
+  const assignment = {
+    id: assignId,
+    orgId,
+    orgName: org.name,
+    orgType: org.type,
+    projectId,
+    projectName: projSnap.val().name,
+    role: role || org.type, // 'consultant_firm' or 'contractor_company'
+    assignedBy: decoded.uid,
+    assignedByName: profile.name || profile.email,
+    createdAt: new Date().toISOString()
+  };
+
+  await db.ref('project_firms/' + assignId).set(assignment);
+  console.log('[ORG] Firm', org.name, 'assigned to project:', projectId);
+
+  return respond(200, { assignment });
+}
+
+async function handleListProjectFirms(body, decoded) {
+  const profile = await getUserProfile(decoded.uid);
+  if (!profile) return respond(403, { error: 'Profile not found.' });
+
+  const db = getDb();
+  const snap = await db.ref('project_firms').once('value');
+  const data = snap.val() || {};
+  let projectFirms = Object.values(data);
+
+  // Optionally filter by projectId
+  if (body.projectId) {
+    projectFirms = projectFirms.filter(pf => pf.projectId === body.projectId);
+  }
+
+  projectFirms.sort((a, b) => a.orgName.localeCompare(b.orgName));
+  return respond(200, { projectFirms });
+}
+
+async function handleRemoveProjectFirm(body, decoded) {
+  const { assignmentId } = body;
+  if (!assignmentId) return respond(400, { error: 'Assignment ID is required.' });
+
+  const profile = await getUserProfile(decoded.uid);
+  if (!profile) return respond(403, { error: 'Profile not found.' });
+  if (profile.role !== 'client') return respond(403, { error: 'Only clients can remove firm-project assignments.' });
+
+  const db = getDb();
+  const snap = await db.ref('project_firms/' + assignmentId).once('value');
+  if (!snap.val()) return respond(404, { error: 'Assignment not found.' });
+
+  await db.ref('project_firms/' + assignmentId).remove();
+  console.log('[ORG] Removed firm-project assignment:', assignmentId);
+  return respond(200, { success: true });
+}
+
+// ========== LINK CONSULTANT FIRM ↔ CONTRACTOR COMPANY ==========
+
 async function handleLinkOrgs(body, decoded) {
   const { consultantOrgId, contractorOrgId } = body;
   if (!consultantOrgId || !contractorOrgId) {
@@ -199,7 +358,6 @@ async function handleLinkOrgs(body, decoded) {
 
   const db = getDb();
 
-  // Verify both orgs exist and are correct types
   const [cSnap, rSnap] = await Promise.all([
     db.ref('organizations/' + consultantOrgId).once('value'),
     db.ref('organizations/' + contractorOrgId).once('value')
@@ -228,14 +386,13 @@ async function handleLinkOrgs(body, decoded) {
     return respond(400, { error: 'These organizations are already linked.' });
   }
 
-  const linkId = Date.now().toString();
+  const linkId = 'lnk_' + Date.now().toString();
   const link = {
     id: linkId,
     consultantOrgId,
     consultantOrgName: consultantOrg.name,
     contractorOrgId,
     contractorOrgName: contractorOrg.name,
-    project: profile.project || 'ksia',
     createdBy: decoded.uid,
     createdAt: new Date().toISOString()
   };
@@ -246,7 +403,6 @@ async function handleLinkOrgs(body, decoded) {
   return respond(200, { link });
 }
 
-// === UNLINK ORGANIZATIONS ===
 async function handleUnlinkOrgs(body, decoded) {
   const { linkId } = body;
   if (!linkId) return respond(400, { error: 'Link ID is required.' });
@@ -268,19 +424,12 @@ async function handleUnlinkOrgs(body, decoded) {
   return respond(200, { success: true });
 }
 
-// === LIST ORG LINKS ===
 async function handleListLinks(decoded) {
   const profile = await getUserProfile(decoded.uid);
   if (!profile) return respond(403, { error: 'Profile not found.' });
 
   const db = getDb();
-  const project = profile.project || 'ksia';
-
-  const snap = await db.ref('org_links')
-    .orderByChild('project')
-    .equalTo(project)
-    .once('value');
-
+  const snap = await db.ref('org_links').once('value');
   const data = snap.val() || {};
   const links = Object.values(data)
     .sort((a, b) => a.consultantOrgName.localeCompare(b.consultantOrgName));
@@ -288,8 +437,8 @@ async function handleListLinks(decoded) {
   return respond(200, { links });
 }
 
-// === ASSIGN CONSULTANT TO CONTRACTOR (user-level assignment) ===
-// A specific consultant user is assigned to review a specific contractor user's submissions
+// ========== CONSULTANT ↔ CONTRACTOR USER-LEVEL ASSIGNMENTS (Step 2 & 4) ==========
+
 async function handleCreateAssignment(body, decoded) {
   const { consultantUid, contractorUid } = body;
   if (!consultantUid || !contractorUid) {
@@ -305,7 +454,6 @@ async function handleCreateAssignment(body, decoded) {
 
   const db = getDb();
 
-  // Verify both users exist and have correct roles
   const [consSnap, contrSnap] = await Promise.all([
     db.ref('users/' + consultantUid).once('value'),
     db.ref('users/' + contractorUid).once('value')
@@ -334,7 +482,7 @@ async function handleCreateAssignment(body, decoded) {
     return respond(400, { error: 'This assignment already exists.' });
   }
 
-  const assignmentId = Date.now().toString();
+  const assignmentId = 'asgn_' + Date.now().toString();
   const assignment = {
     id: assignmentId,
     consultantUid,
@@ -345,7 +493,7 @@ async function handleCreateAssignment(body, decoded) {
     contractorName: contractor.name || contractor.email,
     contractorOrgId: contractor.organizationId || null,
     contractorOrgName: contractor.organizationName || null,
-    project: profile.project || 'ksia',
+    projectId: profile.projectId || profile.project || 'ksia',
     createdBy: decoded.uid,
     createdByName: profile.name || profile.email,
     createdAt: new Date().toISOString()
@@ -357,7 +505,6 @@ async function handleCreateAssignment(body, decoded) {
   return respond(200, { assignment });
 }
 
-// === DELETE ASSIGNMENT ===
 async function handleDeleteAssignment(body, decoded) {
   const { assignmentId } = body;
   if (!assignmentId) return respond(400, { error: 'Assignment ID is required.' });
@@ -379,19 +526,12 @@ async function handleDeleteAssignment(body, decoded) {
   return respond(200, { success: true });
 }
 
-// === LIST ASSIGNMENTS ===
 async function handleListAssignments(decoded) {
   const profile = await getUserProfile(decoded.uid);
   if (!profile) return respond(403, { error: 'Profile not found.' });
 
   const db = getDb();
-  const project = profile.project || 'ksia';
-
-  const snap = await db.ref('assignments')
-    .orderByChild('project')
-    .equalTo(project)
-    .once('value');
-
+  const snap = await db.ref('assignments').once('value');
   const data = snap.val() || {};
   let assignments = Object.values(data);
 
@@ -405,7 +545,8 @@ async function handleListAssignments(decoded) {
   return respond(200, { assignments });
 }
 
-// === LIST USERS (for assignment UI) ===
+// ========== USERS ==========
+
 async function handleListUsers(decoded) {
   const profile = await getUserProfile(decoded.uid);
   if (!profile) return respond(403, { error: 'Profile not found.' });
@@ -425,13 +566,13 @@ async function handleListUsers(decoded) {
     role: u.role,
     organizationId: u.organizationId || null,
     organizationName: u.organizationName || null,
-    project: u.project
-  })).filter(u => u.project === (profile.project || 'ksia'));
+    projectId: u.projectId || u.project || null
+  }));
 
   return respond(200, { users });
 }
 
-// === MAIN HANDLER ===
+// ========== MAIN HANDLER ==========
 exports.handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return optionsResponse();
   if (event.httpMethod !== 'POST') return respond(405, { error: 'Method not allowed' });
@@ -444,27 +585,36 @@ exports.handler = async (event) => {
     const { action } = body;
 
     switch (action) {
+      // Projects
+      case 'create-project':        return await handleCreateProject(body, decoded);
+      case 'list-projects':         return await handleListProjects(decoded);
+
       // Organizations
-      case 'create-org':         return await handleCreateOrg(body, decoded);
-      case 'list-orgs':          return await handleListOrgs(decoded);
-      case 'update-org':         return await handleUpdateOrg(body, decoded);
-      case 'delete-org':         return await handleDeleteOrg(body, decoded);
+      case 'create-org':            return await handleCreateOrg(body, decoded);
+      case 'list-orgs':             return await handleListOrgs(decoded);
+      case 'update-org':            return await handleUpdateOrg(body, decoded);
+      case 'delete-org':            return await handleDeleteOrg(body, decoded);
 
       // User-to-org assignment
-      case 'assign-user-to-org': return await handleAssignUserToOrg(body, decoded);
+      case 'assign-user-to-org':    return await handleAssignUserToOrg(body, decoded);
+
+      // Firm-to-project assignments
+      case 'assign-firm-to-project': return await handleAssignFirmToProject(body, decoded);
+      case 'list-project-firms':     return await handleListProjectFirms(body, decoded);
+      case 'remove-project-firm':    return await handleRemoveProjectFirm(body, decoded);
 
       // Org-to-org links (consultant firm ↔ contractor company)
-      case 'link-orgs':          return await handleLinkOrgs(body, decoded);
-      case 'unlink-orgs':        return await handleUnlinkOrgs(body, decoded);
-      case 'list-links':         return await handleListLinks(decoded);
+      case 'link-orgs':             return await handleLinkOrgs(body, decoded);
+      case 'unlink-orgs':           return await handleUnlinkOrgs(body, decoded);
+      case 'list-links':            return await handleListLinks(decoded);
 
       // User-to-user assignments (consultant ↔ contractor)
-      case 'create-assignment':  return await handleCreateAssignment(body, decoded);
-      case 'delete-assignment':  return await handleDeleteAssignment(body, decoded);
-      case 'list-assignments':   return await handleListAssignments(decoded);
+      case 'create-assignment':     return await handleCreateAssignment(body, decoded);
+      case 'delete-assignment':     return await handleDeleteAssignment(body, decoded);
+      case 'list-assignments':      return await handleListAssignments(decoded);
 
       // User listing
-      case 'list-users':         return await handleListUsers(decoded);
+      case 'list-users':            return await handleListUsers(decoded);
 
       default: return respond(400, { error: 'Invalid action.' });
     }

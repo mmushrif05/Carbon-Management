@@ -285,6 +285,8 @@ function enterApp(name, role, userExtra) {
     state.uid = userExtra.uid || null;
     state.organizationId = userExtra.organizationId || null;
     state.organizationName = userExtra.organizationName || null;
+    state.projectId = userExtra.projectId || userExtra.project || 'ksia';
+    state.projectName = userExtra.projectName || null;
   }
   $('loginScreen').style.display = 'none';
   $('appShell').style.display = 'block';
@@ -309,11 +311,15 @@ function logout() {
   state.uid = null;
   state.organizationId = null;
   state.organizationName = null;
+  state.projectId = null;
+  state.projectName = null;
   state.invitations = [];
   state.organizations = [];
   state.orgLinks = [];
   state.assignments = [];
   state.users = [];
+  state.projects = [];
+  state.projectFirms = [];
   $('appShell').style.display = 'none';
   $('loginScreen').style.display = 'flex';
   // Reset form fields

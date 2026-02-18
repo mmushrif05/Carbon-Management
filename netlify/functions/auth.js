@@ -226,7 +226,7 @@ async function handleRegister(body) {
     return respond(200, {
       token: signUpData.idToken,
       refreshToken: signUpData.refreshToken,
-      user: { uid, name: name.trim(), email: trimmedEmail, role, project, organizationId: invitation.organizationId || null, organizationName: invitation.organizationName || null }
+      user: { uid, name: name.trim(), email: trimmedEmail, role, projectId: project, organizationId: invitation.organizationId || null, organizationName: invitation.organizationName || null }
     });
   } catch (e) {
     const errorCode = e.code || e.message || 'UNKNOWN';
@@ -263,7 +263,7 @@ async function handleLogin(body) {
     return respond(200, {
       token: signInData.idToken,
       refreshToken: signInData.refreshToken,
-      user: { uid, name: signInData.displayName || profile.name || email.split('@')[0], email: profile.email, role: profile.role, organizationId: profile.organizationId || null, organizationName: profile.organizationName || null }
+      user: { uid, name: signInData.displayName || profile.name || email.split('@')[0], email: profile.email, role: profile.role, organizationId: profile.organizationId || null, organizationName: profile.organizationName || null, projectId: profile.projectId || profile.project || 'ksia' }
     });
   } catch (e) {
     const errorCode = e.code || e.message || 'UNKNOWN';
@@ -286,7 +286,7 @@ async function handleVerify(event) {
 
     return respond(200, {
       authenticated: true,
-      user: { uid: decoded.uid, name: profile.name, email: profile.email, role: profile.role, organizationId: profile.organizationId || null, organizationName: profile.organizationName || null }
+      user: { uid: decoded.uid, name: profile.name, email: profile.email, role: profile.role, organizationId: profile.organizationId || null, organizationName: profile.organizationName || null, projectId: profile.projectId || profile.project || 'ksia' }
     });
   } catch (e) {
     return respond(200, { authenticated: false });

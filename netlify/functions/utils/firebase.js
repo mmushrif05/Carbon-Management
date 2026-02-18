@@ -52,4 +52,12 @@ function optionsResponse() {
   return { statusCode: 204, headers, body: '' };
 }
 
-module.exports = { getDb, getAuth, verifyToken, headers, respond, optionsResponse };
+// Get user profile and resolve their projectId
+async function getUserProjectId(uid) {
+  const db = getDb();
+  const snap = await db.ref('users/' + uid).once('value');
+  const profile = snap.val();
+  return profile ? (profile.projectId || profile.project || 'ksia') : 'ksia';
+}
+
+module.exports = { getDb, getAuth, verifyToken, getUserProjectId, headers, respond, optionsResponse };

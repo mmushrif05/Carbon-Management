@@ -539,6 +539,7 @@ async function resendInvite(id) {
 }
 
 // ===== ORGANIZATIONS & ASSIGNMENTS =====
+// Full enterprise workflow UI with 4-step assignment chain
 async function renderOrganizations(el) {
   const r = state.role;
   const canManage = r === 'client' || r === 'consultant';
@@ -549,20 +550,55 @@ async function renderOrganizations(el) {
   }
 
   el.innerHTML = `
-  <!-- Hierarchy explanation -->
+  <!-- Enterprise Workflow Overview -->
   <div class="card">
-    <div class="card-title">Enterprise Hierarchy</div>
-    <div style="padding:12px 16px;background:rgba(96,165,250,0.06);border:1px solid rgba(96,165,250,0.15);border-radius:10px;font-size:13px;color:var(--slate4);line-height:1.7">
-      <strong style="color:var(--blue)">How it works:</strong> The client (KSIA) hires consultant firms (e.g., Parsons, Bechtel).
-      Each consultant firm oversees contractor companies. Within a firm, specific consultants are assigned to review
-      specific contractors' carbon data submissions.<br>
-      <span style="color:var(--slate5)">Client → Consultant Firms → Contractor Companies → Individual Assignments</span>
+    <div class="card-title">Enterprise Assignment Chain</div>
+    <div style="padding:16px;background:rgba(96,165,250,0.04);border:1px solid rgba(96,165,250,0.12);border-radius:10px">
+      <div class="flow-steps" style="margin-bottom:12px">
+        <div class="flow-step"><div class="flow-dot done" style="font-size:14px">1</div><div class="flow-label">Create Project</div></div>
+        <div class="flow-line done"></div>
+        <div class="flow-step"><div class="flow-dot done" style="font-size:14px">2</div><div class="flow-label">Assign Firms</div></div>
+        <div class="flow-line done"></div>
+        <div class="flow-step"><div class="flow-dot done" style="font-size:14px">3</div><div class="flow-label">Link Firms</div></div>
+        <div class="flow-line done"></div>
+        <div class="flow-step"><div class="flow-dot done" style="font-size:14px">4</div><div class="flow-label">Assign Reps</div></div>
+      </div>
+      <div style="font-size:12px;color:var(--slate4);line-height:1.7;text-align:center">
+        <strong>Step 1:</strong> Client creates project &nbsp;→&nbsp;
+        <strong>Step 2:</strong> Assign consultant &amp; contractor firms to project &nbsp;→&nbsp;
+        <strong>Step 3:</strong> Link consultant firm to contractor company &nbsp;→&nbsp;
+        <strong>Step 4:</strong> Assign specific consultant &amp; contractor representatives
+      </div>
     </div>
   </div>
 
+  ${r === 'client' ? `
+  <!-- Step 1: Projects (Client only) -->
+  <div class="card">
+    <div class="card-title">Step 1 — Projects</div>
+    <div style="padding:10px 14px;background:rgba(167,139,250,0.06);border:1px solid rgba(167,139,250,0.15);border-radius:10px;margin-bottom:14px;font-size:13px;color:var(--purple)">
+      Create projects and manage which firms are assigned to each project.
+    </div>
+    <div class="form-row c3">
+      <div class="fg">
+        <label>Project Name</label>
+        <input id="projName" placeholder="e.g. KSIA Design City" />
+      </div>
+      <div class="fg">
+        <label>Description</label>
+        <input id="projDesc" placeholder="Project description..." />
+      </div>
+      <div class="fg" style="display:flex;align-items:flex-end">
+        <button class="btn btn-primary" onclick="createProject()">+ Create Project</button>
+      </div>
+    </div>
+    <div class="login-error" id="projError" style="margin-top:12px"></div>
+    <div id="projList" style="margin-top:12px"></div>
+  </div>` : ''}
+
   <!-- Create Organization -->
   <div class="card">
-    <div class="card-title">Add Organization</div>
+    <div class="card-title">Organizations</div>
     <div class="form-row c3">
       <div class="fg">
         <label>Organization Name</label>
@@ -571,28 +607,47 @@ async function renderOrganizations(el) {
       <div class="fg">
         <label>Type</label>
         <select id="orgType">
+          ${r === 'client' ? '<option value="client_org">Client Organization</option>' : ''}
           <option value="consultant_firm">Consultant Firm</option>
           <option value="contractor_company">Contractor Company</option>
         </select>
       </div>
       <div class="fg" style="display:flex;align-items:flex-end">
-        <button class="btn btn-primary" onclick="createOrg()">+ Add Organization</button>
+        <button class="btn btn-primary" onclick="createOrg()">+ Add</button>
       </div>
     </div>
     <div class="login-error" id="orgError" style="margin-top:12px"></div>
     <div class="login-error" id="orgSuccess" style="margin-top:12px"></div>
+    <div id="orgList" style="margin-top:12px"><div class="empty"><div class="empty-icon">...</div>Loading...</div></div>
   </div>
 
-  <!-- Organizations List -->
+  <!-- Step 2: Assign Firms to Projects -->
   <div class="card">
-    <div class="card-title">Organizations</div>
-    <div id="orgList"><div class="empty"><div class="empty-icon">...</div>Loading...</div></div>
-  </div>
-
-  <!-- Link Orgs (consultant firm ↔ contractor company) -->
-  <div class="card">
-    <div class="card-title">Link Consultant Firm to Contractor Company</div>
+    <div class="card-title">Step 2 — Assign Firms to Projects</div>
     <div style="padding:10px 14px;background:rgba(52,211,153,0.06);border:1px solid rgba(52,211,153,0.15);border-radius:10px;margin-bottom:14px;font-size:13px;color:var(--green)">
+      Client assigns consultant firms and contractor companies to specific projects.
+    </div>
+    <div class="form-row c3">
+      <div class="fg">
+        <label>Project</label>
+        <select id="pfProject"><option value="">Select project...</option></select>
+      </div>
+      <div class="fg">
+        <label>Firm / Company</label>
+        <select id="pfOrg"><option value="">Select organization...</option></select>
+      </div>
+      <div class="fg" style="display:flex;align-items:flex-end">
+        <button class="btn btn-primary" onclick="assignFirmToProject()">Assign to Project</button>
+      </div>
+    </div>
+    <div class="login-error" id="pfError" style="margin-top:12px"></div>
+    <div id="pfList" style="margin-top:12px"></div>
+  </div>
+
+  <!-- Step 3: Link Consultant Firm ↔ Contractor Company -->
+  <div class="card">
+    <div class="card-title">Step 3 — Link Consultant Firm to Contractor Company</div>
+    <div style="padding:10px 14px;background:rgba(96,165,250,0.06);border:1px solid rgba(96,165,250,0.15);border-radius:10px;margin-bottom:14px;font-size:13px;color:var(--blue)">
       Define which consultant firm oversees which contractor company.
     </div>
     <div class="form-row c3">
@@ -612,19 +667,19 @@ async function renderOrganizations(el) {
     <div id="linkList" style="margin-top:12px"></div>
   </div>
 
-  <!-- Assign Consultant to Contractor (user-level) -->
+  <!-- Step 4: Assign Representatives -->
   <div class="card">
-    <div class="card-title">Assign Consultant to Contractor</div>
+    <div class="card-title">Step 4 — Assign Consultant to Contractor Representative</div>
     <div style="padding:10px 14px;background:rgba(251,191,36,0.06);border:1px solid rgba(251,191,36,0.15);border-radius:10px;margin-bottom:14px;font-size:13px;color:var(--yellow)">
-      Assign a specific consultant to review a specific contractor's submissions. This controls who sees what in the approval workflow.
+      Assign a specific consultant representative to review a specific contractor representative's submissions. This controls the approval workflow.
     </div>
     <div class="form-row c3">
       <div class="fg">
-        <label>Consultant</label>
+        <label>Consultant Representative</label>
         <select id="assignConsultant"><option value="">Select consultant...</option></select>
       </div>
       <div class="fg">
-        <label>Contractor</label>
+        <label>Contractor Representative</label>
         <select id="assignContractor"><option value="">Select contractor...</option></select>
       </div>
       <div class="fg" style="display:flex;align-items:flex-end">
@@ -664,25 +719,52 @@ async function renderOrganizations(el) {
 
 async function loadOrgData() {
   try {
-    const [orgs, links, assignments, users] = await Promise.all([
+    const [orgs, links, assignments, users, projects, projectFirms] = await Promise.all([
       DB.getOrganizations(),
       DB.getOrgLinks(),
       DB.getAssignments(),
-      DB.getUsers()
+      DB.getUsers(),
+      DB.getProjects(),
+      DB.getProjectFirms()
     ]);
     state.organizations = orgs;
     state.orgLinks = links;
     state.assignments = assignments;
     state.users = users;
+    state.projects = projects;
+    state.projectFirms = projectFirms;
 
+    renderProjectList(projects);
     renderOrgList(orgs);
+    renderProjectFirmList(projectFirms);
     renderLinkList(links);
     renderAssignmentList(assignments);
     renderUserOrgList(users);
-    populateOrgDropdowns(orgs, users);
+    populateOrgDropdowns(orgs, users, projects);
   } catch (e) {
     console.warn('Failed to load org data:', e);
   }
+}
+
+function renderProjectList(projects) {
+  const el = $('projList');
+  if (!el) return;
+
+  if (!projects.length) {
+    el.innerHTML = '<div style="font-size:12px;color:var(--slate5);text-align:center;padding:8px">No projects yet. Create one above.</div>';
+    return;
+  }
+
+  el.innerHTML = `<div class="tbl-wrap"><table>
+    <thead><tr><th>Project</th><th>Description</th><th>Client Org</th><th>Created</th><th>Status</th></tr></thead>
+    <tbody>${projects.map(p => `<tr>
+      <td style="font-weight:700;color:var(--text)">${p.name}</td>
+      <td style="color:var(--slate4);font-size:12px">${p.description || '—'}</td>
+      <td style="color:var(--purple);font-size:12px">${p.clientOrgName || '—'}</td>
+      <td style="color:var(--slate5);font-size:11px">${new Date(p.createdAt).toLocaleDateString()}</td>
+      <td><span class="badge approved">${p.status || 'active'}</span></td>
+    </tr>`).join('')}</tbody>
+  </table></div>`;
 }
 
 function renderOrgList(orgs) {
@@ -694,31 +776,52 @@ function renderOrgList(orgs) {
     return;
   }
 
+  const clientOrgs = orgs.filter(o => o.type === 'client_org');
   const firms = orgs.filter(o => o.type === 'consultant_firm');
   const companies = orgs.filter(o => o.type === 'contractor_company');
 
-  el.innerHTML = `
-    <div class="tbl-wrap"><table>
-      <thead><tr><th>Name</th><th>Type</th><th>Created By</th><th>Date</th><th>Actions</th></tr></thead>
-      <tbody>
-        ${firms.length ? '<tr><td colspan="5" style="font-size:11px;font-weight:700;color:var(--green);text-transform:uppercase;letter-spacing:1px;padding:12px 8px 4px">Consultant Firms</td></tr>' : ''}
-        ${firms.map(o => `<tr>
-          <td style="font-weight:600">${o.name}</td>
-          <td><span class="badge approved" style="text-transform:capitalize">${o.type.replace('_', ' ')}</span></td>
-          <td style="color:var(--slate5);font-size:12px">${o.createdByName || '—'}</td>
-          <td style="color:var(--slate5);font-size:11px">${new Date(o.createdAt).toLocaleDateString()}</td>
-          <td>${state.role === 'client' ? `<button class="btn btn-danger btn-sm" onclick="deleteOrg('${o.id}')">Delete</button>` : '—'}</td>
-        </tr>`).join('')}
-        ${companies.length ? '<tr><td colspan="5" style="font-size:11px;font-weight:700;color:var(--blue);text-transform:uppercase;letter-spacing:1px;padding:12px 8px 4px">Contractor Companies</td></tr>' : ''}
-        ${companies.map(o => `<tr>
-          <td style="font-weight:600">${o.name}</td>
-          <td><span class="badge review" style="text-transform:capitalize">${o.type.replace('_', ' ')}</span></td>
-          <td style="color:var(--slate5);font-size:12px">${o.createdByName || '—'}</td>
-          <td style="color:var(--slate5);font-size:11px">${new Date(o.createdAt).toLocaleDateString()}</td>
-          <td>${state.role === 'client' ? `<button class="btn btn-danger btn-sm" onclick="deleteOrg('${o.id}')">Delete</button>` : '—'}</td>
-        </tr>`).join('')}
-      </tbody>
-    </table></div>`;
+  const renderSection = (items, label, color, badgeClass) => {
+    if (!items.length) return '';
+    return `<tr><td colspan="5" style="font-size:11px;font-weight:700;color:var(--${color});text-transform:uppercase;letter-spacing:1px;padding:12px 8px 4px">${label}</td></tr>` +
+      items.map(o => `<tr>
+        <td style="font-weight:600">${o.name}</td>
+        <td><span class="badge ${badgeClass}" style="text-transform:capitalize">${o.type.replace(/_/g, ' ')}</span></td>
+        <td style="color:var(--slate5);font-size:12px">${o.createdByName || '—'}</td>
+        <td style="color:var(--slate5);font-size:11px">${new Date(o.createdAt).toLocaleDateString()}</td>
+        <td>${state.role === 'client' ? `<button class="btn btn-danger btn-sm" onclick="deleteOrg('${o.id}')">Delete</button>` : '—'}</td>
+      </tr>`).join('');
+  };
+
+  el.innerHTML = `<div class="tbl-wrap"><table>
+    <thead><tr><th>Name</th><th>Type</th><th>Created By</th><th>Date</th><th>Actions</th></tr></thead>
+    <tbody>
+      ${renderSection(clientOrgs, 'Client Organizations', 'purple', 'pending')}
+      ${renderSection(firms, 'Consultant Firms', 'green', 'approved')}
+      ${renderSection(companies, 'Contractor Companies', 'blue', 'review')}
+    </tbody>
+  </table></div>`;
+}
+
+function renderProjectFirmList(projectFirms) {
+  const el = $('pfList');
+  if (!el) return;
+
+  if (!projectFirms.length) {
+    el.innerHTML = '<div style="font-size:12px;color:var(--slate5);text-align:center;padding:8px">No firms assigned to projects yet.</div>';
+    return;
+  }
+
+  el.innerHTML = `<div class="tbl-wrap"><table>
+    <thead><tr><th>Project</th><th>Organization</th><th>Type</th><th>Assigned By</th><th>Date</th>${state.role === 'client' ? '<th>Actions</th>' : ''}</tr></thead>
+    <tbody>${projectFirms.map(pf => `<tr>
+      <td style="font-weight:600;color:var(--purple)">${pf.projectName}</td>
+      <td style="font-weight:600">${pf.orgName}</td>
+      <td><span class="badge ${pf.orgType === 'consultant_firm' ? 'approved' : 'review'}" style="text-transform:capitalize">${(pf.orgType || '').replace(/_/g, ' ')}</span></td>
+      <td style="color:var(--slate5);font-size:12px">${pf.assignedByName || '—'}</td>
+      <td style="color:var(--slate5);font-size:11px">${new Date(pf.createdAt).toLocaleDateString()}</td>
+      ${state.role === 'client' ? `<td><button class="btn btn-danger btn-sm" onclick="removeProjectFirm('${pf.id}')">Remove</button></td>` : ''}
+    </tr>`).join('')}</tbody>
+  </table></div>`;
 }
 
 function renderLinkList(links) {
@@ -746,12 +849,12 @@ function renderAssignmentList(assignments) {
   if (!el) return;
 
   if (!assignments.length) {
-    el.innerHTML = '<div style="font-size:12px;color:var(--slate5);text-align:center;padding:8px">No assignments yet. Assign consultants to contractors above.</div>';
+    el.innerHTML = '<div style="font-size:12px;color:var(--slate5);text-align:center;padding:8px">No rep assignments yet.</div>';
     return;
   }
 
   el.innerHTML = `<div class="tbl-wrap"><table>
-    <thead><tr><th>Consultant</th><th>Org</th><th></th><th>Contractor</th><th>Org</th><th>Created</th><th>Actions</th></tr></thead>
+    <thead><tr><th>Consultant Rep</th><th>Org</th><th></th><th>Contractor Rep</th><th>Org</th><th>Created</th><th>Actions</th></tr></thead>
     <tbody>${assignments.map(a => `<tr>
       <td style="font-weight:600;color:var(--green)">${a.consultantName}</td>
       <td style="font-size:11px;color:var(--slate5)">${a.consultantOrgName || '—'}</td>
@@ -784,11 +887,17 @@ function renderUserOrgList(users) {
   </table></div>`;
 }
 
-function populateOrgDropdowns(orgs, users) {
+function populateOrgDropdowns(orgs, users, projects) {
   const firms = orgs.filter(o => o.type === 'consultant_firm');
   const companies = orgs.filter(o => o.type === 'contractor_company');
   const consultants = users.filter(u => u.role === 'consultant');
   const contractors = users.filter(u => u.role === 'contractor');
+
+  // Project-firm assignment dropdowns
+  const pfProjEl = $('pfProject');
+  const pfOrgEl = $('pfOrg');
+  if (pfProjEl && projects) pfProjEl.innerHTML = '<option value="">Select project...</option>' + projects.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
+  if (pfOrgEl) pfOrgEl.innerHTML = '<option value="">Select firm/company...</option>' + [...firms, ...companies].map(o => `<option value="${o.id}">${o.name} (${o.type.replace(/_/g, ' ')})</option>`).join('');
 
   // Link dropdowns
   const lcEl = $('linkConsultantOrg');
@@ -805,8 +914,28 @@ function populateOrgDropdowns(orgs, users) {
   // User-to-org dropdowns
   const uEl = $('userToAssign');
   const oEl = $('orgToAssignTo');
-  if (uEl) uEl.innerHTML = '<option value="">Select user...</option>' + users.filter(u => u.role !== 'client').map(u => `<option value="${u.uid}">${u.name} (${u.role})${u.organizationName ? ' — ' + u.organizationName : ''}</option>`).join('');
-  if (oEl) oEl.innerHTML = '<option value="">Select organization...</option>' + orgs.map(o => `<option value="${o.id}">${o.name} (${o.type.replace('_', ' ')})</option>`).join('');
+  if (uEl) uEl.innerHTML = '<option value="">Select user...</option>' + users.map(u => `<option value="${u.uid}">${u.name} (${u.role})${u.organizationName ? ' — ' + u.organizationName : ''}</option>`).join('');
+  if (oEl) oEl.innerHTML = '<option value="">Select organization...</option>' + orgs.map(o => `<option value="${o.id}">${o.name} (${o.type.replace(/_/g, ' ')})</option>`).join('');
+}
+
+async function createProject() {
+  const errEl = $('projError');
+  errEl.style.display = 'none';
+
+  const name = $('projName').value.trim();
+  const description = $('projDesc').value.trim();
+
+  if (!name) { showError('projError', 'Please enter a project name.'); return; }
+
+  try {
+    await DB.createProject(name, description);
+    showSuccess('projError', 'Project "' + name + '" created.');
+    $('projName').value = '';
+    $('projDesc').value = '';
+    await loadOrgData();
+  } catch (e) {
+    showError('projError', e.message || 'Failed to create project.');
+  }
 }
 
 async function createOrg() {
@@ -837,6 +966,34 @@ async function deleteOrg(orgId) {
     await loadOrgData();
   } catch (e) {
     alert(e.message || 'Failed to delete organization.');
+  }
+}
+
+async function assignFirmToProject() {
+  const errEl = $('pfError');
+  errEl.style.display = 'none';
+
+  const projectId = $('pfProject').value;
+  const orgId = $('pfOrg').value;
+
+  if (!projectId || !orgId) { showError('pfError', 'Select both a project and an organization.'); return; }
+
+  try {
+    await DB.assignFirmToProject(orgId, projectId);
+    showSuccess('pfError', 'Firm assigned to project.');
+    await loadOrgData();
+  } catch (e) {
+    showError('pfError', e.message || 'Failed to assign firm to project.');
+  }
+}
+
+async function removeProjectFirm(assignmentId) {
+  if (!confirm('Remove this firm from the project?')) return;
+  try {
+    await DB.removeProjectFirm(assignmentId);
+    await loadOrgData();
+  } catch (e) {
+    alert(e.message || 'Failed to remove firm from project.');
   }
 }
 
@@ -917,5 +1074,5 @@ async function assignUserToOrganization() {
 function renderIntegrations(el){
   const apis=[{i:"\ud83d\udd17",n:"EPD Hub API",d:"Auto-fetch emission factors"},{i:"\ud83d\udcca",n:"EC3 / Building Transparency",d:"Material carbon benchmarks"},{i:"\ud83c\udf10",n:"One Click LCA",d:"Whole-building LCA sync"},{i:"\ud83d\udce1",n:"IEA Data API",d:"Grid emission factors by region"},{i:"\ud83d\udcc1",n:"Power BI Export",d:"Advanced analytics export"},{i:"\ud83d\udd10",n:"KSIA Portal",d:"Project management sync"},{i:"\u2601\ufe0f",n:"Firebase Cloud DB",d:"Real-time cloud database",on:dbConnected},{i:"\ud83d\udce7",n:"Email Notifications",d:"Stakeholder alerts"}];
   el.innerHTML=`<div class="card"><div class="card-title">Integration Hub</div>${apis.map(a=>`<div class="api-item"><div class="api-left"><span class="api-icon">${a.i}</span><div><div class="api-name">${a.n}</div><div class="api-desc">${a.d}</div></div></div><div class="toggle${a.on?' on':''}" onclick="this.classList.toggle('on')"></div></div>`).join('')}</div>
-  <div class="card"><div class="card-title">Database Status</div><div style="padding:16px;background:var(--bg3);border-radius:10px;font-size:13px"><strong style="color:${dbConnected?'var(--green)':'var(--red)'}">●</strong> ${dbConnected?'Connected to Firebase Cloud Database \u2014 data syncs in real-time across all users':'Running in offline mode \u2014 data saved locally. Connect Firebase for cloud sync.'}<br><br><span style="color:var(--slate5);font-size:11px">Database: Firebase Realtime DB | Project: KSIA | Path: /projects/ksia/</span></div></div>`;
+  <div class="card"><div class="card-title">Database Status</div><div style="padding:16px;background:var(--bg3);border-radius:10px;font-size:13px"><strong style="color:${dbConnected?'var(--green)':'var(--red)'}">●</strong> ${dbConnected?'Connected to Firebase Cloud Database \u2014 data syncs in real-time across all users':'Running in offline mode \u2014 data saved locally. Connect Firebase for cloud sync.'}<br><br><span style="color:var(--slate5);font-size:11px">Database: Firebase Realtime DB | Project: ${state.projectId || 'ksia'} | Path: /projects/${state.projectId || 'ksia'}/</span></div></div>`;
 }

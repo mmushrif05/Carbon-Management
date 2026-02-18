@@ -1,4 +1,4 @@
-const { getDb, verifyToken, respond, optionsResponse } = require('./utils/firebase');
+const { getDb, verifyToken, getUserProjectId, respond, optionsResponse } = require('./utils/firebase');
 
 async function getUserProfile(uid) {
   const db = getDb();
@@ -25,7 +25,8 @@ async function handleList(event) {
   try {
     const db = getDb();
     const profile = await getUserProfile(decoded.uid);
-    const snap = await db.ref('projects/ksia/entries').once('value');
+    const projectId = profile ? (profile.projectId || profile.project || 'ksia') : 'ksia';
+    const snap = await db.ref(`projects/${projectId}/entries`).once('value');
     const data = snap.val();
     let entries = data ? Object.values(data) : [];
 
@@ -67,11 +68,13 @@ async function handleSave(event, body) {
   try {
     const db = getDb();
     const profile = await getUserProfile(decoded.uid);
+    const projectId = profile ? (profile.projectId || profile.project || 'ksia') : 'ksia';
 
     // Set server-verified fields
     entry.submittedBy = decoded.name || decoded.email;
     entry.submittedByUid = decoded.uid;
     entry.submittedAt = new Date().toISOString();
+    entry.projectId = projectId;
 
     // Tag with organization info
     if (profile) {
@@ -79,7 +82,7 @@ async function handleSave(event, body) {
       entry.organizationName = profile.organizationName || null;
     }
 
-    await db.ref('projects/ksia/entries/' + entry.id).set(entry);
+    await db.ref(`projects/${projectId}/entries/${entry.id}`).set(entry);
     return respond(200, { success: true });
   } catch (e) {
     return respond(500, { error: 'Failed to save entry' });
@@ -107,10 +110,11 @@ async function handleUpdate(event, body) {
   try {
     const db = getDb();
     const profile = await getUserProfile(decoded.uid);
+    const projectId = profile ? (profile.projectId || profile.project || 'ksia') : 'ksia';
 
     // Enforce assignment-based access for consultants
     if (profile && profile.role === 'consultant') {
-      const entrySnap = await db.ref('projects/ksia/entries/' + id).once('value');
+      const entrySnap = await db.ref(`projects/${projectId}/entries/${id}`).once('value');
       const entry = entrySnap.val();
       if (entry && entry.submittedByUid) {
         const assignedContractors = await getAssignedContractorUids(decoded.uid);
@@ -121,7 +125,7 @@ async function handleUpdate(event, body) {
       }
     }
 
-    await db.ref('projects/ksia/entries/' + id).update(safeUpdates);
+    await db.ref(`projects/${projectId}/entries/${id}`).update(safeUpdates);
     return respond(200, { success: true });
   } catch (e) {
     return respond(500, { error: 'Failed to update entry' });
@@ -152,6 +156,7 @@ async function handleBatchSave(event, body) {
     const now = new Date().toISOString();
     const submittedBy = decoded.name || decoded.email;
     const profile = await getUserProfile(decoded.uid);
+    const projectId = profile ? (profile.projectId || profile.project || 'ksia') : 'ksia';
 
     // Use a multi-path update to write all entries atomically
     const updates = {};
@@ -160,12 +165,13 @@ async function handleBatchSave(event, body) {
       entry.submittedByUid = decoded.uid;
       entry.submittedAt = now;
       entry.status = 'pending';
+      entry.projectId = projectId;
       // Tag with organization info
       if (profile) {
         entry.organizationId = profile.organizationId || null;
         entry.organizationName = profile.organizationName || null;
       }
-      updates['projects/ksia/entries/' + entry.id] = entry;
+      updates[`projects/${projectId}/entries/${entry.id}`] = entry;
     }
 
     await db.ref().update(updates);
@@ -184,12 +190,14 @@ async function handleDelete(event, body) {
 
   try {
     const db = getDb();
+    const projectId = await getUserProjectId(decoded.uid);
+
     // Verify the entry exists and belongs to the user or user has permission
-    const snap = await db.ref('projects/ksia/entries/' + id).once('value');
+    const snap = await db.ref(`projects/${projectId}/entries/${id}`).once('value');
     const entry = snap.val();
     if (!entry) return respond(404, { error: 'Entry not found' });
 
-    await db.ref('projects/ksia/entries/' + id).remove();
+    await db.ref(`projects/${projectId}/entries/${id}`).remove();
     return respond(200, { success: true });
   } catch (e) {
     return respond(500, { error: 'Failed to delete entry' });

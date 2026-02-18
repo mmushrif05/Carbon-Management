@@ -1,6 +1,9 @@
-const { getDb, verifyToken, respond, optionsResponse } = require('./utils/firebase');
+const { getDb, verifyToken, getUserProjectId, respond, optionsResponse } = require('./utils/firebase');
 
-const DB_PATH = 'projects/ksia/tenderScenarios';
+async function getDbPath(uid) {
+  const projectId = await getUserProjectId(uid);
+  return `projects/${projectId}/tenderScenarios`;
+}
 
 async function handleList(event) {
   const decoded = await verifyToken(event);
@@ -8,7 +11,8 @@ async function handleList(event) {
 
   try {
     const db = getDb();
-    const snap = await db.ref(DB_PATH).once('value');
+    const dbPath = await getDbPath(decoded.uid);
+    const snap = await db.ref(dbPath).once('value');
     const data = snap.val();
     return respond(200, { scenarios: data ? Object.values(data) : [] });
   } catch (e) {
@@ -26,9 +30,10 @@ async function handleSave(event, body) {
 
   try {
     const db = getDb();
+    const dbPath = await getDbPath(decoded.uid);
     scenario.createdBy = scenario.createdBy || decoded.name || decoded.email;
     scenario.updatedAt = new Date().toISOString();
-    await db.ref(DB_PATH + '/' + scenario.id).set(scenario);
+    await db.ref(dbPath + '/' + scenario.id).set(scenario);
     return respond(200, { success: true });
   } catch (e) {
     return respond(500, { error: 'Failed to save scenario' });
@@ -56,7 +61,8 @@ async function handleUpdate(event, body) {
 
   try {
     const db = getDb();
-    await db.ref(DB_PATH + '/' + id).update(safeUpdates);
+    const dbPath = await getDbPath(decoded.uid);
+    await db.ref(dbPath + '/' + id).update(safeUpdates);
     return respond(200, { success: true });
   } catch (e) {
     return respond(500, { error: 'Failed to update scenario' });
@@ -72,10 +78,11 @@ async function handleDelete(event, body) {
 
   try {
     const db = getDb();
-    const snap = await db.ref(DB_PATH + '/' + id).once('value');
+    const dbPath = await getDbPath(decoded.uid);
+    const snap = await db.ref(dbPath + '/' + id).once('value');
     if (!snap.val()) return respond(404, { error: 'Scenario not found' });
 
-    await db.ref(DB_PATH + '/' + id).remove();
+    await db.ref(dbPath + '/' + id).remove();
     return respond(200, { success: true });
   } catch (e) {
     return respond(500, { error: 'Failed to delete scenario' });

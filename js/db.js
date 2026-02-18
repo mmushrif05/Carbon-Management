@@ -477,5 +477,70 @@ const DB = {
       }
     } catch (e) { console.warn('API error (getUsers):', e); }
     return [];
+  },
+
+  // === PROJECTS ===
+  async getProjects() {
+    if (!dbConnected) return [];
+    try {
+      const res = await apiCall('/organizations', {
+        method: 'POST',
+        body: JSON.stringify({ action: 'list-projects' })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        return data.projects || [];
+      }
+    } catch (e) { console.warn('API error (getProjects):', e); }
+    return [];
+  },
+
+  async createProject(name, description) {
+    if (!dbConnected) throw new Error('Server connection required.');
+    const res = await apiCall('/organizations', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'create-project', name, description })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to create project.');
+    return data;
+  },
+
+  // === FIRM-TO-PROJECT ASSIGNMENTS ===
+  async getProjectFirms(projectId) {
+    if (!dbConnected) return [];
+    try {
+      const res = await apiCall('/organizations', {
+        method: 'POST',
+        body: JSON.stringify({ action: 'list-project-firms', projectId })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        return data.projectFirms || [];
+      }
+    } catch (e) { console.warn('API error (getProjectFirms):', e); }
+    return [];
+  },
+
+  async assignFirmToProject(orgId, projectId) {
+    if (!dbConnected) throw new Error('Server connection required.');
+    const res = await apiCall('/organizations', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'assign-firm-to-project', orgId, projectId })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to assign firm to project.');
+    return data;
+  },
+
+  async removeProjectFirm(assignmentId) {
+    if (!dbConnected) throw new Error('Server connection required.');
+    const res = await apiCall('/organizations', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'remove-project-firm', assignmentId })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to remove firm from project.');
+    return data;
   }
 };

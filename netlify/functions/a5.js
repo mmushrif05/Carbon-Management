@@ -1,4 +1,4 @@
-const { getDb, verifyToken, respond, optionsResponse } = require('./utils/firebase');
+const { getDb, verifyToken, getUserProjectId, respond, optionsResponse } = require('./utils/firebase');
 
 async function handleList(event) {
   const decoded = await verifyToken(event);
@@ -6,7 +6,8 @@ async function handleList(event) {
 
   try {
     const db = getDb();
-    const snap = await db.ref('projects/ksia/a5entries').once('value');
+    const projectId = await getUserProjectId(decoded.uid);
+    const snap = await db.ref(`projects/${projectId}/a5entries`).once('value');
     const data = snap.val();
     return respond(200, { entries: data ? Object.values(data) : [] });
   } catch (e) {
@@ -25,8 +26,10 @@ async function handleSave(event, body) {
 
   try {
     const db = getDb();
+    const projectId = await getUserProjectId(decoded.uid);
     entry.submittedAt = new Date().toISOString();
-    await db.ref('projects/ksia/a5entries/' + entry.id).set(entry);
+    entry.projectId = projectId;
+    await db.ref(`projects/${projectId}/a5entries/${entry.id}`).set(entry);
     return respond(200, { success: true });
   } catch (e) {
     return respond(500, { error: 'Failed to save A5 entry' });
@@ -42,7 +45,8 @@ async function handleDelete(event, body) {
 
   try {
     const db = getDb();
-    await db.ref('projects/ksia/a5entries/' + id).remove();
+    const projectId = await getUserProjectId(decoded.uid);
+    await db.ref(`projects/${projectId}/a5entries/${id}`).remove();
     return respond(200, { success: true });
   } catch (e) {
     return respond(500, { error: 'Failed to delete A5 entry' });
