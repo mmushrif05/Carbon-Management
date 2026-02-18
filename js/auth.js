@@ -196,7 +196,7 @@ async function handleLogin() {
       localStorage.setItem('ct_user_profile', JSON.stringify(data.user));
       // Mark this session as server-verified
       localStorage.setItem('ct_server_verified', 'true');
-      enterApp(data.user.name, data.user.role);
+      enterApp(data.user.name, data.user.role, data.user.uid, data.user.project);
       return;
     } else {
       console.error('[AUTH] Login failed:', data.code || '', data.error);
@@ -260,7 +260,7 @@ async function handleRegister() {
       localStorage.setItem('ct_user_profile', JSON.stringify(data.user));
       localStorage.setItem('ct_server_verified', 'true');
       showSuccess('regError', 'Account created successfully! Redirecting...');
-      setTimeout(() => enterApp(data.user.name, data.user.role), 1000);
+      setTimeout(() => enterApp(data.user.name, data.user.role, data.user.uid, data.user.project), 1000);
       return;
     } else {
       console.error('[AUTH] Registration failed:', data.code || '', data.error);
@@ -278,9 +278,11 @@ async function handleRegister() {
 }
 
 // Enter the app after authentication
-function enterApp(name, role) {
+function enterApp(name, role, uid, project) {
   state.role = role;
   state.name = name;
+  state.uid = uid || null;
+  state.project = project || null;
   $('loginScreen').style.display = 'none';
   $('appShell').style.display = 'block';
   $('userName').textContent = name;
@@ -364,7 +366,7 @@ async function handleBootstrap() {
       localStorage.setItem('ct_user_profile', JSON.stringify(data.user));
       localStorage.setItem('ct_server_verified', 'true');
       showSuccess('setupError', 'Admin account created! Redirecting...');
-      setTimeout(() => enterApp(data.user.name, data.user.role), 1000);
+      setTimeout(() => enterApp(data.user.name, data.user.role, data.user.uid, data.user.project), 1000);
     } else {
       showError('setupError', data.error || 'Setup failed.');
       $('setupBtn').disabled = false;

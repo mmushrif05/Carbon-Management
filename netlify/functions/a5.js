@@ -1,12 +1,15 @@
-const { getDb, verifyToken, respond, optionsResponse } = require('./utils/firebase');
+const { getDb, verifyToken, getUserProject, respond, optionsResponse } = require('./utils/firebase');
 
 async function handleList(event) {
   const decoded = await verifyToken(event);
   if (!decoded) return respond(401, { error: 'Unauthorized' });
 
+  const project = await getUserProject(decoded.uid);
+  if (!project) return respond(403, { error: 'No project assigned to this user.' });
+
   try {
     const db = getDb();
-    const snap = await db.ref('projects/ksia/a5entries').once('value');
+    const snap = await db.ref(`projects/${project}/a5entries`).once('value');
     const data = snap.val();
     return respond(200, { entries: data ? Object.values(data) : [] });
   } catch (e) {
@@ -18,6 +21,9 @@ async function handleSave(event, body) {
   const decoded = await verifyToken(event);
   if (!decoded) return respond(401, { error: 'Unauthorized' });
 
+  const project = await getUserProject(decoded.uid);
+  if (!project) return respond(403, { error: 'No project assigned to this user.' });
+
   const { entry } = body;
   if (!entry || !entry.id) return respond(400, { error: 'Invalid entry data' });
   if (!entry.source) return respond(400, { error: 'Source is required' });
@@ -26,7 +32,9 @@ async function handleSave(event, body) {
   try {
     const db = getDb();
     entry.submittedAt = new Date().toISOString();
-    await db.ref('projects/ksia/a5entries/' + entry.id).set(entry);
+    entry.submitterUid = decoded.uid;
+    entry.project = project;
+    await db.ref(`projects/${project}/a5entries/${entry.id}`).set(entry);
     return respond(200, { success: true });
   } catch (e) {
     return respond(500, { error: 'Failed to save A5 entry' });
@@ -37,12 +45,15 @@ async function handleDelete(event, body) {
   const decoded = await verifyToken(event);
   if (!decoded) return respond(401, { error: 'Unauthorized' });
 
+  const project = await getUserProject(decoded.uid);
+  if (!project) return respond(403, { error: 'No project assigned to this user.' });
+
   const { id } = body;
   if (!id) return respond(400, { error: 'ID required' });
 
   try {
     const db = getDb();
-    await db.ref('projects/ksia/a5entries/' + id).remove();
+    await db.ref(`projects/${project}/a5entries/${id}`).remove();
     return respond(200, { success: true });
   } catch (e) {
     return respond(500, { error: 'Failed to delete A5 entry' });

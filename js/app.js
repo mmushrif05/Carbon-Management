@@ -12,6 +12,10 @@ function buildSidebar() {
   items.push({section:"Manage"},{id:'team',icon:'\ud83d\udc65',label:'Team'});
   items.push({id:'certifications',icon:'\ud83c\udfc6',label:'Certifications'},{id:'integrations',icon:'\ud83d\udd0c',label:'API Hub'});
 
+  // Show active project name at the bottom of the sidebar
+  const projEl = document.getElementById('sidebarProject');
+  if (projEl && state.project) projEl.textContent = state.project.toUpperCase();
+
   $('sidebarNav').innerHTML = items.map(it => it.section ? `<div class="sb-section">${it.section}</div>` :
     `<div class="sb-item${state.page===it.id?' active':''}" onclick="navigate('${it.id}')"><span class="sb-icon">${it.icon}</span>${it.label}${it.badge>0?`<span class="sb-badge">${it.badge}</span>`:''}</div>`
   ).join('');
@@ -58,7 +62,7 @@ async function init() {
           localStorage.setItem('ct_server_verified', 'true');
           await loadAllData();
           $('loadingOverlay').style.display = 'none';
-          enterApp(data.user.name, data.user.role);
+          enterApp(data.user.name, data.user.role, data.user.uid, data.user.project);
           return;
         }
       } catch (e) {
@@ -74,7 +78,7 @@ async function init() {
         console.log('[AUTH] Offline mode — using server-verified cached profile');
         await loadAllData();
         $('loadingOverlay').style.display = 'none';
-        enterApp(profile.name, profile.role);
+        enterApp(profile.name, profile.role, profile.uid, profile.project);
         return;
       }
     }

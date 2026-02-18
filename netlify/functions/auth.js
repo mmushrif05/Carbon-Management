@@ -261,7 +261,7 @@ async function handleLogin(body) {
     return respond(200, {
       token: signInData.idToken,
       refreshToken: signInData.refreshToken,
-      user: { uid, name: signInData.displayName || profile.name || email.split('@')[0], email: profile.email, role: profile.role }
+      user: { uid, name: signInData.displayName || profile.name || email.split('@')[0], email: profile.email, role: profile.role, project: profile.project || null }
     });
   } catch (e) {
     const errorCode = e.code || e.message || 'UNKNOWN';
@@ -284,7 +284,7 @@ async function handleVerify(event) {
 
     return respond(200, {
       authenticated: true,
-      user: { uid: decoded.uid, name: profile.name, email: profile.email, role: profile.role }
+      user: { uid: decoded.uid, name: profile.name, email: profile.email, role: profile.role, project: profile.project || null }
     });
   } catch (e) {
     return respond(200, { authenticated: false });

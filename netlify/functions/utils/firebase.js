@@ -52,4 +52,21 @@ function optionsResponse() {
   return { statusCode: 204, headers, body: '' };
 }
 
-module.exports = { getDb, getAuth, verifyToken, headers, respond, optionsResponse };
+// Fetch the project ID that a user belongs to.
+// Every user record has a `project` field set at registration via invitation.
+async function getUserProject(uid) {
+  const db = getDb();
+  const snap = await db.ref('users/' + uid).once('value');
+  const profile = snap.val();
+  return profile ? (profile.project || null) : null;
+}
+
+// Fetch all users in a project that have a given role.
+async function getProjectUsersByRole(project, role) {
+  const db = getDb();
+  const snap = await db.ref('users').orderByChild('project').equalTo(project).once('value');
+  const all = snap.val() || {};
+  return Object.values(all).filter(u => u.role === role && u.email);
+}
+
+module.exports = { getDb, getAuth, verifyToken, getUserProject, getProjectUsersByRole, headers, respond, optionsResponse };

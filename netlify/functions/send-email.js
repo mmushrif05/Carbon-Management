@@ -1,5 +1,5 @@
 const nodemailer = require('nodemailer');
-const { getDb, verifyToken, respond, optionsResponse } = require('./utils/firebase');
+const { getDb, verifyToken, getUserProject, getProjectUsersByRole, respond, optionsResponse } = require('./utils/firebase');
 
 // Create reusable transporter using SMTP env vars
 function createTransporter() {
@@ -250,12 +250,11 @@ async function handleBatchNotify(body, decoded) {
     return respond(400, { error: 'contractorName and entryCount are required.' });
   }
 
-  const db = getDb();
+  const project = await getUserProject(decoded.uid);
+  if (!project) return respond(403, { error: 'No project assigned.' });
 
-  // Find all consultants for this project
-  const usersSnap = await db.ref('users').once('value');
-  const usersData = usersSnap.val() || {};
-  const consultants = Object.values(usersData).filter(u => u.role === 'consultant' && u.email);
+  // Find all consultants in this project
+  const consultants = await getProjectUsersByRole(project, 'consultant');
 
   if (consultants.length === 0) {
     console.log('[EMAIL] No consultants found to notify.');
@@ -290,6 +289,158 @@ async function handleBatchNotify(body, decoded) {
   }
 }
 
+// === FORWARD NOTIFICATION (consultant → client) ===
+function buildForwardEmail(consultantName, entryCount, appUrl) {
+  const html = `
+<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"></head>
+<body style="margin:0;padding:0;background:#0b0f0e;font-family:'Segoe UI',system-ui,sans-serif">
+<div style="max-width:560px;margin:40px auto;background:#111916;border:1px solid rgba(52,211,153,0.12);border-radius:16px;overflow:hidden">
+  <div style="padding:32px 32px 24px;text-align:center;border-bottom:1px solid rgba(52,211,153,0.08)">
+    <div style="font-size:36px;margin-bottom:8px">🌍</div>
+    <div style="font-size:22px;font-weight:800;color:#ecfdf5;letter-spacing:-0.5px">Carbon<span style="color:#34d399">Track</span> Pro</div>
+    <div style="font-size:12px;color:#64748b;margin-top:4px">Construction Embodied Carbon Platform</div>
+  </div>
+  <div style="padding:32px">
+    <h2 style="color:#ecfdf5;font-size:18px;margin:0 0 16px">Entries Forwarded for Your Approval</h2>
+    <p style="color:#94a3b8;font-size:14px;line-height:1.6;margin:0 0 20px">
+      Consultant <strong style="color:#a7f3d0">${consultantName}</strong> has reviewed and forwarded
+      <strong style="color:#34d399">${entryCount} entr${entryCount === 1 ? 'y' : 'ies'}</strong>
+      to you for final approval.
+    </p>
+    <div style="text-align:center;margin-bottom:24px">
+      <a href="${appUrl}" style="display:inline-block;padding:14px 40px;background:linear-gradient(135deg,#047857,#059669);color:#fff;text-decoration:none;border-radius:10px;font-size:14px;font-weight:700">
+        Review &amp; Approve
+      </a>
+    </div>
+    <p style="color:#64748b;font-size:11px;text-align:center;margin:0">Log in and go to <strong>Approvals</strong> to take action on these entries.</p>
+  </div>
+  <div style="padding:20px 32px;border-top:1px solid rgba(52,211,153,0.08);text-align:center">
+    <p style="color:#475569;font-size:10px;margin:0">CarbonTrack Pro v2.0 — You are receiving this as a Client on this project.</p>
+  </div>
+</div></body></html>`;
+
+  const text = `Entries Forwarded for Your Approval — CarbonTrack Pro\n\nConsultant ${consultantName} has forwarded ${entryCount} entr${entryCount === 1 ? 'y' : 'ies'} for your final approval.\n\nLog in to review: ${appUrl}`;
+  return { html, text };
+}
+
+async function handleForwardNotify(body, decoded) {
+  const { consultantName, entryCount } = body;
+  if (!consultantName || !entryCount) return respond(400, { error: 'consultantName and entryCount are required.' });
+
+  const project = await getUserProject(decoded.uid);
+  if (!project) return respond(403, { error: 'No project assigned.' });
+
+  const clients = await getProjectUsersByRole(project, 'client');
+  if (clients.length === 0) return respond(200, { success: true, message: 'No clients to notify.' });
+
+  const transporter = createTransporter();
+  if (!transporter) return respond(200, { success: true, message: 'Notification skipped — SMTP not configured.' });
+
+  const appUrl = getAppUrl();
+  const { html, text } = buildForwardEmail(consultantName, entryCount, appUrl);
+  const fromEmail = process.env.SMTP_FROM || process.env.SMTP_USER;
+
+  try {
+    await transporter.sendMail({
+      from: `"CarbonTrack Pro" <${fromEmail}>`,
+      to: clients.map(u => u.email).join(', '),
+      subject: `${consultantName} forwarded ${entryCount} entr${entryCount === 1 ? 'y' : 'ies'} for your approval — CarbonTrack Pro`,
+      text, html
+    });
+    console.log('[EMAIL] Forward notification sent to clients:', clients.map(u => u.email).join(', '));
+    return respond(200, { success: true });
+  } catch (e) {
+    console.error('[EMAIL] Failed to send forward notification:', e.message || e);
+    return respond(500, { error: 'Failed to send notification: ' + (e.message || 'Unknown') });
+  }
+}
+
+// === DECISION NOTIFICATION (approved / rejected → contractor) ===
+function buildDecisionEmail(contractorName, status, entryInfo, decidedBy, reason, appUrl) {
+  const isApproved = status === 'approved';
+  const colour = isApproved ? '#34d399' : '#f87171';
+  const icon = isApproved ? '✅' : '❌';
+  const headline = isApproved ? 'Entry Approved' : 'Entry Rejected';
+
+  const html = `
+<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"></head>
+<body style="margin:0;padding:0;background:#0b0f0e;font-family:'Segoe UI',system-ui,sans-serif">
+<div style="max-width:560px;margin:40px auto;background:#111916;border:1px solid rgba(52,211,153,0.12);border-radius:16px;overflow:hidden">
+  <div style="padding:32px 32px 24px;text-align:center;border-bottom:1px solid rgba(52,211,153,0.08)">
+    <div style="font-size:36px;margin-bottom:8px">🌍</div>
+    <div style="font-size:22px;font-weight:800;color:#ecfdf5;letter-spacing:-0.5px">Carbon<span style="color:#34d399">Track</span> Pro</div>
+    <div style="font-size:12px;color:#64748b;margin-top:4px">Construction Embodied Carbon Platform</div>
+  </div>
+  <div style="padding:32px">
+    <h2 style="color:${colour};font-size:18px;margin:0 0 16px">${icon} ${headline}</h2>
+    <p style="color:#94a3b8;font-size:14px;line-height:1.6;margin:0 0 20px">
+      Hi <strong style="color:#a7f3d0">${contractorName}</strong>, your entry has been
+      <strong style="color:${colour}">${status}</strong> by <strong style="color:#a7f3d0">${decidedBy}</strong>.
+    </p>
+    <div style="background:#16201b;border:1px solid rgba(52,211,153,0.1);border-radius:10px;padding:16px;margin-bottom:${reason ? '16px' : '24px'}">
+      <div style="display:flex;margin-bottom:8px">
+        <span style="color:#64748b;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;width:100px">MATERIAL</span>
+        <span style="color:#ecfdf5;font-size:13px">${entryInfo.category} — ${entryInfo.type}</span>
+      </div>
+      <div style="display:flex;margin-bottom:8px">
+        <span style="color:#64748b;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;width:100px">PERIOD</span>
+        <span style="color:#ecfdf5;font-size:13px">${entryInfo.monthLabel}</span>
+      </div>
+      <div style="display:flex">
+        <span style="color:#64748b;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;width:100px">DECISION</span>
+        <span style="color:${colour};font-size:13px;font-weight:700;text-transform:uppercase">${status}</span>
+      </div>
+    </div>
+    ${reason ? `<div style="padding:12px 16px;background:rgba(248,113,113,0.06);border-left:3px solid #f87171;border-radius:0 8px 8px 0;margin-bottom:24px">
+      <p style="color:#fca5a5;font-size:12px;margin:0 0 4px;font-weight:700;text-transform:uppercase;letter-spacing:.5px">Reason for rejection</p>
+      <p style="color:#94a3b8;font-size:13px;margin:0">${reason}</p>
+    </div>` : ''}
+    <div style="text-align:center;margin-bottom:24px">
+      <a href="${appUrl}" style="display:inline-block;padding:14px 40px;background:linear-gradient(135deg,#047857,#059669);color:#fff;text-decoration:none;border-radius:10px;font-size:14px;font-weight:700">
+        View in CarbonTrack Pro
+      </a>
+    </div>
+  </div>
+  <div style="padding:20px 32px;border-top:1px solid rgba(52,211,153,0.08);text-align:center">
+    <p style="color:#475569;font-size:10px;margin:0">CarbonTrack Pro v2.0 — You are receiving this as a Contractor on this project.</p>
+  </div>
+</div></body></html>`;
+
+  const text = `${headline} — CarbonTrack Pro\n\nHi ${contractorName},\n\nYour entry (${entryInfo.category} — ${entryInfo.type}, ${entryInfo.monthLabel}) has been ${status} by ${decidedBy}.${reason ? `\n\nReason: ${reason}` : ''}\n\nLog in to view: ${appUrl}`;
+  return { html, text };
+}
+
+async function handleDecisionNotify(body, decoded) {
+  const { submitterUid, status, entryInfo, decidedBy, reason } = body;
+  if (!submitterUid || !status || !entryInfo) return respond(400, { error: 'submitterUid, status, and entryInfo are required.' });
+
+  const db = getDb();
+  const contractorSnap = await db.ref('users/' + submitterUid).once('value');
+  const contractor = contractorSnap.val();
+  if (!contractor || !contractor.email) return respond(200, { success: true, message: 'Contractor not found or has no email.' });
+
+  const transporter = createTransporter();
+  if (!transporter) return respond(200, { success: true, message: 'Notification skipped — SMTP not configured.' });
+
+  const appUrl = getAppUrl();
+  const { html, text } = buildDecisionEmail(contractor.name, status, entryInfo, decidedBy, reason, appUrl);
+  const fromEmail = process.env.SMTP_FROM || process.env.SMTP_USER;
+
+  try {
+    await transporter.sendMail({
+      from: `"CarbonTrack Pro" <${fromEmail}>`,
+      to: contractor.email,
+      subject: `Your entry has been ${status} — CarbonTrack Pro`,
+      text, html
+    });
+    console.log('[EMAIL] Decision notification sent to contractor:', contractor.email);
+    return respond(200, { success: true });
+  } catch (e) {
+    console.error('[EMAIL] Failed to send decision notification:', e.message || e);
+    return respond(500, { error: 'Failed to send notification: ' + (e.message || 'Unknown') });
+  }
+}
+
 // === MAIN HANDLER ===
 exports.handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return optionsResponse();
@@ -303,8 +454,10 @@ exports.handler = async (event) => {
     const { action } = body;
 
     switch (action) {
-      case 'send-invite':  return await handleSendInvite(body, decoded);
-      case 'notify-batch': return await handleBatchNotify(body, decoded);
+      case 'send-invite':    return await handleSendInvite(body, decoded);
+      case 'notify-batch':   return await handleBatchNotify(body, decoded);
+      case 'notify-forward': return await handleForwardNotify(body, decoded);
+      case 'notify-decision':return await handleDecisionNotify(body, decoded);
       default: return respond(400, { error: 'Invalid action.' });
     }
   } catch (e) {

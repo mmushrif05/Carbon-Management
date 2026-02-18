@@ -1,12 +1,15 @@
-const { getDb, verifyToken, respond, optionsResponse } = require('./utils/firebase');
+const { getDb, verifyToken, getUserProject, respond, optionsResponse } = require('./utils/firebase');
 
 async function handleList(event) {
   const decoded = await verifyToken(event);
   if (!decoded) return respond(401, { error: 'Unauthorized' });
 
+  const project = await getUserProject(decoded.uid);
+  if (!project) return respond(403, { error: 'No project assigned to this user.' });
+
   try {
     const db = getDb();
-    const snap = await db.ref('projects/ksia/entries').once('value');
+    const snap = await db.ref(`projects/${project}/entries`).once('value');
     const data = snap.val();
     return respond(200, { entries: data ? Object.values(data) : [] });
   } catch (e) {
@@ -18,49 +21,24 @@ async function handleSave(event, body) {
   const decoded = await verifyToken(event);
   if (!decoded) return respond(401, { error: 'Unauthorized' });
 
+  const project = await getUserProject(decoded.uid);
+  if (!project) return respond(403, { error: 'No project assigned to this user.' });
+
   const { entry } = body;
   if (!entry || !entry.id) return respond(400, { error: 'Invalid entry data' });
-
-  // Validate required fields server-side
   if (!entry.category || !entry.type) return respond(400, { error: 'Category and type are required' });
   if (!entry.qty || entry.qty <= 0) return respond(400, { error: 'Valid quantity is required' });
 
   try {
     const db = getDb();
-    // Set server-verified fields
     entry.submittedBy = decoded.name || decoded.email;
+    entry.submitterUid = decoded.uid;
     entry.submittedAt = new Date().toISOString();
-    await db.ref('projects/ksia/entries/' + entry.id).set(entry);
+    entry.project = project;
+    await db.ref(`projects/${project}/entries/${entry.id}`).set(entry);
     return respond(200, { success: true });
   } catch (e) {
     return respond(500, { error: 'Failed to save entry' });
-  }
-}
-
-async function handleUpdate(event, body) {
-  const decoded = await verifyToken(event);
-  if (!decoded) return respond(401, { error: 'Unauthorized' });
-
-  const { id, updates } = body;
-  if (!id || !updates) return respond(400, { error: 'ID and updates required' });
-
-  // Only allow updating specific safe fields
-  const allowedFields = ['status', 'consultantAt', 'consultantBy', 'clientAt', 'clientBy'];
-  const safeUpdates = {};
-  for (const key of Object.keys(updates)) {
-    if (allowedFields.includes(key)) {
-      safeUpdates[key] = updates[key];
-    }
-  }
-
-  if (Object.keys(safeUpdates).length === 0) return respond(400, { error: 'No valid updates' });
-
-  try {
-    const db = getDb();
-    await db.ref('projects/ksia/entries/' + id).update(safeUpdates);
-    return respond(200, { success: true });
-  } catch (e) {
-    return respond(500, { error: 'Failed to update entry' });
   }
 }
 
@@ -68,12 +46,14 @@ async function handleBatchSave(event, body) {
   const decoded = await verifyToken(event);
   if (!decoded) return respond(401, { error: 'Unauthorized' });
 
+  const project = await getUserProject(decoded.uid);
+  if (!project) return respond(403, { error: 'No project assigned to this user.' });
+
   const { entries } = body;
   if (!Array.isArray(entries) || entries.length === 0) {
     return respond(400, { error: 'No entries provided' });
   }
 
-  // Validate each entry
   for (const entry of entries) {
     if (!entry.id || !entry.category || !entry.type) {
       return respond(400, { error: 'Invalid entry data in batch: missing id, category, or type' });
@@ -88,13 +68,14 @@ async function handleBatchSave(event, body) {
     const now = new Date().toISOString();
     const submittedBy = decoded.name || decoded.email;
 
-    // Use a multi-path update to write all entries atomically
     const updates = {};
     for (const entry of entries) {
       entry.submittedBy = submittedBy;
+      entry.submitterUid = decoded.uid;
       entry.submittedAt = now;
       entry.status = 'pending';
-      updates['projects/ksia/entries/' + entry.id] = entry;
+      entry.project = project;
+      updates[`projects/${project}/entries/${entry.id}`] = entry;
     }
 
     await db.ref().update(updates);
@@ -104,21 +85,52 @@ async function handleBatchSave(event, body) {
   }
 }
 
+async function handleUpdate(event, body) {
+  const decoded = await verifyToken(event);
+  if (!decoded) return respond(401, { error: 'Unauthorized' });
+
+  const project = await getUserProject(decoded.uid);
+  if (!project) return respond(403, { error: 'No project assigned to this user.' });
+
+  const { id, updates } = body;
+  if (!id || !updates) return respond(400, { error: 'ID and updates required' });
+
+  const allowedFields = [
+    'status', 'rejectionReason',
+    'consultantAt', 'consultantBy',
+    'clientAt', 'clientBy'
+  ];
+  const safeUpdates = {};
+  for (const key of Object.keys(updates)) {
+    if (allowedFields.includes(key)) safeUpdates[key] = updates[key];
+  }
+
+  if (Object.keys(safeUpdates).length === 0) return respond(400, { error: 'No valid updates' });
+
+  try {
+    const db = getDb();
+    await db.ref(`projects/${project}/entries/${id}`).update(safeUpdates);
+    return respond(200, { success: true });
+  } catch (e) {
+    return respond(500, { error: 'Failed to update entry' });
+  }
+}
+
 async function handleDelete(event, body) {
   const decoded = await verifyToken(event);
   if (!decoded) return respond(401, { error: 'Unauthorized' });
+
+  const project = await getUserProject(decoded.uid);
+  if (!project) return respond(403, { error: 'No project assigned to this user.' });
 
   const { id } = body;
   if (!id) return respond(400, { error: 'ID required' });
 
   try {
     const db = getDb();
-    // Verify the entry exists and belongs to the user or user has permission
-    const snap = await db.ref('projects/ksia/entries/' + id).once('value');
-    const entry = snap.val();
-    if (!entry) return respond(404, { error: 'Entry not found' });
-
-    await db.ref('projects/ksia/entries/' + id).remove();
+    const snap = await db.ref(`projects/${project}/entries/${id}`).once('value');
+    if (!snap.val()) return respond(404, { error: 'Entry not found' });
+    await db.ref(`projects/${project}/entries/${id}`).remove();
     return respond(200, { success: true });
   } catch (e) {
     return respond(500, { error: 'Failed to delete entry' });

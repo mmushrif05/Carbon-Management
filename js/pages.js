@@ -239,15 +239,127 @@ function rA5(){const t=$('a5B');if(!t)return;const a=[...state.a5entries].revers
 async function dA5(id){await DB.deleteA5Entry(id);state.a5entries=state.a5entries.filter(e=>e.id!==id);rA5();}
 
 // ===== APPROVALS =====
-function renderApprovals(el){
-  const r=state.role;
-  // Consultant sees both pending (to forward/approve) and review (to approve) items
-  const items=r==='consultant'?state.entries.filter(e=>e.status==='pending'||e.status==='review'):r==='client'?state.entries.filter(e=>e.status==='review'):state.entries;
-  el.innerHTML=`<div class="card"><div class="card-title">Workflow</div>
-  <div class="flow-steps"><div class="flow-step"><div class="flow-dot done">\ud83c\udfd7\ufe0f</div><div class="flow-label">Contractor</div></div><div class="flow-line done"></div><div class="flow-step"><div class="flow-dot ${r==='consultant'?'current':'done'}">\ud83d\udccb</div><div class="flow-label">Consultant</div></div><div class="flow-line ${r==='client'||r==='consultant'?'done':''}"></div><div class="flow-step"><div class="flow-dot ${r==='client'?'current':(r==='consultant'?'done':'')}">\ud83d\udc54</div><div class="flow-label">Client</div></div></div></div>
-  <div class="card"><div class="card-title">${items.length} Items</div><div class="tbl-wrap"><table><thead><tr><th>Month</th><th>Material</th><th>Type</th><th>By</th><th class="r">Baseline</th><th class="r">Actual</th><th class="r">Reduction</th><th>Status</th>${r!=='contractor'?'<th>Actions</th>':''}</tr></thead><tbody>${items.length?items.map(e=>`<tr><td>${e.monthLabel}</td><td>${e.category}</td><td>${e.type}</td><td>${e.submittedBy||'\u2014'}</td><td class="r mono">${fmt(e.a13B)}</td><td class="r mono">${fmt(e.a13A)}</td><td class="r mono" style="color:${e.pct>20?'var(--green)':'var(--orange)'};font-weight:700">${fmt(e.pct)}%</td><td><span class="badge ${e.status}">${e.status}</span></td>${r==='consultant'?`<td>${e.status==='pending'?`<button class="btn btn-approve btn-sm" onclick="appr(${e.id},'review')">\u2713 Forward</button> `:''}${e.status==='pending'||e.status==='review'?`<button class="btn btn-primary btn-sm" onclick="appr(${e.id},'approved')">\u2713 Approve</button> `:''}<button class="btn btn-danger btn-sm" onclick="appr(${e.id},'rejected')">\u2715 Reject</button></td>`:''}${r==='client'?`<td><button class="btn btn-approve btn-sm" onclick="appr(${e.id},'approved')">\u2713 Approve</button> <button class="btn btn-danger btn-sm" onclick="appr(${e.id},'rejected')">\u2715 Reject</button></td>`:''}</tr>`).join(''):'<tr><td colspan="9" class="empty">No pending items</td></tr>'}</tbody></table></div></div>`;
+function renderApprovals(el) {
+  const r = state.role;
+
+  // Each role sees only the items relevant to their stage
+  let items;
+  if (r === 'contractor') {
+    items = state.entries.filter(e => e.submitterUid === state.uid || e.submittedBy === state.name);
+  } else if (r === 'consultant') {
+    items = state.entries.filter(e => e.status === 'pending' || e.status === 'review');
+  } else {
+    items = state.entries.filter(e => e.status === 'review');
+  }
+
+  // Group by contractor name for consultant/client views
+  const grouped = {};
+  items.forEach(e => { const k = e.submittedBy || 'Unknown'; if (!grouped[k]) grouped[k] = []; grouped[k].push(e); });
+
+  const statusLabel = { pending: 'Pending Review', review: 'Forwarded to Client', approved: 'Approved', rejected: 'Rejected' };
+  const canAct = r === 'consultant' || r === 'client';
+
+  const actionBtns = (e) => {
+    if (r === 'consultant') return `
+      ${e.status === 'pending' ? `<button class="btn btn-approve btn-sm" onclick="appr(${e.id},'review')">\u21d1 Forward</button>` : ''}
+      ${e.status === 'pending' || e.status === 'review' ? `<button class="btn btn-primary btn-sm" onclick="appr(${e.id},'approved')">\u2713 Approve</button>` : ''}
+      ${e.status !== 'rejected' ? `<button class="btn btn-danger btn-sm" onclick="apprReject(${e.id})">\u2715 Reject</button>` : ''}`;
+    if (r === 'client' && e.status === 'review') return `<button class="btn btn-primary btn-sm" onclick="appr(${e.id},'approved')">\u2713 Approve</button> <button class="btn btn-danger btn-sm" onclick="apprReject(${e.id})">\u2715 Reject</button>`;
+    return '';
+  };
+
+  const thead = `<thead><tr><th>Month</th><th>Material</th><th>Type</th><th class="r">Baseline</th><th class="r">Actual</th><th class="r">Reduction</th><th>Status</th>${canAct?'<th>Actions</th>':''}</tr></thead>`;
+  const rowsHtml = list => list.map(e => `<tr>
+    <td>${e.monthLabel}</td><td>${e.category}</td><td>${e.type}</td>
+    <td class="r mono">${fmt(e.a13B)}</td><td class="r mono">${fmt(e.a13A)}</td>
+    <td class="r mono" style="color:${e.pct>20?'var(--green)':'var(--orange)'};font-weight:700">${fmt(e.pct)}%</td>
+    <td>
+      <span class="badge ${e.status}">${statusLabel[e.status]||e.status}</span>
+      ${e.rejectionReason?`<div style="font-size:10px;color:var(--red);margin-top:3px">\u274c ${e.rejectionReason}</div>`:''}
+      ${e.consultantBy&&e.status!=='pending'?`<div style="font-size:10px;color:var(--slate5);margin-top:2px">\ud83d\udccb ${e.consultantBy}</div>`:''}
+      ${e.clientBy?`<div style="font-size:10px;color:var(--slate5);margin-top:2px">\ud83d\udc54 ${e.clientBy}</div>`:''}
+    </td>
+    ${canAct?`<td style="white-space:nowrap">${actionBtns(e)}</td>`:''}
+  </tr>`).join('');
+
+  let bodyHtml;
+  if (r === 'contractor') {
+    bodyHtml = `<div class="card"><div class="card-title">My Submissions <span style="font-size:12px;color:var(--slate5);font-weight:400;margin-left:8px">${items.length} entr${items.length!==1?'ies':'y'}</span></div>
+      <div class="tbl-wrap"><table>${thead}<tbody>${items.length?rowsHtml(items):'<tr><td colspan="7" class="empty">No submissions yet.</td></tr>'}</tbody></table></div></div>`;
+  } else if (Object.keys(grouped).length === 0) {
+    bodyHtml = `<div class="card"><div class="empty" style="padding:32px;text-align:center"><div class="empty-icon">\u2705</div>No entries at this stage — all clear!</div></div>`;
+  } else {
+    bodyHtml = Object.entries(grouped).map(([contractor, list]) => `<div class="card">
+      <div class="card-title" style="display:flex;align-items:center;gap:10px">
+        <span style="background:rgba(96,165,250,0.1);color:var(--blue);border:1px solid rgba(96,165,250,0.2);border-radius:6px;padding:2px 10px;font-size:11px;font-weight:700">\ud83c\udfd7\ufe0f Contractor</span>
+        ${contractor}
+        <span style="margin-left:auto;font-size:12px;color:var(--slate5);font-weight:400">${list.length} item${list.length!==1?'s':''}</span>
+      </div>
+      <div class="tbl-wrap"><table>${thead}<tbody>${rowsHtml(list)}</tbody></table></div>
+    </div>`).join('');
+  }
+
+  el.innerHTML = `
+  <div class="card"><div class="card-title">Approval Workflow</div>
+    <div class="flow-steps">
+      <div class="flow-step"><div class="flow-dot done">\ud83c\udfd7\ufe0f</div><div class="flow-label">Contractor<br><span style="font-size:10px;color:var(--slate5)">Submits batch</span></div></div>
+      <div class="flow-line done"></div>
+      <div class="flow-step"><div class="flow-dot ${r==='consultant'?'current':'done'}">\ud83d\udccb</div><div class="flow-label">Consultant<br><span style="font-size:10px;color:var(--slate5)">Reviews &amp; forwards</span></div></div>
+      <div class="flow-line ${r==='client'?'done':''}"></div>
+      <div class="flow-step"><div class="flow-dot ${r==='client'?'current':''}">\ud83d\udc54</div><div class="flow-label">Client<br><span style="font-size:10px;color:var(--slate5)">Final approval</span></div></div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:16px;text-align:center">
+      ${['pending','review','approved','rejected'].map(s=>{const n=state.entries.filter(e=>e.status===s).length;const cl={pending:'yellow',review:'blue',approved:'green',rejected:'red'}[s];return`<div><div style="font-size:22px;font-weight:800;color:var(--${cl})">${n}</div><div style="font-size:10px;color:var(--slate5)">${statusLabel[s]}</div></div>`;}).join('')}
+    </div>
+  </div>
+  ${bodyHtml}
+  <div id="rejectOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:1000;align-items:center;justify-content:center">
+    <div style="background:#111916;border:1px solid rgba(248,113,113,0.3);border-radius:16px;padding:28px;width:420px;max-width:90vw">
+      <div style="font-size:16px;font-weight:700;color:#ecfdf5;margin-bottom:12px">\u274c Reject Entry</div>
+      <p style="color:#94a3b8;font-size:13px;margin:0 0 12px">Provide a reason — the contractor will be notified by email.</p>
+      <textarea id="rejectReason" rows="3" placeholder="e.g. EPD reference missing, incorrect quantity..." style="width:100%;box-sizing:border-box;background:#16201b;border:1px solid rgba(52,211,153,0.15);border-radius:8px;color:#ecfdf5;padding:10px 12px;font-size:13px;resize:vertical;margin-bottom:14px"></textarea>
+      <div style="display:flex;gap:10px;justify-content:flex-end">
+        <button class="btn btn-secondary" onclick="closeRejectModal()">Cancel</button>
+        <button class="btn btn-danger" onclick="confirmReject()">\u2715 Confirm Rejection</button>
+      </div>
+    </div>
+  </div>`;
 }
-async function appr(id,s){await DB.updateEntry(id,{status:s,[state.role+'At']:new Date().toISOString(),[state.role+'By']:state.name});const e=state.entries.find(x=>x.id===id);if(e)e.status=s;buildSidebar();navigate('approvals');}
+
+let _rejectTargetId = null;
+function apprReject(id) {
+  _rejectTargetId = id;
+  const ov = $('rejectOverlay');
+  if (ov) { ov.style.display = 'flex'; $('rejectReason').value = ''; $('rejectReason').focus(); }
+}
+function closeRejectModal() {
+  _rejectTargetId = null;
+  const ov = $('rejectOverlay');
+  if (ov) ov.style.display = 'none';
+}
+async function confirmReject() {
+  if (!_rejectTargetId) return;
+  const reason = ($('rejectReason').value || '').trim();
+  closeRejectModal();
+  await appr(_rejectTargetId, 'rejected', reason);
+}
+
+async function appr(id, status, reason) {
+  const entry = state.entries.find(e => e.id === id);
+  if (!entry) return;
+  const updates = { status, [state.role+'At']: new Date().toISOString(), [state.role+'By']: state.name };
+  if (reason) updates.rejectionReason = reason;
+  await DB.updateEntry(id, updates);
+  Object.assign(entry, updates);
+  buildSidebar();
+  // Non-blocking notification
+  if (status === 'review') {
+    DB.notifyForward(state.name, 1).catch(() => {});
+  } else if (status === 'approved' || status === 'rejected') {
+    DB.notifyDecision({ submitterUid: entry.submitterUid, status, entryInfo: { category: entry.category, type: entry.type, monthLabel: entry.monthLabel }, decidedBy: state.name, reason: reason || '' }).catch(() => {});
+  }
+  renderApprovals($('pageBody'));
+}
 
 // ===== MONTHLY =====
 function renderMonthly(el){
@@ -509,5 +621,5 @@ async function resendInvite(id) {
 function renderIntegrations(el){
   const apis=[{i:"\ud83d\udd17",n:"EPD Hub API",d:"Auto-fetch emission factors"},{i:"\ud83d\udcca",n:"EC3 / Building Transparency",d:"Material carbon benchmarks"},{i:"\ud83c\udf10",n:"One Click LCA",d:"Whole-building LCA sync"},{i:"\ud83d\udce1",n:"IEA Data API",d:"Grid emission factors by region"},{i:"\ud83d\udcc1",n:"Power BI Export",d:"Advanced analytics export"},{i:"\ud83d\udd10",n:"KSIA Portal",d:"Project management sync"},{i:"\u2601\ufe0f",n:"Firebase Cloud DB",d:"Real-time cloud database",on:dbConnected},{i:"\ud83d\udce7",n:"Email Notifications",d:"Stakeholder alerts"}];
   el.innerHTML=`<div class="card"><div class="card-title">Integration Hub</div>${apis.map(a=>`<div class="api-item"><div class="api-left"><span class="api-icon">${a.i}</span><div><div class="api-name">${a.n}</div><div class="api-desc">${a.d}</div></div></div><div class="toggle${a.on?' on':''}" onclick="this.classList.toggle('on')"></div></div>`).join('')}</div>
-  <div class="card"><div class="card-title">Database Status</div><div style="padding:16px;background:var(--bg3);border-radius:10px;font-size:13px"><strong style="color:${dbConnected?'var(--green)':'var(--red)'}">●</strong> ${dbConnected?'Connected to Firebase Cloud Database \u2014 data syncs in real-time across all users':'Running in offline mode \u2014 data saved locally. Connect Firebase for cloud sync.'}<br><br><span style="color:var(--slate5);font-size:11px">Database: Firebase Realtime DB | Project: KSIA | Path: /projects/ksia/</span></div></div>`;
+  <div class="card"><div class="card-title">Database Status</div><div style="padding:16px;background:var(--bg3);border-radius:10px;font-size:13px"><strong style="color:${dbConnected?'var(--green)':'var(--red)'}">●</strong> ${dbConnected?'Connected to Firebase Cloud Database \u2014 data syncs in real-time across all users':'Running in offline mode \u2014 data saved locally. Connect Firebase for cloud sync.'}<br><br><span style="color:var(--slate5);font-size:11px">Database: Firebase Realtime DB | Project: ${state.project||'—'} | Path: /projects/${state.project||'—'}/</span></div></div>`;
 }

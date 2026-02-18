@@ -279,6 +279,32 @@ const DB = {
     }
   },
 
+  // Notify clients that a consultant has forwarded entries for final approval
+  async notifyForward(consultantName, entryCount) {
+    if (!dbConnected) return;
+    try {
+      await apiCall('/send-email', {
+        method: 'POST',
+        body: JSON.stringify({ action: 'notify-forward', consultantName, entryCount })
+      });
+    } catch (e) {
+      console.warn('Forward notification email failed:', e);
+    }
+  },
+
+  // Notify the contractor who submitted an entry about an approval / rejection
+  async notifyDecision({ submitterUid, status, entryInfo, decidedBy, reason }) {
+    if (!dbConnected || !submitterUid) return;
+    try {
+      await apiCall('/send-email', {
+        method: 'POST',
+        body: JSON.stringify({ action: 'notify-decision', submitterUid, status, entryInfo, decidedBy, reason })
+      });
+    } catch (e) {
+      console.warn('Decision notification email failed:', e);
+    }
+  },
+
   // Poll for updates from other users (replaces Firebase real-time listeners)
   onEntriesChange(callback) {
     if (dbConnected) {
