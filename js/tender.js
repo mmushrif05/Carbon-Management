@@ -726,6 +726,14 @@ function handleTenderBOQFile(file) {
   var info = $('tenderBOQFileInfo');
   if (info) { info.style.display = ''; info.textContent = 'Loading: ' + file.name + ' (' + (file.size / 1024).toFixed(1) + ' KB)'; }
 
+  // Auto-populate scenario name from file name if empty
+  var nameInput = $('tsName');
+  if (nameInput && !nameInput.value.trim()) {
+    var baseName = file.name.replace(/\.[^/.]+$/, '').replace(/[_-]+/g, ' ').trim();
+    nameInput.value = baseName;
+    if (_tenderEdit) _tenderEdit.name = baseName;
+  }
+
   // Handle PDF tender documents
   if (ext === 'pdf') {
     handleTenderPDFFile(file);
