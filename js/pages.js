@@ -7,7 +7,7 @@ function renderDashboard(el) {
   const matB={}; d.forEach(e=>{if(!matB[e.category])matB[e.category]={b:0,a:0};matB[e.category].b+=e.a13B||0;matB[e.category].a+=e.a13A||0});
   const mMap={}; d.forEach(e=>{const k=e.monthKey;if(!mMap[k])mMap[k]={b:0,a:0,l:e.monthLabel};mMap[k].b+=e.a13B||0;mMap[k].a+=e.a13A||0});
   const mArr=Object.entries(mMap).sort((a,b)=>a[0].localeCompare(b[0]));
-  const cols=MATERIAL_COLORS;
+  const cols={Concrete:'var(--slate4)',Steel:'var(--blue)',Asphalt:'var(--orange)',Aluminum:'var(--purple)',Glass:'var(--cyan)',Earth_Work:'#a3e635',Subgrade:'#facc15',Pipes:'var(--yellow)'};
 
   el.innerHTML=`
   <div class="stats-row">
@@ -46,8 +46,7 @@ function renderEntry(el) {
   <div class="fg"><label>Month</label><select id="eM">${MONTHS.map((m,i)=>`<option value="${String(i+1).padStart(2,'0')}" ${String(i+1).padStart(2,'0')===mo?'selected':''}>${m}</option>`).join('')}</select></div>
   <div class="fg"><label>District</label><input id="eD" value="A"></div>
   <div class="fg"><label>Contract</label><input id="eC" placeholder="e.g. PA Apron Phase 0"></div></div>
-  <div id="eMepBanner" style="display:none"></div>
-  <div class="form-row c3"><div class="fg"><label>Category</label><select id="eCat" onchange="onCat()"><option value="">Select...</option>${(function(){const g=getMaterialGroups();return Object.entries(g).map(([grp,cats])=>'<optgroup label="'+grp+'">'+cats.map(c=>'<option value="'+c+'">'+c+'</option>').join('')+'</optgroup>').join('');})()}</select></div>
+  <div class="form-row c3"><div class="fg"><label>Category</label><select id="eCat" onchange="onCat()"><option value="">Select...</option>${Object.keys(MATERIALS).map(c=>`<option>${c}</option>`).join('')}</select></div>
   <div class="fg"><label>Type</label><select id="eType" onchange="onType()"><option>Select category</option></select></div>
   <div class="fg"><label>Quantity</label><input type="number" id="eQ" placeholder="Enter amount" oninput="preview()"><div class="fg-help" id="eQU">\u2014</div></div></div>
   <div class="form-row c3"><div class="fg"><label>Baseline EF</label><input id="eBL" class="fg-readonly" readonly></div>
@@ -83,77 +82,32 @@ function renderEntry(el) {
   renderRecent();
 }
 
-function onCat(){
-  const c=$('eCat').value;
-  const banner=$('eMepBanner');
-  if(banner)banner.style.display='none';
-  if(!c||!MATERIALS[c])return;
-  const m=MATERIALS[c];
-  // Build type options with coverage info for MEP items
-  $('eType').innerHTML='<option value="">Select...</option>'+m.types.map((t,i)=>{
-    const cov=t.coveragePct;
-    const tag=(m.isMEP && cov!==undefined && cov<MEP_COVERAGE_THRESHOLD)?' [A1-A3 = 0, Coverage: '+cov+'%]':'';
-    return '<option value="'+i+'">'+t.name+tag+'</option>';
-  }).join('');
-  $('eQU').textContent='Unit: '+m.unit;$('eAU').textContent=m.efUnit;$('eBL').value='';$('eTG').value='';
-  // Show MEP info banner
-  if(m.isMEP && banner){
-    banner.style.display='';
-    banner.innerHTML='<div style="padding:10px 14px;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.2);border-radius:10px;margin-bottom:14px;font-size:13px;color:var(--red)"><strong>MEP Category:</strong> Complex assemblies with embodied carbon data coverage below 80% will have A1-A3 values set to <strong>zero</strong>. Only raw material components (pipes, cables, ductwork) with coverage >= 80% retain their A1-A3 values.</div>';
-  }
-  preview();
-}
-function onType(){
-  const c=$('eCat').value,i=$('eType').value;if(!c||i==='')return;
-  const m=MATERIALS[c],t=m.types[i];
-  const belowThreshold=m.isMEP && t.coveragePct!==undefined && t.coveragePct<MEP_COVERAGE_THRESHOLD;
-  if(belowThreshold){
-    $('eBL').value='0 '+m.efUnit+' (Coverage: '+t.coveragePct+'%)';
-    $('eTG').value='0 '+m.efUnit+' (Below 80%)';
-  } else {
-    $('eBL').value=t.baseline+' '+m.efUnit+(t.coveragePct?' ('+t.coveragePct+'%)':'');
-    $('eTG').value=t.target+' '+m.efUnit;
-  }
-  preview();
-}
+function onCat(){const c=$('eCat').value;if(!c||!MATERIALS[c])return;$('eType').innerHTML='<option value="">Select...</option>'+MATERIALS[c].types.map((t,i)=>`<option value="${i}">${t.name}</option>`).join('');$('eQU').textContent='Unit: '+MATERIALS[c].unit;$('eAU').textContent=MATERIALS[c].efUnit;$('eBL').value='';$('eTG').value='';preview();}
+function onType(){const c=$('eCat').value,i=$('eType').value;if(!c||i==='')return;const t=MATERIALS[c].types[i];$('eBL').value=t.baseline+' '+MATERIALS[c].efUnit;$('eTG').value=t.target+' '+MATERIALS[c].efUnit;preview();}
 
 function preview(){
   const c=$('eCat').value,i=$('eType').value,q=parseFloat($('eQ').value),a=parseFloat($('eA').value);
-  if(!c||i===''||isNaN(q)||q<=0){$('ePrev').innerHTML='';return;}
+  if(!c||i===''||isNaN(q)||isNaN(a)||q<=0||a<=0){$('ePrev').innerHTML='';return;}
   const m=MATERIALS[c],t=m.types[i],mass=q*m.massFactor;
-  const belowThreshold=m.isMEP && t.coveragePct!==undefined && t.coveragePct<MEP_COVERAGE_THRESHOLD;
   const rd=parseFloat($('eR').value)||0,se=parseFloat($('eS').value)||0,tr=parseFloat($('eT').value)||0;
-  // MEP items below threshold: A1-A3 forced to zero
-  const b=belowThreshold?0:(q*t.baseline)/1000;
-  const ac=belowThreshold?0:(isNaN(a)||a<=0?0:(q*a)/1000);
-  const a4=(mass*rd*TEF.road+mass*se*TEF.sea+mass*tr*TEF.train)/1000;
+  const b=(q*t.baseline)/1000,ac=(q*a)/1000,a4=(mass*rd*TEF.road+mass*se*TEF.sea+mass*tr*TEF.train)/1000;
   const tot=ac+a4,p=b>0?((b-ac)/b)*100:0,cl=p>20?'green':p>=10?'orange':'purple';
-  const mepNote=belowThreshold?`<div style="padding:8px 14px;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.15);border-radius:8px;margin-top:8px;font-size:12px;color:var(--red)">A1-A3 = 0 tCO\u2082eq — Complex assembly, embodied carbon data coverage ${t.coveragePct}% (below 80% threshold). Only A4 transport emissions are counted.</div>`:'';
-  if(!belowThreshold && (isNaN(a)||a<=0)){$('ePrev').innerHTML='';return;}
-  $('ePrev').innerHTML=`<div class="stats-row" style="margin:16px 0 8px"><div class="stat-card slate"><div class="sc-label">A1-A3 Baseline</div><div class="sc-value">${fmt(b)}</div><div class="sc-sub">ton CO\u2082eq</div></div><div class="stat-card blue"><div class="sc-label">A1-A3 Actual</div><div class="sc-value">${fmt(ac)}</div><div class="sc-sub">ton CO\u2082eq</div></div><div class="stat-card orange"><div class="sc-label">A4 Transport</div><div class="sc-value">${fmt(a4)}</div><div class="sc-sub">ton CO\u2082eq</div></div><div class="stat-card green"><div class="sc-label">A1-A4 Total</div><div class="sc-value">${fmt(tot)}</div><div class="sc-sub">ton CO\u2082eq</div></div><div class="stat-card ${cl}"><div class="sc-label">Reduction</div><div class="sc-value">${fmt(p)}%</div><div class="sc-sub">${fmt(b-ac)} saved</div></div></div>${mepNote}`;
+  $('ePrev').innerHTML=`<div class="stats-row" style="margin:16px 0 8px"><div class="stat-card slate"><div class="sc-label">A1-A3 Baseline</div><div class="sc-value">${fmt(b)}</div><div class="sc-sub">ton CO\u2082eq</div></div><div class="stat-card blue"><div class="sc-label">A1-A3 Actual</div><div class="sc-value">${fmt(ac)}</div><div class="sc-sub">ton CO\u2082eq</div></div><div class="stat-card orange"><div class="sc-label">A4 Transport</div><div class="sc-value">${fmt(a4)}</div><div class="sc-sub">ton CO\u2082eq</div></div><div class="stat-card green"><div class="sc-label">A1-A4 Total</div><div class="sc-value">${fmt(tot)}</div><div class="sc-sub">ton CO\u2082eq</div></div><div class="stat-card ${cl}"><div class="sc-label">Reduction</div><div class="sc-value">${fmt(p)}%</div><div class="sc-sub">${fmt(b-ac)} saved</div></div></div>`;
 }
 
 // Add an entry to the local draft batch (contractor only)
 function addToBatch() {
   const c=$('eCat').value,i=$('eType').value,q=parseFloat($('eQ').value),a=parseFloat($('eA').value);
-  const m=MATERIALS[c],t=m?m.types[i]:null;
-  const belowThreshold=m&&m.isMEP&&t&&t.coveragePct!==undefined&&t.coveragePct<MEP_COVERAGE_THRESHOLD;
-  if(!c||i===''){alert('Fill all required fields');return;}
-  if(!belowThreshold&&(isNaN(q)||isNaN(a)||q<=0||a<=0)){alert('Fill all required fields');return;}
-  if(belowThreshold&&(isNaN(q)||q<=0)){alert('Enter a valid quantity');return;}
-  const mass=q*m.massFactor;
+  if(!c||i===''||isNaN(q)||isNaN(a)||q<=0||a<=0){alert('Fill all required fields');return;}
+  const m=MATERIALS[c],t=m.types[i],mass=q*m.massFactor;
   const rd=parseFloat($('eR').value)||0,se=parseFloat($('eS').value)||0,tr=parseFloat($('eT').value)||0;
-  const b=belowThreshold?0:(q*t.baseline)/1000;
-  const ac=belowThreshold?0:(q*a)/1000;
-  const a4=(mass*rd*TEF.road+mass*se*TEF.sea+mass*tr*TEF.train)/1000;
+  const b=(q*t.baseline)/1000,ac=(q*a)/1000,a4=(mass*rd*TEF.road+mass*se*TEF.sea+mass*tr*TEF.train)/1000;
   const yr=$('eY').value,mo=$('eM').value;
 
-  const entry={id:Date.now(),category:c,type:t.name,qty:q,unit:m.unit,
-    actual:belowThreshold?0:a,baseline:belowThreshold?0:t.baseline,target:belowThreshold?0:t.target,
+  const entry={id:Date.now(),category:c,type:t.name,qty:q,unit:m.unit,actual:a,baseline:t.baseline,target:t.target,
     road:rd,sea:se,train:tr,a13B:b,a13A:ac,a4,a14:ac+a4,pct:b>0?((b-ac)/b)*100:0,
     year:yr,month:mo,monthKey:yr+'-'+mo,monthLabel:MONTHS[parseInt(mo)-1]+' '+yr,
-    district:$('eD').value,contract:$('eC').value,notes:$('eN').value+(belowThreshold?' [MEP Complex Assembly - Coverage: '+t.coveragePct+'% - A1-A3 = 0]':''),
-    isMEP:!!m.isMEP,coveragePct:t.coveragePct||100,mepBelowThreshold:belowThreshold,
+    district:$('eD').value,contract:$('eC').value,notes:$('eN').value,
     addedAt:new Date().toISOString()};
 
   DB.addDraftEntry(entry);
@@ -237,24 +191,16 @@ async function submitBatch() {
 // Direct submit (for non-contractor roles who still submit one at a time)
 async function submitEntry(){
   const c=$('eCat').value,i=$('eType').value,q=parseFloat($('eQ').value),a=parseFloat($('eA').value);
-  const m=MATERIALS[c],t=m?m.types[i]:null;
-  const belowThreshold=m&&m.isMEP&&t&&t.coveragePct!==undefined&&t.coveragePct<MEP_COVERAGE_THRESHOLD;
-  if(!c||i===''){alert('Fill all required fields');return;}
-  if(!belowThreshold&&(isNaN(q)||isNaN(a)||q<=0||a<=0)){alert('Fill all required fields');return;}
-  if(belowThreshold&&(isNaN(q)||q<=0)){alert('Enter a valid quantity');return;}
-  const mass=q*m.massFactor;
+  if(!c||i===''||isNaN(q)||isNaN(a)||q<=0||a<=0){alert('Fill all required fields');return;}
+  const m=MATERIALS[c],t=m.types[i],mass=q*m.massFactor;
   const rd=parseFloat($('eR').value)||0,se=parseFloat($('eS').value)||0,tr=parseFloat($('eT').value)||0;
-  const b=belowThreshold?0:(q*t.baseline)/1000;
-  const ac=belowThreshold?0:(q*a)/1000;
-  const a4=(mass*rd*TEF.road+mass*se*TEF.sea+mass*tr*TEF.train)/1000;
+  const b=(q*t.baseline)/1000,ac=(q*a)/1000,a4=(mass*rd*TEF.road+mass*se*TEF.sea+mass*tr*TEF.train)/1000;
   const yr=$('eY').value,mo=$('eM').value;
 
-  const entry={id:Date.now(),category:c,type:t.name,qty:q,unit:m.unit,
-    actual:belowThreshold?0:a,baseline:belowThreshold?0:t.baseline,target:belowThreshold?0:t.target,
+  const entry={id:Date.now(),category:c,type:t.name,qty:q,unit:m.unit,actual:a,baseline:t.baseline,target:t.target,
     road:rd,sea:se,train:tr,a13B:b,a13A:ac,a4,a14:ac+a4,pct:b>0?((b-ac)/b)*100:0,
     year:yr,month:mo,monthKey:yr+'-'+mo,monthLabel:MONTHS[parseInt(mo)-1]+' '+yr,
-    district:$('eD').value,contract:$('eC').value,notes:$('eN').value+(belowThreshold?' [MEP Complex Assembly - Coverage: '+t.coveragePct+'% - A1-A3 = 0]':''),
-    isMEP:!!m.isMEP,coveragePct:t.coveragePct||100,mepBelowThreshold:belowThreshold,
+    district:$('eD').value,contract:$('eC').value,notes:$('eN').value,
     status:'pending',submittedBy:state.name,role:state.role,submittedAt:new Date().toISOString()};
 
   await DB.saveEntry(entry);
@@ -266,10 +212,7 @@ async function submitEntry(){
 function renderRecent(){
   const t=$('reTbl');if(!t)return;
   const r=[...state.entries].reverse().slice(0,15);
-  t.innerHTML=r.length?r.map(e=>{
-    const mepTag=e.mepBelowThreshold?'<span style="display:inline-block;background:rgba(239,68,68,0.1);color:var(--red);font-size:9px;padding:1px 5px;border-radius:4px;margin-left:4px">A1-A3=0</span>':'';
-    return `<tr><td>${e.monthLabel}</td><td>${e.category}${mepTag}</td><td>${e.type}</td><td class="r mono">${fmtI(e.qty)}</td><td class="r mono">${fmt(e.a13B)}</td><td class="r mono">${fmt(e.a13A)}</td><td class="r mono">${fmt(e.a4)}</td><td class="r mono" style="font-weight:700">${fmt(e.a14)}</td><td><span class="badge ${e.status}">${e.status}</span></td><td>${e.status==='pending'?`<button class="btn btn-danger btn-sm" onclick="delEntry(${e.id})">\u2715</button>`:''}</td></tr>`;
-  }).join(''):'<tr><td colspan="10" class="empty">No entries</td></tr>';
+  t.innerHTML=r.length?r.map(e=>`<tr><td>${e.monthLabel}</td><td>${e.category}</td><td>${e.type}</td><td class="r mono">${fmtI(e.qty)}</td><td class="r mono">${fmt(e.a13B)}</td><td class="r mono">${fmt(e.a13A)}</td><td class="r mono">${fmt(e.a4)}</td><td class="r mono" style="font-weight:700">${fmt(e.a14)}</td><td><span class="badge ${e.status}">${e.status}</span></td><td>${e.status==='pending'?`<button class="btn btn-danger btn-sm" onclick="delEntry(${e.id})">\u2715</button>`:''}</td></tr>`).join(''):'<tr><td colspan="10" class="empty">No entries</td></tr>';
 }
 
 async function delEntry(id){await DB.deleteEntry(id);state.entries=state.entries.filter(e=>e.id!==id);navigate(state.page);}
@@ -309,7 +252,7 @@ function renderApprovals(el){
 
   el.innerHTML=`${assignInfo}<div class="card"><div class="card-title">Workflow</div>
   <div class="flow-steps"><div class="flow-step"><div class="flow-dot done">\ud83c\udfd7\ufe0f</div><div class="flow-label">Contractor</div></div><div class="flow-line done"></div><div class="flow-step"><div class="flow-dot ${r==='consultant'?'current':'done'}">\ud83d\udccb</div><div class="flow-label">Consultant</div></div><div class="flow-line ${r==='client'||r==='consultant'?'done':''}"></div><div class="flow-step"><div class="flow-dot ${r==='client'?'current':(r==='consultant'?'done':'')}">\ud83d\udc54</div><div class="flow-label">Client</div></div></div></div>
-  <div class="card"><div class="card-title" style="display:flex;justify-content:space-between;align-items:center"><span>${items.length} Items</span>${(r==='consultant'||r==='client')?'<div class="btn-row" style="margin:0"><button class="btn btn-secondary btn-sm" onclick="navigate(\'calculations\')">View Calculations</button><button class="btn btn-secondary btn-sm" onclick="exportReportExcel(\'entries\')">Export All</button></div>':''}</div><div class="tbl-wrap"><table><thead><tr><th>Month</th><th>Material</th><th>Type</th><th>By</th><th>Org</th><th class="r">Baseline</th><th class="r">Actual</th><th class="r">Reduction</th><th>Status</th><th>MEP</th>${r!=='contractor'?'<th>Actions</th>':''}</tr></thead><tbody>${items.length?items.map(e=>{const mepTag=e.mepBelowThreshold?'<span style="color:var(--red);font-size:9px;font-weight:600">A1-A3=0</span>':(e.isMEP?'<span style="color:var(--green);font-size:9px">'+(e.coveragePct||100)+'%</span>':'\u2014');return`<tr${e.mepBelowThreshold?' style="background:rgba(239,68,68,0.03)"':''}><td>${e.monthLabel}</td><td>${e.category}</td><td>${e.type}</td><td>${e.submittedBy||'\u2014'}</td><td style="font-size:11px;color:var(--slate5)">${e.organizationName||'\u2014'}</td><td class="r mono">${fmt(e.a13B)}</td><td class="r mono">${fmt(e.a13A)}</td><td class="r mono" style="color:${e.pct>20?'var(--green)':'var(--orange)'};font-weight:700">${fmt(e.pct)}%</td><td><span class="badge ${e.status}">${e.status}</span></td><td>${mepTag}</td>${r==='consultant'?`<td>${e.status==='pending'?`<button class="btn btn-approve btn-sm" onclick="appr(${e.id},'review')">\u2713 Forward</button> `:''}${e.status==='pending'||e.status==='review'?`<button class="btn btn-primary btn-sm" onclick="appr(${e.id},'approved')">\u2713 Approve</button> `:''}<button class="btn btn-danger btn-sm" onclick="appr(${e.id},'rejected')">\u2715 Reject</button></td>`:''}${r==='client'?`<td><button class="btn btn-approve btn-sm" onclick="appr(${e.id},'approved')">\u2713 Approve</button> <button class="btn btn-danger btn-sm" onclick="appr(${e.id},'rejected')">\u2715 Reject</button></td>`:''}</tr>`;}).join(''):'<tr><td colspan="11" class="empty">No pending items</td></tr>'}</tbody></table></div></div>`;
+  <div class="card"><div class="card-title">${items.length} Items</div><div class="tbl-wrap"><table><thead><tr><th>Month</th><th>Material</th><th>Type</th><th>By</th><th>Org</th><th class="r">Baseline</th><th class="r">Actual</th><th class="r">Reduction</th><th>Status</th>${r!=='contractor'?'<th>Actions</th>':''}</tr></thead><tbody>${items.length?items.map(e=>`<tr><td>${e.monthLabel}</td><td>${e.category}</td><td>${e.type}</td><td>${e.submittedBy||'\u2014'}</td><td style="font-size:11px;color:var(--slate5)">${e.organizationName||'\u2014'}</td><td class="r mono">${fmt(e.a13B)}</td><td class="r mono">${fmt(e.a13A)}</td><td class="r mono" style="color:${e.pct>20?'var(--green)':'var(--orange)'};font-weight:700">${fmt(e.pct)}%</td><td><span class="badge ${e.status}">${e.status}</span></td>${r==='consultant'?`<td>${e.status==='pending'?`<button class="btn btn-approve btn-sm" onclick="appr(${e.id},'review')">\u2713 Forward</button> `:''}${e.status==='pending'||e.status==='review'?`<button class="btn btn-primary btn-sm" onclick="appr(${e.id},'approved')">\u2713 Approve</button> `:''}<button class="btn btn-danger btn-sm" onclick="appr(${e.id},'rejected')">\u2715 Reject</button></td>`:''}${r==='client'?`<td><button class="btn btn-approve btn-sm" onclick="appr(${e.id},'approved')">\u2713 Approve</button> <button class="btn btn-danger btn-sm" onclick="appr(${e.id},'rejected')">\u2715 Reject</button></td>`:''}</tr>`).join(''):'<tr><td colspan="10" class="empty">No pending items</td></tr>'}</tbody></table></div></div>`;
 }
 async function appr(id,s){await DB.updateEntry(id,{status:s,[state.role+'At']:new Date().toISOString(),[state.role+'By']:state.name,[state.role+'ByUid']:state.uid});const e=state.entries.find(x=>x.id===id);if(e)e.status=s;buildSidebar();navigate('approvals');}
 
@@ -318,7 +261,7 @@ function renderMonthly(el){
   const map={};state.entries.forEach(e=>{if(!map[e.monthKey])map[e.monthKey]={l:e.monthLabel,n:0,b:0,a:0,a4:0,t:0};const m=map[e.monthKey];m.n++;m.b+=e.a13B;m.a+=e.a13A;m.a4+=e.a4;m.t+=e.a14;});
   const arr=Object.entries(map).sort((a,b)=>a[0].localeCompare(b[0]));
   let gB=0,gA=0,gA4=0,gT=0;
-  el.innerHTML=`<div class="card"><div class="card-title" style="display:flex;justify-content:space-between;align-items:center"><span>Monthly Summary</span><div class="btn-row" style="margin:0"><button class="btn btn-secondary btn-sm" onclick="exportReportPDF('monthly')">PDF</button><button class="btn btn-secondary btn-sm" onclick="exportReportExcel('monthly')">Excel</button><button class="btn btn-secondary btn-sm" onclick="shareReport('monthly')">Share</button></div></div><div class="tbl-wrap"><table id="monthlyTable"><thead><tr><th>Month</th><th class="r">Entries</th><th class="r">A1-A3 Baseline</th><th class="r">A1-A3 Actual</th><th class="r">A4</th><th class="r">A1-A4 Total</th><th class="r">Reduction</th></tr></thead><tbody>${arr.length?arr.map(([k,m])=>{gB+=m.b;gA+=m.a;gA4+=m.a4;gT+=m.t;const p=m.b>0?((m.b-m.a)/m.b)*100:0;return`<tr><td>${m.l}</td><td class="r">${m.n}</td><td class="r mono">${fmt(m.b)}</td><td class="r mono">${fmt(m.a)}</td><td class="r mono">${fmt(m.a4)}</td><td class="r mono" style="font-weight:700">${fmt(m.t)}</td><td class="r mono" style="color:${p>20?'var(--green)':'var(--orange)'};font-weight:700">${fmt(p)}%</td></tr>`;}).join('')+(arr.length>1?`<tr class="total-row"><td>Total</td><td class="r">${state.entries.length}</td><td class="r">${fmt(gB)}</td><td class="r">${fmt(gA)}</td><td class="r">${fmt(gA4)}</td><td class="r">${fmt(gT)}</td><td class="r" style="color:var(--green)">${fmt(gB>0?((gB-gA)/gB)*100:0)}%</td></tr>`:''):'<tr><td colspan="7" class="empty">No data</td></tr>'}</tbody></table></div></div>`;
+  el.innerHTML=`<div class="card"><div class="card-title">Monthly Summary</div><div class="tbl-wrap"><table><thead><tr><th>Month</th><th class="r">Entries</th><th class="r">A1-A3 Baseline</th><th class="r">A1-A3 Actual</th><th class="r">A4</th><th class="r">A1-A4 Total</th><th class="r">Reduction</th></tr></thead><tbody>${arr.length?arr.map(([k,m])=>{gB+=m.b;gA+=m.a;gA4+=m.a4;gT+=m.t;const p=m.b>0?((m.b-m.a)/m.b)*100:0;return`<tr><td>${m.l}</td><td class="r">${m.n}</td><td class="r mono">${fmt(m.b)}</td><td class="r mono">${fmt(m.a)}</td><td class="r mono">${fmt(m.a4)}</td><td class="r mono" style="font-weight:700">${fmt(m.t)}</td><td class="r mono" style="color:${p>20?'var(--green)':'var(--orange)'};font-weight:700">${fmt(p)}%</td></tr>`;}).join('')+(arr.length>1?`<tr class="total-row"><td>Total</td><td class="r">${state.entries.length}</td><td class="r">${fmt(gB)}</td><td class="r">${fmt(gA)}</td><td class="r">${fmt(gA4)}</td><td class="r">${fmt(gT)}</td><td class="r" style="color:var(--green)">${fmt(gB>0?((gB-gA)/gB)*100:0)}%</td></tr>`:''):'<tr><td colspan="7" class="empty">No data</td></tr>'}</tbody></table></div></div>`;
 }
 
 // ===== CUMULATIVE =====
@@ -328,42 +271,14 @@ function renderCumulative(el){
   let cB=0,cA=0,cA4=0;
   const cum=arr.map(([k,v])=>{cB+=v.b;cA+=v.a;cA4+=v.a4;return{l:v.l,mb:v.b,ma:v.a,cB,cA,cA4,cT:cA+cA4,cP:cB>0?((cB-cA)/cB)*100:0};});
   const mx=Math.max(...cum.map(c=>Math.max(c.cB,c.cA)),1);
-  el.innerHTML=`<div class="card"><div class="card-title" style="display:flex;justify-content:space-between;align-items:center"><span>Cumulative Tracking</span><div class="btn-row" style="margin:0"><button class="btn btn-secondary btn-sm" onclick="exportReportPDF('cumulative')">PDF</button><button class="btn btn-secondary btn-sm" onclick="exportReportExcel('cumulative')">Excel</button><button class="btn btn-secondary btn-sm" onclick="shareReport('cumulative')">Share</button></div></div>${cum.length?`<div class="chart-legend"><span><span class="chart-legend-dot" style="background:rgba(148,163,184,0.4)"></span> Baseline</span><span><span class="chart-legend-dot" style="background:rgba(96,165,250,0.5)"></span> Actual</span></div><div class="bar-chart" style="height:180px">${cum.map(c=>`<div class="bar-group"><div class="bar-pair"><div class="bar baseline" style="height:${(c.cB/mx)*160}px"></div><div class="bar actual" style="height:${(c.cA/mx)*160}px"></div></div><div class="bar-label">${c.l}</div></div>`).join('')}</div>`:''}
-  <div class="tbl-wrap" style="margin-top:16px"><table id="cumulativeTable"><thead><tr><th>Month</th><th class="r">Mth Base</th><th class="r">Mth Actual</th><th class="r">Cum Base</th><th class="r">Cum Actual</th><th class="r">Cum A4</th><th class="r">Cum Total</th><th class="r">Cum Red%</th></tr></thead><tbody>${cum.length?cum.map(c=>`<tr><td>${c.l}</td><td class="r mono">${fmt(c.mb)}</td><td class="r mono">${fmt(c.ma)}</td><td class="r mono" style="font-weight:700">${fmt(c.cB)}</td><td class="r mono" style="font-weight:700;color:var(--blue)">${fmt(c.cA)}</td><td class="r mono">${fmt(c.cA4)}</td><td class="r mono" style="font-weight:700;color:var(--green)">${fmt(c.cT)}</td><td class="r mono" style="color:${c.cP>20?'var(--green)':'var(--orange)'};font-weight:700">${fmt(c.cP)}%</td></tr>`).join(''):'<tr><td colspan="8" class="empty">No data</td></tr>'}</tbody></table></div></div>`;
+  el.innerHTML=`<div class="card"><div class="card-title">Cumulative Tracking</div>${cum.length?`<div class="chart-legend"><span><span class="chart-legend-dot" style="background:rgba(148,163,184,0.4)"></span> Baseline</span><span><span class="chart-legend-dot" style="background:rgba(96,165,250,0.5)"></span> Actual</span></div><div class="bar-chart" style="height:180px">${cum.map(c=>`<div class="bar-group"><div class="bar-pair"><div class="bar baseline" style="height:${(c.cB/mx)*160}px"></div><div class="bar actual" style="height:${(c.cA/mx)*160}px"></div></div><div class="bar-label">${c.l}</div></div>`).join('')}</div>`:''}
+  <div class="tbl-wrap" style="margin-top:16px"><table><thead><tr><th>Month</th><th class="r">Mth Base</th><th class="r">Mth Actual</th><th class="r">Cum Base</th><th class="r">Cum Actual</th><th class="r">Cum A4</th><th class="r">Cum Total</th><th class="r">Cum Red%</th></tr></thead><tbody>${cum.length?cum.map(c=>`<tr><td>${c.l}</td><td class="r mono">${fmt(c.mb)}</td><td class="r mono">${fmt(c.ma)}</td><td class="r mono" style="font-weight:700">${fmt(c.cB)}</td><td class="r mono" style="font-weight:700;color:var(--blue)">${fmt(c.cA)}</td><td class="r mono">${fmt(c.cA4)}</td><td class="r mono" style="font-weight:700;color:var(--green)">${fmt(c.cT)}</td><td class="r mono" style="color:${c.cP>20?'var(--green)':'var(--orange)'};font-weight:700">${fmt(c.cP)}%</td></tr>`).join(''):'<tr><td colspan="8" class="empty">No data</td></tr>'}</tbody></table></div></div>`;
 }
 
 // ===== BASELINES =====
 function renderBaselines(el){
-  const groups=getMaterialGroups();
-  let h='<div class="card"><div class="card-title">ICE Database &mdash; Full Material Library</div><div style="padding:10px 14px;background:rgba(96,165,250,0.06);border:1px solid rgba(96,165,250,0.15);border-radius:10px;font-size:13px;color:var(--blue);line-height:1.6"><strong>Source:</strong> Inventory of Carbon and Energy (ICE) v3.0 &mdash; University of Bath / Circular Ecology<br><strong>Scope:</strong> A1-A3 (Cradle to Gate) embodied carbon factors<br><strong>MEP Rule:</strong> Complex assemblies with data coverage below 80% have <span style="color:var(--red);font-weight:700">A1-A3 = 0</span> to avoid unreliable calculations.<br><strong>Categories:</strong> '+Object.keys(MATERIALS).length+' material categories, '+Object.values(MATERIALS).reduce((s,m)=>s+m.types.length,0)+' material types</div></div>';
-
-  Object.entries(groups).forEach(([grp,cats])=>{
-    const isMEPGroup=grp==='MEP';
-    h+='<div class="card"><div class="card-title" style="font-size:16px;border-bottom:2px solid '+(isMEPGroup?'var(--red)':'var(--border)')+';padding-bottom:8px;margin-bottom:4px">'+(isMEPGroup?'MEP (Mechanical, Electrical, Plumbing, Fire Protection)':grp)+'</div>';
-    cats.forEach(c=>{
-      const m=MATERIALS[c];
-      const hasCoverage=m.isMEP;
-      h+='<div style="margin-top:14px"><div style="font-weight:700;font-size:13px;color:var(--text);margin-bottom:6px">'+c+' <span style="font-weight:400;font-size:11px;color:var(--slate5)">Unit: '+m.unit+' | EF Unit: '+m.efUnit+' | Mass Factor: '+m.massFactor+'</span></div>';
-      h+='<div class="tbl-wrap"><table><thead><tr><th>Type</th><th class="r">Baseline EF</th><th class="r">Target EF</th>'+(hasCoverage?'<th class="r">Coverage %</th><th>A1-A3 Status</th>':'')+'</tr></thead><tbody>';
-      m.types.forEach(t=>{
-        const cov=t.coveragePct;
-        const below=hasCoverage&&cov!==undefined&&cov<MEP_COVERAGE_THRESHOLD;
-        h+='<tr'+(below?' style="background:rgba(239,68,68,0.04)"':'')+'><td>'+t.name+'</td>';
-        h+='<td class="r mono"'+(below?' style="color:var(--red);text-decoration:line-through"':'')+'>'+t.baseline+'</td>';
-        h+='<td class="r mono" style="color:'+(below?'var(--red)':'var(--green)')+'">'+(below?'0':t.target)+'</td>';
-        if(hasCoverage){
-          const covColor=cov>=80?'var(--green)':cov>=50?'var(--orange)':'var(--red)';
-          h+='<td class="r mono" style="color:'+covColor+';font-weight:700">'+(cov||'N/A')+'%</td>';
-          h+='<td>'+(below?'<span style="display:inline-block;background:rgba(239,68,68,0.1);color:var(--red);font-size:10px;padding:2px 8px;border-radius:4px;font-weight:600">ZERO - Complex Assembly</span>':'<span style="display:inline-block;background:rgba(52,211,153,0.1);color:var(--green);font-size:10px;padding:2px 8px;border-radius:4px;font-weight:600">Active</span>')+'</td>';
-        }
-        h+='</tr>';
-      });
-      h+='</tbody></table></div></div>';
-    });
-    h+='</div>';
-  });
-
-  h+='<div class="card"><div class="card-title">A5 Emission Factors</div><div class="tbl-wrap"><table><thead><tr><th>Source</th><th class="r">EF</th><th>Unit</th></tr></thead><tbody>'+[...A5_EFS.energy,...A5_EFS.water].map(e=>'<tr><td>'+e.name+'</td><td class="r mono" style="color:var(--green)">'+e.ef+'</td><td>'+e.efUnit+'</td></tr>').join('')+'</tbody></table></div></div>';
+  let h='';Object.entries(MATERIALS).forEach(([c,m])=>{h+=`<div class="card"><div class="card-title">${c}</div><div class="tbl-wrap"><table><thead><tr><th>Type</th><th class="r">Baseline EF</th><th class="r">Target EF</th><th>Unit</th><th class="r">Mass Factor</th></tr></thead><tbody>${m.types.map(t=>`<tr><td>${t.name}</td><td class="r mono">${t.baseline}</td><td class="r mono" style="color:var(--green)">${t.target}</td><td>${m.efUnit}</td><td class="r mono">${m.massFactor}</td></tr>`).join('')}</tbody></table></div></div>`;});
+  h+=`<div class="card"><div class="card-title">A5 Emission Factors</div><div class="tbl-wrap"><table><thead><tr><th>Source</th><th class="r">EF</th><th>Unit</th></tr></thead><tbody>${[...A5_EFS.energy,...A5_EFS.water].map(e=>`<tr><td>${e.name}</td><td class="r mono" style="color:var(--green)">${e.ef}</td><td>${e.efUnit}</td></tr>`).join('')}</tbody></table></div></div>`;
   el.innerHTML=h;
 }
 
@@ -996,297 +911,6 @@ async function assignUserToOrganization() {
   } catch (e) {
     showError('userOrgError', e.message || 'Failed to assign user.');
   }
-}
-
-// ===== PDF EXPORT =====
-function exportReportPDF(reportType) {
-  const title = reportType === 'monthly' ? 'Monthly Emissions Report' : reportType === 'cumulative' ? 'Cumulative Emissions Report' : 'Detailed Calculations Report';
-  const projectName = 'KSIA Sustainability Program';
-  const dateStr = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
-
-  // Gather data based on report type
-  let tableHTML = '';
-  let summaryHTML = '';
-
-  if (reportType === 'monthly') {
-    const map = {};
-    state.entries.forEach(e => {
-      if (!map[e.monthKey]) map[e.monthKey] = { l: e.monthLabel, n: 0, b: 0, a: 0, a4: 0, t: 0 };
-      const m = map[e.monthKey]; m.n++; m.b += e.a13B; m.a += e.a13A; m.a4 += e.a4; m.t += e.a14;
-    });
-    const arr = Object.entries(map).sort((a, b) => a[0].localeCompare(b[0]));
-    let gB = 0, gA = 0, gA4 = 0, gT = 0;
-    tableHTML = '<table><thead><tr><th>Month</th><th>Entries</th><th>A1-A3 Baseline (tCO2eq)</th><th>A1-A3 Actual (tCO2eq)</th><th>A4 Transport (tCO2eq)</th><th>A1-A4 Total (tCO2eq)</th><th>Reduction %</th></tr></thead><tbody>';
-    arr.forEach(([k, m]) => {
-      gB += m.b; gA += m.a; gA4 += m.a4; gT += m.t;
-      const p = m.b > 0 ? ((m.b - m.a) / m.b) * 100 : 0;
-      tableHTML += '<tr><td>' + m.l + '</td><td>' + m.n + '</td><td>' + fmt(m.b) + '</td><td>' + fmt(m.a) + '</td><td>' + fmt(m.a4) + '</td><td>' + fmt(m.t) + '</td><td>' + fmt(p) + '%</td></tr>';
-    });
-    const gP = gB > 0 ? ((gB - gA) / gB) * 100 : 0;
-    tableHTML += '<tr style="font-weight:bold;border-top:2px solid #333"><td>Total</td><td>' + state.entries.length + '</td><td>' + fmt(gB) + '</td><td>' + fmt(gA) + '</td><td>' + fmt(gA4) + '</td><td>' + fmt(gT) + '</td><td>' + fmt(gP) + '%</td></tr>';
-    tableHTML += '</tbody></table>';
-    summaryHTML = '<p><strong>Total Baseline:</strong> ' + fmt(gB) + ' tCO2eq | <strong>Total Actual:</strong> ' + fmt(gA) + ' tCO2eq | <strong>Reduction:</strong> ' + fmt(gP) + '%</p>';
-  } else if (reportType === 'cumulative') {
-    const map = {};
-    state.entries.forEach(e => { if (!map[e.monthKey]) map[e.monthKey] = { l: e.monthLabel, b: 0, a: 0, a4: 0 }; map[e.monthKey].b += e.a13B; map[e.monthKey].a += e.a13A; map[e.monthKey].a4 += e.a4; });
-    const arr = Object.entries(map).sort((a, b) => a[0].localeCompare(b[0]));
-    let cB = 0, cA = 0, cA4 = 0;
-    tableHTML = '<table><thead><tr><th>Month</th><th>Mth Baseline</th><th>Mth Actual</th><th>Cum Baseline</th><th>Cum Actual</th><th>Cum A4</th><th>Cum Total</th><th>Cum Reduction %</th></tr></thead><tbody>';
-    arr.forEach(([k, v]) => {
-      cB += v.b; cA += v.a; cA4 += v.a4;
-      const cP = cB > 0 ? ((cB - cA) / cB) * 100 : 0;
-      tableHTML += '<tr><td>' + v.l + '</td><td>' + fmt(v.b) + '</td><td>' + fmt(v.a) + '</td><td>' + fmt(cB) + '</td><td>' + fmt(cA) + '</td><td>' + fmt(cA4) + '</td><td>' + fmt(cA + cA4) + '</td><td>' + fmt(cP) + '%</td></tr>';
-    });
-    tableHTML += '</tbody></table>';
-    summaryHTML = '<p><strong>Cumulative Baseline:</strong> ' + fmt(cB) + ' tCO2eq | <strong>Cumulative Actual:</strong> ' + fmt(cA) + ' tCO2eq | <strong>A4 Transport:</strong> ' + fmt(cA4) + ' tCO2eq</p>';
-  } else if (reportType === 'calculations') {
-    tableHTML = buildCalculationTableHTML();
-  }
-
-  // Build print-ready HTML document
-  const printHTML = '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>' + title + '</title><style>' +
-    'body{font-family:Arial,sans-serif;color:#1a1a1a;padding:40px;max-width:1100px;margin:0 auto}' +
-    'h1{font-size:22px;margin-bottom:4px;color:#047857}' +
-    'h2{font-size:14px;color:#6b7280;margin-bottom:20px;font-weight:400}' +
-    '.meta{font-size:11px;color:#9ca3af;margin-bottom:24px;border-bottom:1px solid #e5e7eb;padding-bottom:12px}' +
-    'table{width:100%;border-collapse:collapse;font-size:12px;margin:16px 0}' +
-    'th{background:#f3f4f6;text-align:left;padding:8px 12px;border-bottom:2px solid #d1d5db;font-weight:600}' +
-    'td{padding:6px 12px;border-bottom:1px solid #e5e7eb}' +
-    'tr:nth-child(even){background:#fafafa}' +
-    '.summary{background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:12px 16px;margin-bottom:20px;font-size:13px}' +
-    '.footer{margin-top:30px;font-size:10px;color:#9ca3af;border-top:1px solid #e5e7eb;padding-top:12px;text-align:center}' +
-    '.mep-zero{color:#ef4444;font-weight:600}' +
-    '@media print{body{padding:20px}@page{margin:15mm}}' +
-    '</style></head><body>' +
-    '<h1>' + title + '</h1>' +
-    '<h2>' + projectName + '</h2>' +
-    '<div class="meta">Generated: ' + dateStr + ' | By: ' + state.name + ' (' + state.role + ')' + (state.organizationName ? ' | Org: ' + state.organizationName : '') + '</div>' +
-    '<div class="summary">' + summaryHTML + '</div>' +
-    tableHTML +
-    '<div class="footer">CarbonTrack Pro v2.0 | ICE Database v3.0 | KSIA Sustainability Program<br>This report was generated from the CarbonTrack Pro system. All values are in tCO2eq unless otherwise stated.</div>' +
-    '</body></html>';
-
-  // Open in new window for print/PDF
-  const win = window.open('', '_blank');
-  win.document.write(printHTML);
-  win.document.close();
-  setTimeout(function() { win.print(); }, 500);
-}
-
-// ===== EXCEL / CSV EXPORT =====
-function exportReportExcel(reportType) {
-  let csvRows = [];
-  let filename = 'CarbonTrack_';
-
-  if (reportType === 'monthly') {
-    filename += 'Monthly_Report';
-    csvRows.push(['Month', 'Entries', 'A1-A3 Baseline (tCO2eq)', 'A1-A3 Actual (tCO2eq)', 'A4 Transport (tCO2eq)', 'A1-A4 Total (tCO2eq)', 'Reduction %']);
-    const map = {};
-    state.entries.forEach(e => {
-      if (!map[e.monthKey]) map[e.monthKey] = { l: e.monthLabel, n: 0, b: 0, a: 0, a4: 0, t: 0 };
-      const m = map[e.monthKey]; m.n++; m.b += e.a13B; m.a += e.a13A; m.a4 += e.a4; m.t += e.a14;
-    });
-    Object.entries(map).sort((a, b) => a[0].localeCompare(b[0])).forEach(([k, m]) => {
-      const p = m.b > 0 ? ((m.b - m.a) / m.b) * 100 : 0;
-      csvRows.push([m.l, m.n, m.b.toFixed(2), m.a.toFixed(2), m.a4.toFixed(2), m.t.toFixed(2), p.toFixed(2)]);
-    });
-  } else if (reportType === 'cumulative') {
-    filename += 'Cumulative_Report';
-    csvRows.push(['Month', 'Mth Baseline', 'Mth Actual', 'Cum Baseline', 'Cum Actual', 'Cum A4', 'Cum Total', 'Cum Reduction %']);
-    const map = {};
-    state.entries.forEach(e => { if (!map[e.monthKey]) map[e.monthKey] = { l: e.monthLabel, b: 0, a: 0, a4: 0 }; map[e.monthKey].b += e.a13B; map[e.monthKey].a += e.a13A; map[e.monthKey].a4 += e.a4; });
-    let cB = 0, cA = 0, cA4 = 0;
-    Object.entries(map).sort((a, b) => a[0].localeCompare(b[0])).forEach(([k, v]) => {
-      cB += v.b; cA += v.a; cA4 += v.a4;
-      const cP = cB > 0 ? ((cB - cA) / cB) * 100 : 0;
-      csvRows.push([v.l, v.b.toFixed(2), v.a.toFixed(2), cB.toFixed(2), cA.toFixed(2), cA4.toFixed(2), (cA + cA4).toFixed(2), cP.toFixed(2)]);
-    });
-  } else if (reportType === 'calculations') {
-    filename += 'Detailed_Calculations';
-    csvRows.push(['ID', 'Month', 'Category', 'Type', 'Qty', 'Unit', 'Baseline EF', 'Target EF', 'Actual GWP', 'A1-A3 Baseline (tCO2eq)', 'A1-A3 Actual (tCO2eq)', 'A4 Transport (tCO2eq)', 'A1-A4 Total (tCO2eq)', 'Reduction %', 'Status', 'Submitted By', 'Organization', 'MEP Below Threshold', 'Coverage %', 'Notes']);
-    state.entries.forEach(e => {
-      csvRows.push([e.id, e.monthLabel, e.category, e.type, e.qty, e.unit, e.baseline, e.target || '', e.actual, (e.a13B || 0).toFixed(2), (e.a13A || 0).toFixed(2), (e.a4 || 0).toFixed(2), (e.a14 || 0).toFixed(2), (e.pct || 0).toFixed(2), e.status, e.submittedBy || '', e.organizationName || '', e.mepBelowThreshold ? 'Yes' : 'No', e.coveragePct || '', e.notes || '']);
-    });
-  } else if (reportType === 'entries') {
-    filename += 'All_Entries';
-    csvRows.push(['ID', 'Month', 'Category', 'Type', 'Qty', 'Unit', 'Baseline EF', 'Target EF', 'Actual GWP', 'A1-A3 Baseline', 'A1-A3 Actual', 'A4', 'A1-A4 Total', 'Reduction %', 'Road km', 'Sea km', 'Train km', 'District', 'Contract', 'Status', 'Submitted By', 'Organization', 'MEP', 'Notes']);
-    state.entries.forEach(e => {
-      csvRows.push([e.id, e.monthLabel, e.category, e.type, e.qty, e.unit, e.baseline, e.target || '', e.actual, (e.a13B || 0).toFixed(2), (e.a13A || 0).toFixed(2), (e.a4 || 0).toFixed(2), (e.a14 || 0).toFixed(2), (e.pct || 0).toFixed(2), e.road || 0, e.sea || 0, e.train || 0, e.district || '', e.contract || '', e.status, e.submittedBy || '', e.organizationName || '', e.mepBelowThreshold ? 'A1-A3=0' : '', e.notes || '']);
-    });
-  }
-
-  filename += '_' + new Date().toISOString().slice(0, 10) + '.csv';
-
-  // Build CSV content with proper escaping
-  const csvContent = csvRows.map(row =>
-    row.map(cell => {
-      const str = String(cell);
-      return str.includes(',') || str.includes('"') || str.includes('\n') ? '"' + str.replace(/"/g, '""') + '"' : str;
-    }).join(',')
-  ).join('\n');
-
-  // Download
-  const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
-  const link = document.createElement('a');
-  link.href = URL.createObjectURL(blob);
-  link.download = filename;
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-}
-
-// ===== SHARE REPORT =====
-function shareReport(reportType) {
-  const titles = { monthly: 'Monthly Emissions Report', cumulative: 'Cumulative Emissions Report', calculations: 'Detailed Calculations' };
-  const title = titles[reportType] || 'Report';
-
-  // Build a shareable summary
-  let tB = 0, tA = 0, tA4 = 0;
-  state.entries.forEach(e => { tB += e.a13B || 0; tA += e.a13A || 0; tA4 += e.a4 || 0; });
-  const rP = tB > 0 ? ((tB - tA) / tB) * 100 : 0;
-  const mepCount = state.entries.filter(e => e.mepBelowThreshold).length;
-
-  const shareContent = `
-    <div class="card">
-      <div class="card-title">Share Report with Consultant</div>
-      <div style="padding:16px;background:rgba(96,165,250,0.06);border:1px solid rgba(96,165,250,0.15);border-radius:10px;margin-bottom:16px">
-        <div style="font-weight:700;font-size:15px;color:var(--text);margin-bottom:8px">${title}</div>
-        <div style="font-size:13px;color:var(--slate4);line-height:1.8">
-          <strong>Project:</strong> KSIA Sustainability Program<br>
-          <strong>Period:</strong> ${state.entries.length > 0 ? state.entries[0].monthLabel + ' to ' + state.entries[state.entries.length - 1].monthLabel : 'No data'}<br>
-          <strong>Total Entries:</strong> ${state.entries.length}<br>
-          <strong>A1-A3 Baseline:</strong> ${fmt(tB)} tCO\u2082eq<br>
-          <strong>A1-A3 Actual:</strong> ${fmt(tA)} tCO\u2082eq<br>
-          <strong>A4 Transport:</strong> ${fmt(tA4)} tCO\u2082eq<br>
-          <strong>Total (A1-A4):</strong> ${fmt(tA + tA4)} tCO\u2082eq<br>
-          <strong>Reduction:</strong> ${fmt(rP)}%<br>
-          ${mepCount > 0 ? '<strong>MEP Items (A1-A3=0):</strong> ' + mepCount + ' entries<br>' : ''}
-          <strong>Generated:</strong> ${new Date().toLocaleDateString()} by ${state.name}
-        </div>
-      </div>
-      <div style="font-size:13px;color:var(--slate5);margin-bottom:16px">
-        Choose how to share this report:
-      </div>
-      <div class="btn-row">
-        <button class="btn btn-primary" onclick="exportReportPDF('${reportType}')">Download PDF</button>
-        <button class="btn btn-secondary" onclick="exportReportExcel('${reportType}')">Download Excel (CSV)</button>
-        <button class="btn btn-secondary" onclick="exportReportExcel('entries')">Export All Entries (CSV)</button>
-        <button class="btn btn-secondary" onclick="copyShareSummary()">Copy Summary</button>
-      </div>
-      <div id="shareMsg" style="margin-top:12px"></div>
-    </div>`;
-
-  // Show as modal overlay
-  let overlay = $('shareOverlay');
-  if (!overlay) {
-    overlay = document.createElement('div');
-    overlay.id = 'shareOverlay';
-    overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.6);z-index:1000;display:flex;align-items:center;justify-content:center;padding:20px';
-    overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
-    document.body.appendChild(overlay);
-  }
-  overlay.innerHTML = '<div style="max-width:600px;width:100%">' + shareContent + '<div style="text-align:center;margin-top:8px"><button class="btn btn-secondary" onclick="document.getElementById(\'shareOverlay\').remove()">Close</button></div></div>';
-}
-
-function copyShareSummary() {
-  let tB = 0, tA = 0, tA4 = 0;
-  state.entries.forEach(e => { tB += e.a13B || 0; tA += e.a13A || 0; tA4 += e.a4 || 0; });
-  const rP = tB > 0 ? ((tB - tA) / tB) * 100 : 0;
-  const text = 'KSIA Carbon Report Summary\n' +
-    'Generated: ' + new Date().toLocaleDateString() + '\n' +
-    'Entries: ' + state.entries.length + '\n' +
-    'A1-A3 Baseline: ' + fmt(tB) + ' tCO2eq\n' +
-    'A1-A3 Actual: ' + fmt(tA) + ' tCO2eq\n' +
-    'A4 Transport: ' + fmt(tA4) + ' tCO2eq\n' +
-    'Total (A1-A4): ' + fmt(tA + tA4) + ' tCO2eq\n' +
-    'Reduction: ' + fmt(rP) + '%\n' +
-    'By: ' + state.name;
-  navigator.clipboard.writeText(text).then(function() {
-    var msg = $('shareMsg');
-    if (msg) msg.innerHTML = '<div style="padding:8px 12px;background:rgba(52,211,153,0.1);border-radius:8px;color:var(--green);font-size:12px;font-weight:600">Summary copied to clipboard!</div>';
-  }).catch(function() {
-    alert('Could not copy. Please select and copy manually.');
-  });
-}
-
-// ===== CONSULTANT CALCULATION VIEW =====
-function renderCalculations(el) {
-  const entries = [...state.entries].reverse();
-  const mepEntries = entries.filter(e => e.mepBelowThreshold);
-  const normalEntries = entries.filter(e => !e.mepBelowThreshold);
-
-  let tB = 0, tA = 0, tA4 = 0;
-  entries.forEach(e => { tB += e.a13B || 0; tA += e.a13A || 0; tA4 += e.a4 || 0; });
-  const rP = tB > 0 ? ((tB - tA) / tB) * 100 : 0;
-
-  el.innerHTML = `
-  <div class="card">
-    <div class="card-title" style="display:flex;justify-content:space-between;align-items:center">
-      <span>Calculation Methodology</span>
-      <div class="btn-row" style="margin:0">
-        <button class="btn btn-secondary btn-sm" onclick="exportReportPDF('calculations')">PDF</button>
-        <button class="btn btn-secondary btn-sm" onclick="exportReportExcel('calculations')">Excel</button>
-        <button class="btn btn-secondary btn-sm" onclick="shareReport('calculations')">Share</button>
-      </div>
-    </div>
-    <div style="padding:14px;background:rgba(96,165,250,0.06);border:1px solid rgba(96,165,250,0.15);border-radius:10px;font-size:13px;color:var(--slate4);line-height:1.8">
-      <strong style="color:var(--blue)">A1-A3 Embodied Carbon Calculation:</strong><br>
-      <code style="background:var(--bg3);padding:2px 6px;border-radius:4px">A1-A3 (tCO\u2082eq) = Quantity x Emission Factor / 1000</code><br><br>
-      <strong style="color:var(--blue)">A4 Transport Calculation:</strong><br>
-      <code style="background:var(--bg3);padding:2px 6px;border-radius:4px">A4 (tCO\u2082eq) = Mass(kg) x [Road(km) x 0.0000121 + Sea(km) x 0.0000026 + Train(km) x 0.0000052] / 1000</code><br><br>
-      <strong style="color:var(--blue)">Reduction Percentage:</strong><br>
-      <code style="background:var(--bg3);padding:2px 6px;border-radius:4px">Reduction % = (Baseline - Actual) / Baseline x 100</code><br><br>
-      <strong style="color:var(--red)">MEP Complex Assemblies (Coverage < 80%):</strong><br>
-      Items where embodied carbon data coverage is below 80% have <strong>A1-A3 = 0</strong>. Only A4 transport emissions are counted for these items. This affects ${mepEntries.length} of ${entries.length} entries.
-    </div>
-  </div>
-
-  <div class="stats-row">
-    <div class="stat-card slate"><div class="sc-label">A1-A3 Baseline</div><div class="sc-value">${fmt(tB)}</div><div class="sc-sub">tCO\u2082eq</div></div>
-    <div class="stat-card blue"><div class="sc-label">A1-A3 Actual</div><div class="sc-value">${fmt(tA)}</div><div class="sc-sub">tCO\u2082eq</div></div>
-    <div class="stat-card orange"><div class="sc-label">A4 Transport</div><div class="sc-value">${fmt(tA4)}</div><div class="sc-sub">tCO\u2082eq</div></div>
-    <div class="stat-card green"><div class="sc-label">A1-A4 Total</div><div class="sc-value">${fmt(tA + tA4)}</div><div class="sc-sub">tCO\u2082eq</div></div>
-    <div class="stat-card ${rP > 20 ? 'green' : rP >= 10 ? 'orange' : 'purple'}"><div class="sc-label">Reduction</div><div class="sc-value">${fmt(rP)}%</div><div class="sc-sub">${fmt(tB - tA)} saved</div></div>
-    <div class="stat-card ${mepEntries.length > 0 ? 'orange' : 'green'}"><div class="sc-label">MEP (A1-A3=0)</div><div class="sc-value">${mepEntries.length}</div><div class="sc-sub">of ${entries.length} entries</div></div>
-  </div>
-
-  <div class="card">
-    <div class="card-title">Detailed Entry Calculations (${entries.length} entries)</div>
-    <div class="tbl-wrap"><table>
-      <thead><tr><th>Month</th><th>Category</th><th>Type</th><th>By</th><th class="r">Qty</th><th>Unit</th><th class="r">BL EF</th><th class="r">Actual</th><th class="r">A1-A3 BL</th><th class="r">A1-A3 Act</th><th class="r">A4</th><th class="r">Total</th><th class="r">Red%</th><th>Status</th><th>MEP</th></tr></thead>
-      <tbody>${entries.length ? entries.map(e => {
-        const isMep = e.mepBelowThreshold;
-        return '<tr' + (isMep ? ' style="background:rgba(239,68,68,0.04)"' : '') + '>' +
-          '<td>' + e.monthLabel + '</td>' +
-          '<td>' + e.category + '</td>' +
-          '<td style="font-size:11px">' + e.type + '</td>' +
-          '<td style="font-size:11px;color:var(--slate5)">' + (e.submittedBy || '\u2014') + '</td>' +
-          '<td class="r mono">' + fmtI(e.qty) + '</td>' +
-          '<td>' + e.unit + '</td>' +
-          '<td class="r mono">' + (e.baseline || 0) + '</td>' +
-          '<td class="r mono">' + (e.actual || 0) + '</td>' +
-          '<td class="r mono">' + fmt(e.a13B) + '</td>' +
-          '<td class="r mono">' + fmt(e.a13A) + '</td>' +
-          '<td class="r mono">' + fmt(e.a4) + '</td>' +
-          '<td class="r mono" style="font-weight:700">' + fmt(e.a14) + '</td>' +
-          '<td class="r mono" style="color:' + (e.pct > 20 ? 'var(--green)' : 'var(--orange)') + ';font-weight:700">' + fmt(e.pct) + '%</td>' +
-          '<td><span class="badge ' + e.status + '">' + e.status + '</span></td>' +
-          '<td>' + (isMep ? '<span style="color:var(--red);font-size:10px;font-weight:600">A1-A3=0 (' + (e.coveragePct || '?') + '%)</span>' : (e.isMEP ? '<span style="color:var(--green);font-size:10px">' + (e.coveragePct || '100') + '%</span>' : '\u2014')) + '</td></tr>';
-      }).join('') : '<tr><td colspan="15" class="empty">No entries</td></tr>'}</tbody>
-    </table></div>
-  </div>
-
-  ${mepEntries.length > 0 ? '<div class="card"><div class="card-title" style="color:var(--red)">MEP Items with A1-A3 = 0 (' + mepEntries.length + ' entries)</div><div style="padding:10px 14px;background:rgba(239,68,68,0.06);border:1px solid rgba(239,68,68,0.15);border-radius:10px;margin-bottom:14px;font-size:12px;color:var(--red)">These entries represent complex MEP assemblies where embodied carbon data coverage falls below the 80% threshold. A1-A3 values are set to zero to ensure reporting integrity. Only A4 transport emissions contribute to the total for these items.</div><div class="tbl-wrap"><table><thead><tr><th>Month</th><th>Category</th><th>Type</th><th class="r">Qty</th><th class="r">Coverage %</th><th class="r">A4 Transport</th><th>Submitted By</th><th>Notes</th></tr></thead><tbody>' + mepEntries.map(e => '<tr><td>' + e.monthLabel + '</td><td>' + e.category + '</td><td>' + e.type + '</td><td class="r mono">' + fmtI(e.qty) + '</td><td class="r mono" style="color:var(--red);font-weight:700">' + (e.coveragePct || '?') + '%</td><td class="r mono">' + fmt(e.a4) + '</td><td style="font-size:11px">' + (e.submittedBy || '\u2014') + '</td><td style="font-size:10px;color:var(--slate5);max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + (e.notes || '') + '</td></tr>').join('') + '</tbody></table></div></div>' : ''}`;
-}
-
-function buildCalculationTableHTML() {
-  let html = '<table><thead><tr><th>Month</th><th>Category</th><th>Type</th><th>Qty</th><th>Unit</th><th>BL EF</th><th>Actual</th><th>A1-A3 BL (tCO2eq)</th><th>A1-A3 Act (tCO2eq)</th><th>A4 (tCO2eq)</th><th>Total (tCO2eq)</th><th>Red%</th><th>Status</th><th>MEP</th><th>Notes</th></tr></thead><tbody>';
-  state.entries.forEach(e => {
-    const isMep = e.mepBelowThreshold;
-    html += '<tr><td>' + e.monthLabel + '</td><td>' + e.category + '</td><td>' + e.type + '</td><td>' + e.qty + '</td><td>' + e.unit + '</td><td>' + (e.baseline || 0) + '</td><td>' + (e.actual || 0) + '</td><td' + (isMep ? ' class="mep-zero"' : '') + '>' + (e.a13B || 0).toFixed(2) + '</td><td' + (isMep ? ' class="mep-zero"' : '') + '>' + (e.a13A || 0).toFixed(2) + '</td><td>' + (e.a4 || 0).toFixed(2) + '</td><td>' + (e.a14 || 0).toFixed(2) + '</td><td>' + (e.pct || 0).toFixed(1) + '%</td><td>' + (e.status || '') + '</td><td>' + (isMep ? 'A1-A3=0 (Cov: ' + (e.coveragePct || '?') + '%)' : (e.isMEP ? 'OK (' + (e.coveragePct || '100') + '%)' : '')) + '</td><td>' + (e.notes || '') + '</td></tr>';
-  });
-  html += '</tbody></table>';
-  return html;
 }
 
 // ===== INTEGRATIONS =====

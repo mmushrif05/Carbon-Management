@@ -1,14 +1,57 @@
 // ===== MATERIAL & EMISSION FACTOR DATA =====
-// Full ICE Database (Inventory of Carbon and Energy) v3.0
-// Source: University of Bath / Circular Ecology
-// Coverage: A1-A3 (Cradle to Gate) embodied carbon factors
-//
-// MEP RULE: Items flagged with coveragePct < 80 are complex assemblies
-// where embodied carbon data is unreliable. A1-A3 values are set to ZERO
-// for these items to avoid misleading calculations.
-
+// These are the FIXED A1-A3 categories — do NOT modify unless explicitly instructed.
 const MATERIALS = {
-  // ──────────── STRUCTURAL ────────────
+  Concrete:{unit:"m³",massFactor:2400,efUnit:"kgCO₂e/m³",types:[
+    {name:"C15-20",baseline:323,target:220},{name:"C20-30",baseline:354,target:301},{name:"C30-40",baseline:431,target:340},
+    {name:"C40-50",baseline:430,target:360},{name:"C40-50 (PCC-C45)",baseline:430,target:360},
+    {name:"C50-60",baseline:483,target:342},{name:"C60-70",baseline:522,target:345}]},
+  Steel:{unit:"kg",massFactor:1,efUnit:"kgCO₂e/kg",types:[
+    {name:"Structural (I sections)",baseline:2.46,target:1.78},{name:"Rebar",baseline:2.26,target:1.30},
+    {name:"Hollow (Tube) sections",baseline:2.52,target:1.83},{name:"Hot Dip Galvanized",baseline:2.74,target:2.07}]},
+  Asphalt:{unit:"tons",massFactor:1000,efUnit:"kgCO₂e/ton",types:[
+    {name:"3% Binder",baseline:50.1,target:40.08},{name:"3.5% Binder",baseline:51.1,target:40.88},{name:"4% Binder",baseline:52.2,target:41.76},
+    {name:"4.5% Binder",baseline:53.2,target:42.56},{name:"5% Binder",baseline:54.2,target:43.36},{name:"5.5% Binder",baseline:55.3,target:44.24},
+    {name:"6% Binder",baseline:56.3,target:45.04},{name:"6.5% Binder",baseline:57.3,target:45.84},{name:"7% Binder",baseline:58.4,target:46.72}]},
+  Aluminum:{unit:"kg",massFactor:1,efUnit:"kgCO₂e/kg",types:[
+    {name:"Profile Without Coating (Sections)",baseline:10.8,target:7.2},{name:"Profile With Coating (Sections)",baseline:10.8,target:8.6},
+    {name:"Profile Anodized (Sections)",baseline:10.8,target:10.7},{name:"Sheets Without Coating",baseline:13.5,target:13.5},
+    {name:"Sheets With Coating",baseline:12.9,target:12.9}]},
+  Glass:{unit:"kg",massFactor:1,efUnit:"kgCO₂e/kg",types:[
+    {name:"Basis Annealed",baseline:1.28,target:1.17},{name:"Coated",baseline:1.61,target:1.39},
+    {name:"Laminated",baseline:1.77,target:1.64},{name:"Specialty",baseline:1.84,target:1.66},{name:"IGU",baseline:4.12,target:2.76}]},
+  Earth_Work:{unit:"tkm",massFactor:1,efUnit:"kgCO₂/tkm",types:[
+    {name:"Excavation/Hauling",baseline:0.11,target:0.11},{name:"Demolition Removal",baseline:0.11,target:0.11}]},
+  Subgrade:{unit:"kg",massFactor:1,efUnit:"kgCO₂e/kg",types:[
+    {name:"Coarse & Fine Aggregate (Recycled)",baseline:0.0006,target:0.0006},{name:"Coarse Aggregate",baseline:0.0103,target:0.0103},
+    {name:"Sand (River Sand)",baseline:0.0052,target:0.0052}]},
+  Pipes:{unit:"m",massFactor:1,efUnit:"kgCO₂e/m",types:[
+    {name:"Precast Concrete Pipe 600mm",baseline:179.895,target:179.895},{name:"Precast Concrete Pipe 700mm",baseline:241.292,target:241.292},
+    {name:"Precast Concrete Pipe 800mm",baseline:307.164,target:307.164},{name:"Precast Concrete Pipe 900mm",baseline:394.695,target:394.695},
+    {name:"Precast Concrete Pipe 1000mm",baseline:436.223,target:436.223},{name:"Precast Concrete Pipe 1100mm",baseline:490.997,target:490.997},
+    {name:"Precast Concrete Pipe 1200mm",baseline:543.802,target:543.802},{name:"Precast Concrete Pipe 1400mm",baseline:735.690,target:735.690},
+    {name:"Precast Concrete Pipe 1500mm",baseline:814.092,target:814.092},{name:"Precast Concrete Pipe 1800mm",baseline:1138.261,target:1138.261},
+    {name:"Precast Concrete Pipe 2000mm",baseline:1409.267,target:1409.267},{name:"Precast Concrete Pipe Other Diameter",baseline:0,target:0}]},
+};
+
+const A5_EFS = {
+  energy:[{name:"Diesel",ef:2.51,unit:"L",efUnit:"kgCO\u2082e/L"},{name:"Gasoline",ef:2.31,unit:"L",efUnit:"kgCO\u2082e/L"},{name:"Grid Electricity",ef:0.611,unit:"kWh",efUnit:"kgCO\u2082e/kWh"},{name:"Renewable",ef:0,unit:"kWh",efUnit:"kgCO\u2082e/kWh"}],
+  water:[{name:"Potable Water",ef:14.7,unit:"m\u00b3",efUnit:"kgCO\u2082/m\u00b3"},{name:"Construction Water",ef:4.0,unit:"m\u00b3",efUnit:"kgCO\u2082/m\u00b3"},{name:"TSE Recycled",ef:1.2,unit:"m\u00b3",efUnit:"kgCO\u2082/m\u00b3"}]
+};
+
+const TEF={road:0.0000121,sea:0.0000026,train:0.0000052};
+const MONTHS=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const CERTS=[{name:"Envision",icon:"\ud83c\udfd7\ufe0f",color:"var(--green)",cr:14,tgt:10},{name:"Mostadam",icon:"\ud83c\udfe0",color:"var(--cyan)",cr:8,tgt:6},{name:"LEED",icon:"\ud83c\udf3f",color:"var(--green)",cr:12,tgt:8},{name:"BREEAM",icon:"\ud83c\udf0d",color:"var(--blue)",cr:10,tgt:7},{name:"WELL",icon:"\ud83d\udc9a",color:"var(--purple)",cr:6,tgt:4}];
+
+// =====================================================================
+// ICE DATABASE v3.0 — FOR TENDER / BOQ USE ONLY
+// This is SEPARATE from MATERIALS and does NOT affect A1-A3 entry.
+// Source: University of Bath / Circular Ecology
+// MEP items with coveragePct < 80% have A1-A3 = 0 (complex assemblies)
+// =====================================================================
+const ICE_COVERAGE_THRESHOLD = 80;
+
+const ICE_MATERIALS = {
+  // ── STRUCTURAL ──
   Concrete:{unit:"m\u00b3",massFactor:2400,efUnit:"kgCO\u2082e/m\u00b3",group:"Structural",types:[
     {name:"C8-10 (Lean Mix / Blinding)",baseline:175,target:140},
     {name:"C12-15 (Mass Fill)",baseline:227,target:182},
@@ -32,7 +75,6 @@ const MATERIALS = {
     {name:"Concrete Block (Dense)",baseline:94,target:75},
     {name:"Concrete Block (Lightweight AAC)",baseline:120,target:96},
     {name:"Concrete Block (Medium Dense)",baseline:100,target:80}]},
-
   Steel:{unit:"kg",massFactor:1,efUnit:"kgCO\u2082e/kg",group:"Structural",types:[
     {name:"Structural (I/H Sections)",baseline:2.46,target:1.78},
     {name:"Rebar (Reinforcing Bar)",baseline:2.26,target:1.30},
@@ -48,7 +90,6 @@ const MATERIALS = {
     {name:"Steel Purlins",baseline:2.62,target:1.96},
     {name:"Welded Mesh",baseline:2.44,target:1.83},
     {name:"Steel Sheet Piles",baseline:2.50,target:1.87}]},
-
   Timber:{unit:"m\u00b3",massFactor:500,efUnit:"kgCO\u2082e/m\u00b3",group:"Structural",types:[
     {name:"Sawn Softwood (General)",baseline:263,target:210},
     {name:"Sawn Hardwood (General)",baseline:375,target:300},
@@ -62,8 +103,7 @@ const MATERIALS = {
     {name:"Chipboard / Particleboard",baseline:467,target:374},
     {name:"Timber I-Joists",baseline:490,target:392},
     {name:"Timber Cladding (Treated)",baseline:350,target:280}]},
-
-  // ──────────── MASONRY & CERAMICS ────────────
+  // ── MASONRY & CERAMICS ──
   Masonry:{unit:"kg",massFactor:1,efUnit:"kgCO\u2082e/kg",group:"Masonry & Ceramics",types:[
     {name:"Common Brick (Fired Clay)",baseline:0.24,target:0.19},
     {name:"Engineering Brick",baseline:0.31,target:0.25},
@@ -78,7 +118,6 @@ const MATERIALS = {
     {name:"Natural Stone (Marble)",baseline:0.12,target:0.10},
     {name:"Natural Stone (Sandstone)",baseline:0.06,target:0.05},
     {name:"Natural Stone (Slate)",baseline:0.03,target:0.02}]},
-
   Ceramics:{unit:"kg",massFactor:1,efUnit:"kgCO\u2082e/kg",group:"Masonry & Ceramics",types:[
     {name:"Ceramic Floor Tiles",baseline:0.78,target:0.62},
     {name:"Ceramic Wall Tiles",baseline:0.75,target:0.60},
@@ -87,8 +126,7 @@ const MATERIALS = {
     {name:"Roof Tiles (Concrete)",baseline:0.25,target:0.20},
     {name:"Sanitary Ware (Vitreous China)",baseline:1.61,target:1.29},
     {name:"Terracotta Panels",baseline:0.52,target:0.42}]},
-
-  // ──────────── CEMENT & BINDERS ────────────
+  // ── CEMENT & BINDERS ──
   Cement:{unit:"kg",massFactor:1,efUnit:"kgCO\u2082e/kg",group:"Cement & Binders",types:[
     {name:"Portland Cement (CEM I)",baseline:0.91,target:0.73},
     {name:"CEM II/A (6-20% Addition)",baseline:0.76,target:0.61},
@@ -100,8 +138,7 @@ const MATERIALS = {
     {name:"Lime (Calcium Oxide)",baseline:0.76,target:0.61},
     {name:"Hydraulic Lime",baseline:0.59,target:0.47},
     {name:"Calcium Aluminate Cement",baseline:1.10,target:0.88}]},
-
-  // ──────────── METALS ────────────
+  // ── METALS ──
   Aluminum:{unit:"kg",massFactor:1,efUnit:"kgCO\u2082e/kg",group:"Metals",types:[
     {name:"General (World Average)",baseline:9.16,target:7.33},
     {name:"Profile Without Coating",baseline:8.24,target:6.59},
@@ -111,7 +148,6 @@ const MATERIALS = {
     {name:"Cast Aluminum",baseline:11.50,target:9.20},
     {name:"Extruded Aluminum",baseline:8.57,target:6.86},
     {name:"Recycled Aluminum (Secondary)",baseline:1.69,target:1.35}]},
-
   Copper:{unit:"kg",massFactor:1,efUnit:"kgCO\u2082e/kg",group:"Metals",types:[
     {name:"Copper (General, Virgin)",baseline:3.81,target:3.05},
     {name:"Copper Pipe",baseline:3.01,target:2.41},
@@ -120,7 +156,6 @@ const MATERIALS = {
     {name:"Brass (Cu-Zn Alloy)",baseline:3.70,target:2.96},
     {name:"Bronze",baseline:3.50,target:2.80},
     {name:"Recycled Copper (Secondary)",baseline:1.40,target:1.12}]},
-
   "Other Metals":{unit:"kg",massFactor:1,efUnit:"kgCO\u2082e/kg",group:"Metals",types:[
     {name:"Lead (Sheet)",baseline:1.57,target:1.26},
     {name:"Lead (Pipe)",baseline:1.67,target:1.34},
@@ -129,8 +164,7 @@ const MATERIALS = {
     {name:"Tin",baseline:16.00,target:12.80},
     {name:"Iron (Cast)",baseline:1.91,target:1.53},
     {name:"Iron (Wrought)",baseline:2.03,target:1.62}]},
-
-  // ──────────── GLASS ────────────
+  // ── GLASS ──
   Glass:{unit:"kg",massFactor:1,efUnit:"kgCO\u2082e/kg",group:"Envelope",types:[
     {name:"Float Glass (Annealed)",baseline:1.30,target:1.04},
     {name:"Toughened / Tempered Glass",baseline:1.67,target:1.34},
@@ -140,8 +174,7 @@ const MATERIALS = {
     {name:"IGU (Triple Glazed)",baseline:3.20,target:2.56},
     {name:"Glass Fibre / Fibreglass",baseline:1.54,target:1.23},
     {name:"Glass Wool Insulation",baseline:1.35,target:1.08}]},
-
-  // ──────────── INSULATION ────────────
+  // ── INSULATION ──
   Insulation:{unit:"kg",massFactor:1,efUnit:"kgCO\u2082e/kg",group:"Envelope",types:[
     {name:"EPS (Expanded Polystyrene)",baseline:3.29,target:2.63},
     {name:"XPS (Extruded Polystyrene)",baseline:3.49,target:2.79},
@@ -156,8 +189,7 @@ const MATERIALS = {
     {name:"Hemp Fibre",baseline:0.22,target:0.18},
     {name:"Perlite (Expanded)",baseline:0.98,target:0.78},
     {name:"Vermiculite (Expanded)",baseline:0.88,target:0.70}]},
-
-  // ──────────── PLASTICS & POLYMERS ────────────
+  // ── PLASTICS & POLYMERS ──
   Plastics:{unit:"kg",massFactor:1,efUnit:"kgCO\u2082e/kg",group:"Plastics & Polymers",types:[
     {name:"PVC (General Rigid)",baseline:3.22,target:2.58},
     {name:"PVC Pipe (uPVC)",baseline:3.10,target:2.48},
@@ -176,8 +208,7 @@ const MATERIALS = {
     {name:"Silicone Sealant",baseline:4.60,target:3.68},
     {name:"Epoxy Resin",baseline:5.90,target:4.72},
     {name:"Polyester Resin",baseline:4.50,target:3.60}]},
-
-  // ──────────── FINISHES ────────────
+  // ── FINISHES ──
   "Paints & Coatings":{unit:"kg",massFactor:1,efUnit:"kgCO\u2082e/kg",group:"Finishes",types:[
     {name:"Water-Based Paint (Emulsion)",baseline:1.16,target:0.93},
     {name:"Solvent-Based Paint (Gloss)",baseline:2.42,target:1.94},
@@ -186,7 +217,6 @@ const MATERIALS = {
     {name:"Intumescent Paint (Fire Protection)",baseline:3.20,target:2.56},
     {name:"Anti-Corrosion Coating",baseline:2.80,target:2.24},
     {name:"Powder Coating",baseline:3.40,target:2.72}]},
-
   Plaster:{unit:"kg",massFactor:1,efUnit:"kgCO\u2082e/kg",group:"Finishes",types:[
     {name:"Plaster (General Gypsum)",baseline:0.12,target:0.10},
     {name:"Plasterboard (Standard)",baseline:0.39,target:0.31},
@@ -195,7 +225,6 @@ const MATERIALS = {
     {name:"Cement Render",baseline:0.22,target:0.18},
     {name:"Lime Plaster",baseline:0.12,target:0.10},
     {name:"Acoustic Plaster",baseline:0.50,target:0.40}]},
-
   "Floor Coverings":{unit:"kg",massFactor:1,efUnit:"kgCO\u2082e/kg",group:"Finishes",types:[
     {name:"Carpet (Synthetic, Tufted)",baseline:5.53,target:4.42},
     {name:"Carpet (Wool)",baseline:5.02,target:4.02},
@@ -206,8 +235,7 @@ const MATERIALS = {
     {name:"Vinyl / PVC Flooring",baseline:3.19,target:2.55},
     {name:"Epoxy Flooring",baseline:5.50,target:4.40},
     {name:"Natural Stone Flooring",baseline:0.12,target:0.10}]},
-
-  // ──────────── WATERPROOFING & MEMBRANES ────────────
+  // ── WATERPROOFING ──
   Waterproofing:{unit:"kg",massFactor:1,efUnit:"kgCO\u2082e/kg",group:"Envelope",types:[
     {name:"Bitumen Sheet Membrane",baseline:0.48,target:0.38},
     {name:"Modified Bitumen (APP/SBS)",baseline:0.52,target:0.42},
@@ -217,15 +245,13 @@ const MATERIALS = {
     {name:"Liquid Applied Membrane",baseline:3.50,target:2.80},
     {name:"Cementitious Waterproofing",baseline:0.60,target:0.48},
     {name:"Bentonite Mat",baseline:0.35,target:0.28}]},
-
-  // ──────────── ASPHALT & ROADS ────────────
+  // ── ASPHALT & ROADS ──
   Asphalt:{unit:"tons",massFactor:1000,efUnit:"kgCO\u2082e/ton",group:"Infrastructure",types:[
     {name:"3% Binder",baseline:50.1,target:40.08},{name:"3.5% Binder",baseline:51.1,target:40.88},{name:"4% Binder",baseline:52.2,target:41.76},
     {name:"4.5% Binder",baseline:53.2,target:42.56},{name:"5% Binder",baseline:54.2,target:43.36},{name:"5.5% Binder",baseline:55.3,target:44.24},
     {name:"6% Binder",baseline:56.3,target:45.04},{name:"6.5% Binder",baseline:57.3,target:45.84},{name:"7% Binder",baseline:58.4,target:46.72},
     {name:"Warm Mix Asphalt (WMA)",baseline:44.0,target:35.20},
     {name:"Reclaimed Asphalt (RAP 30%)",baseline:38.0,target:30.40}]},
-
   Pipes:{unit:"m",massFactor:1,efUnit:"kgCO\u2082e/m",group:"Infrastructure",types:[
     {name:"Precast Concrete 300mm",baseline:72.50,target:72.50},
     {name:"Precast Concrete 450mm",baseline:105.40,target:105.40},
@@ -246,7 +272,6 @@ const MATERIALS = {
     {name:"GRP Pipe 600mm",baseline:48.00,target:38.40},
     {name:"Steel Pipe (Welded) 200mm",baseline:24.00,target:19.20},
     {name:"Steel Pipe (Welded) 400mm",baseline:52.00,target:41.60}]},
-
   Earthwork:{unit:"tons",massFactor:1000,efUnit:"kgCO\u2082e/ton",group:"Infrastructure",types:[
     {name:"Excavation/Hauling",baseline:3.50,target:2.80},
     {name:"Coarse Aggregate (Crushed Rock)",baseline:5.20,target:4.16},
@@ -257,9 +282,7 @@ const MATERIALS = {
     {name:"Geotextile (PP)",baseline:2.85,target:2.28},
     {name:"Fill Material (Imported)",baseline:3.80,target:3.04},
     {name:"Gabion Baskets (Steel)",baseline:2.80,target:2.24}]},
-
-  // ──────────── MEP — MECHANICAL ────────────
-  // coveragePct < 80 = complex assemblies, A1-A3 set to ZERO
+  // ── MEP — coveragePct < 80 = complex assemblies, A1-A3 = ZERO ──
   "MEP - HVAC":{unit:"kg",massFactor:1,efUnit:"kgCO\u2082e/kg",group:"MEP",isMEP:true,types:[
     {name:"Galvanized Steel Ductwork",baseline:2.74,target:2.07,coveragePct:90},
     {name:"Aluminum Ductwork",baseline:8.24,target:6.59,coveragePct:85},
@@ -283,7 +306,6 @@ const MATERIALS = {
     {name:"Pumps (HVAC Circulation)",baseline:0,target:0,coveragePct:55},
     {name:"Fans (Centrifugal/Axial)",baseline:0,target:0,coveragePct:52},
     {name:"BMS / Controls (Package)",baseline:0,target:0,coveragePct:20}]},
-
   "MEP - Electrical":{unit:"kg",massFactor:1,efUnit:"kgCO\u2082e/kg",group:"MEP",isMEP:true,types:[
     {name:"Copper Cable (PVC Insulated)",baseline:3.20,target:2.56,coveragePct:85},
     {name:"Aluminum Cable (XLPE)",baseline:8.24,target:6.59,coveragePct:83},
@@ -307,7 +329,6 @@ const MATERIALS = {
     {name:"Battery Storage (Li-ion)",baseline:0,target:0,coveragePct:45},
     {name:"Fire Alarm System (Package)",baseline:0,target:0,coveragePct:22},
     {name:"ELV Systems (CCTV/Access)",baseline:0,target:0,coveragePct:18}]},
-
   "MEP - Plumbing":{unit:"kg",massFactor:1,efUnit:"kgCO\u2082e/kg",group:"MEP",isMEP:true,types:[
     {name:"Copper Pipe (15-54mm)",baseline:3.01,target:2.41,coveragePct:90},
     {name:"PPR Pipe (PN10/16/20)",baseline:1.98,target:1.58,coveragePct:88},
@@ -327,7 +348,6 @@ const MATERIALS = {
     {name:"Water Tank (Steel Sectional)",baseline:2.50,target:1.87,coveragePct:82},
     {name:"Sanitary Fixtures (Ceramic WC)",baseline:1.61,target:1.29,coveragePct:80},
     {name:"Sanitary Fixtures (Steel Bath)",baseline:2.50,target:1.87,coveragePct:80}]},
-
   "MEP - Fire Protection":{unit:"kg",massFactor:1,efUnit:"kgCO\u2082e/kg",group:"MEP",isMEP:true,types:[
     {name:"Steel Sprinkler Pipe (Black/Galv)",baseline:2.50,target:1.87,coveragePct:90},
     {name:"CPVC Sprinkler Pipe",baseline:3.15,target:2.52,coveragePct:86},
@@ -341,56 +361,159 @@ const MATERIALS = {
     {name:"Intumescent Fire Wrap",baseline:3.20,target:2.56,coveragePct:80}]},
 };
 
-// ===== MEP COVERAGE THRESHOLD =====
-const MEP_COVERAGE_THRESHOLD = 80; // Items below this % have A1-A3 set to zero
-
-// Helper: Check if a material type is a below-threshold MEP item
-function isMEPBelowThreshold(category, typeName) {
-  const mat = MATERIALS[category];
-  if (!mat || !mat.isMEP) return false;
-  const typeObj = mat.types.find(t => t.name === typeName);
-  if (!typeObj) return false;
-  return (typeObj.coveragePct || 100) < MEP_COVERAGE_THRESHOLD;
-}
-
-// Helper: Get coverage % for a material type
-function getMEPCoverage(category, typeName) {
-  const mat = MATERIALS[category];
-  if (!mat || !mat.isMEP) return 100;
-  const typeObj = mat.types.find(t => t.name === typeName);
-  return typeObj ? (typeObj.coveragePct || 100) : 100;
-}
-
-// Helper: Get material group list
-function getMaterialGroups() {
-  const groups = {};
-  Object.entries(MATERIALS).forEach(([cat, mat]) => {
-    const g = mat.group || 'Other';
+// ===== ICE HELPERS (for Tender BOQ only — never touch MATERIALS) =====
+function getICEGroups() {
+  var groups = {};
+  Object.keys(ICE_MATERIALS).forEach(function(cat) {
+    var g = ICE_MATERIALS[cat].group || 'Other';
     if (!groups[g]) groups[g] = [];
     groups[g].push(cat);
   });
   return groups;
 }
 
-// ===== CHART COLOR MAP (extended for new materials) =====
-const MATERIAL_COLORS = {
-  Concrete:'var(--slate4)',Steel:'var(--blue)',Timber:'#a3e635',
-  Masonry:'#fb923c',Ceramics:'#f472b6',Cement:'#9ca3af',
-  Aluminum:'var(--purple)',Copper:'#f97316',
-  "Other Metals":'#6366f1',Glass:'var(--cyan)',
-  Insulation:'#fbbf24',Plastics:'#ec4899',
-  "Paints & Coatings":'#8b5cf6',Plaster:'#d1d5db',
-  "Floor Coverings":'#14b8a6',Waterproofing:'#0ea5e9',
-  Asphalt:'var(--orange)',Pipes:'var(--yellow)',Earthwork:'#a3e635',
-  "MEP - HVAC":'#ef4444',"MEP - Electrical":'#f59e0b',
-  "MEP - Plumbing":'#3b82f6',"MEP - Fire Protection":'#dc2626'
-};
+function isICEMEPBelowThreshold(category, typeName) {
+  var mat = ICE_MATERIALS[category];
+  if (!mat || !mat.isMEP) return false;
+  var t = mat.types.find(function(x) { return x.name === typeName; });
+  if (!t) return false;
+  return (t.coveragePct || 100) < ICE_COVERAGE_THRESHOLD;
+}
 
-const A5_EFS = {
-  energy:[{name:"Diesel",ef:2.51,unit:"L",efUnit:"kgCO\u2082e/L"},{name:"Gasoline",ef:2.31,unit:"L",efUnit:"kgCO\u2082e/L"},{name:"Grid Electricity",ef:0.611,unit:"kWh",efUnit:"kgCO\u2082e/kWh"},{name:"Renewable",ef:0,unit:"kWh",efUnit:"kgCO\u2082e/kWh"}],
-  water:[{name:"Potable Water",ef:14.7,unit:"m\u00b3",efUnit:"kgCO\u2082/m\u00b3"},{name:"Construction Water",ef:4.0,unit:"m\u00b3",efUnit:"kgCO\u2082/m\u00b3"},{name:"TSE Recycled",ef:1.2,unit:"m\u00b3",efUnit:"kgCO\u2082/m\u00b3"}]
-};
+// Fuzzy column finder for BOQ uploads
+function findColumn(headers, keywords) {
+  for (var k = 0; k < keywords.length; k++) {
+    for (var h = 0; h < headers.length; h++) {
+      if (headers[h] === keywords[k]) return h;
+    }
+  }
+  for (var k2 = 0; k2 < keywords.length; k2++) {
+    for (var h2 = 0; h2 < headers.length; h2++) {
+      if (headers[h2].indexOf(keywords[k2]) !== -1) return h2;
+    }
+  }
+  return -1;
+}
 
-const TEF={road:0.0000121,sea:0.0000026,train:0.0000052};
-const MONTHS=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-const CERTS=[{name:"Envision",icon:"\ud83c\udfd7\ufe0f",color:"var(--green)",cr:14,tgt:10},{name:"Mostadam",icon:"\ud83c\udfe0",color:"var(--cyan)",cr:8,tgt:6},{name:"LEED",icon:"\ud83c\udf3f",color:"var(--green)",cr:12,tgt:8},{name:"BREEAM",icon:"\ud83c\udf0d",color:"var(--blue)",cr:10,tgt:7},{name:"WELL",icon:"\ud83d\udc9a",color:"var(--purple)",cr:6,tgt:4}];
+function buildColSelect(id, label, headers, autoIdx) {
+  var opts = '<option value="-1">\u2014 Not mapped \u2014</option>';
+  for (var i = 0; i < headers.length; i++) {
+    opts += '<option value="' + i + '"' + (i === autoIdx ? ' selected' : '') + '>' + (headers[i] || 'Col ' + (i+1)) + '</option>';
+  }
+  return '<div class="fg"><label>' + label + '</label><select id="' + id + '">' + opts + '</select></div>';
+}
+
+// Match a BOQ description to ICE database
+function matchToICE(desc, catHint, unitHint) {
+  var d = desc.toLowerCase();
+  var bestScore = 0, bestCat = '', bestType = '', bestIdx = -1, bestMat = null;
+
+  Object.keys(ICE_MATERIALS).forEach(function(cat) {
+    var m = ICE_MATERIALS[cat];
+    var catL = cat.toLowerCase();
+    var catBonus = 0;
+    if (catHint && catHint.toLowerCase().indexOf(catL) !== -1) catBonus = 30;
+    if (d.indexOf(catL) !== -1) catBonus += 15;
+
+    m.types.forEach(function(t, idx) {
+      var score = catBonus;
+      var words = t.name.toLowerCase().split(/[\s\/\-\(\)]+/).filter(function(w) { return w.length > 2; });
+      words.forEach(function(w) { if (d.indexOf(w) !== -1) score += 12; });
+
+      // Concrete grade matching
+      var gradeMatch = d.match(/c(\d{2,3})/i);
+      if (gradeMatch && t.name.toLowerCase().indexOf('c' + gradeMatch[1]) !== -1) score += 40;
+
+      // Pipe size matching
+      var pipeMatch = d.match(/(\d{3,4})\s*mm/);
+      if (pipeMatch && t.name.indexOf(pipeMatch[1] + 'mm') !== -1) score += 35;
+
+      // MEP keywords
+      if (m.isMEP) {
+        var mepKw = ['ahu','chiller','transformer','switchgear','cable','duct','sprinkler','pump','fan','boiler','heat pump','vrf','vrv','fcu','vav','conduit','busbar','led','solar','generator','ups'];
+        mepKw.forEach(function(kw) { if (d.indexOf(kw) !== -1 && t.name.toLowerCase().indexOf(kw) !== -1) score += 25; });
+      }
+
+      if (score > bestScore) {
+        bestScore = score;
+        bestCat = cat;
+        bestType = t.name;
+        bestIdx = idx;
+        bestMat = m;
+      }
+    });
+  });
+
+  if (bestScore < 10) return { matched: false, score: 0 };
+
+  var t = bestMat.types[bestIdx];
+  var belowThreshold = bestMat.isMEP && t.coveragePct !== undefined && t.coveragePct < ICE_COVERAGE_THRESHOLD;
+
+  return {
+    matched: true,
+    score: bestScore,
+    category: bestCat,
+    typeName: bestType,
+    typeIdx: bestIdx,
+    baseline: belowThreshold ? 0 : t.baseline,
+    target: belowThreshold ? 0 : t.target,
+    isMEP: !!bestMat.isMEP,
+    belowThreshold: belowThreshold,
+    coveragePct: t.coveragePct || 100,
+    mat: bestMat
+  };
+}
+
+// CSV parser for BOQ uploads
+function parseCSV(text) {
+  var rows = [], row = [], cell = '', inQuote = false;
+  for (var i = 0; i < text.length; i++) {
+    var ch = text[i];
+    if (inQuote) {
+      if (ch === '"' && text[i+1] === '"') { cell += '"'; i++; }
+      else if (ch === '"') inQuote = false;
+      else cell += ch;
+    } else {
+      if (ch === '"') inQuote = true;
+      else if (ch === ',') { row.push(cell.trim()); cell = ''; }
+      else if (ch === '\n' || ch === '\r') {
+        if (ch === '\r' && text[i+1] === '\n') i++;
+        row.push(cell.trim()); if (row.some(function(c) { return c !== ''; })) rows.push(row);
+        row = []; cell = '';
+      } else cell += ch;
+    }
+  }
+  row.push(cell.trim()); if (row.some(function(c) { return c !== ''; })) rows.push(row);
+  return rows;
+}
+
+// Download BOQ template CSV
+function downloadBOQTemplate() {
+  var csv = '\ufeffDescription,Quantity,Unit,Category,Notes\n';
+  csv += 'C30-40 Concrete for Foundations,450,m\u00b3,Concrete,Grade C30/40\n';
+  csv += 'Rebar B500B,85000,kg,Steel,High yield\n';
+  csv += 'Asphalt 5% Binder,1200,tons,Asphalt,Road works\n';
+  csv += 'Galvanized Steel Ductwork,2500,kg,MEP - HVAC,Main risers\n';
+  var blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'BOQ_Template.csv';
+  a.click();
+}
+
+function downloadBOQTemplateFull() {
+  var csv = '\ufeffCategory,Type,Unit,EF Unit,Baseline EF,Target EF\n';
+  Object.keys(ICE_MATERIALS).forEach(function(cat) {
+    var m = ICE_MATERIALS[cat];
+    m.types.forEach(function(t) {
+      var bl = (m.isMEP && t.coveragePct !== undefined && t.coveragePct < ICE_COVERAGE_THRESHOLD) ? 0 : t.baseline;
+      var tg = (m.isMEP && t.coveragePct !== undefined && t.coveragePct < ICE_COVERAGE_THRESHOLD) ? 0 : t.target;
+      csv += '"' + cat + '","' + t.name + '",' + m.unit + ',' + m.efUnit + ',' + bl + ',' + tg + '\n';
+    });
+  });
+  var blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'ICE_Database_v3_Full.csv';
+  a.click();
+}
