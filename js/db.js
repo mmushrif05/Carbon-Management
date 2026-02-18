@@ -232,6 +232,53 @@ const DB = {
     localStorage.setItem('ct_tender', JSON.stringify(scenarios));
   },
 
+  // === DRAFT (LOCAL BATCH) ENTRIES ===
+  // Draft entries are stored only in localStorage until the contractor explicitly submits the batch.
+  getDraftEntries() {
+    return JSON.parse(localStorage.getItem('ct_draft_entries') || '[]');
+  },
+
+  addDraftEntry(entry) {
+    const drafts = this.getDraftEntries();
+    drafts.push(entry);
+    localStorage.setItem('ct_draft_entries', JSON.stringify(drafts));
+  },
+
+  removeDraftEntry(id) {
+    let drafts = this.getDraftEntries();
+    drafts = drafts.filter(e => e.id !== id);
+    localStorage.setItem('ct_draft_entries', JSON.stringify(drafts));
+  },
+
+  clearDraftEntries() {
+    localStorage.removeItem('ct_draft_entries');
+  },
+
+  // Submit all draft entries to the server at once
+  async submitBatch(entries) {
+    if (!dbConnected) throw new Error('Server connection required to submit batch.');
+    const res = await apiCall('/entries', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'batch-save', entries })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to submit batch.');
+    return data;
+  },
+
+  // Notify consultants that a batch has been submitted
+  async notifyBatchSubmitted(contractorName, entryCount) {
+    if (!dbConnected) return;
+    try {
+      await apiCall('/send-email', {
+        method: 'POST',
+        body: JSON.stringify({ action: 'notify-batch', contractorName, entryCount })
+      });
+    } catch (e) {
+      console.warn('Batch notification email failed:', e);
+    }
+  },
+
   // Poll for updates from other users (replaces Firebase real-time listeners)
   onEntriesChange(callback) {
     if (dbConnected) {

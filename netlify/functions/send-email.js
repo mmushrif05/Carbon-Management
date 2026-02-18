@@ -165,6 +165,131 @@ async function handleSendInvite(body, decoded) {
   }
 }
 
+// === BATCH SUBMISSION NOTIFICATION ===
+function buildBatchNotificationEmail(contractorName, entryCount, appUrl) {
+  const html = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="margin:0;padding:0;background:#0b0f0e;font-family:'Segoe UI',system-ui,sans-serif">
+  <div style="max-width:560px;margin:40px auto;background:#111916;border:1px solid rgba(52,211,153,0.12);border-radius:16px;overflow:hidden">
+    <!-- Header -->
+    <div style="padding:32px 32px 24px;text-align:center;border-bottom:1px solid rgba(52,211,153,0.08)">
+      <div style="font-size:36px;margin-bottom:8px">🌍</div>
+      <div style="font-size:22px;font-weight:800;color:#ecfdf5;letter-spacing:-0.5px">
+        Carbon<span style="color:#34d399">Track</span> Pro
+      </div>
+      <div style="font-size:12px;color:#64748b;margin-top:4px">Construction Embodied Carbon Platform</div>
+    </div>
+
+    <!-- Body -->
+    <div style="padding:32px">
+      <h2 style="color:#ecfdf5;font-size:18px;margin:0 0 16px">New Data Batch Ready for Review</h2>
+      <p style="color:#94a3b8;font-size:14px;line-height:1.6;margin:0 0 20px">
+        <strong style="color:#a7f3d0">${contractorName}</strong> has submitted a batch of
+        <strong style="color:#34d399">${entryCount} material entr${entryCount === 1 ? 'y' : 'ies'}</strong>
+        for your review on the KSIA project.
+      </p>
+
+      <div style="background:#16201b;border:1px solid rgba(52,211,153,0.1);border-radius:10px;padding:16px;margin-bottom:24px">
+        <div style="display:flex;margin-bottom:8px">
+          <span style="color:#64748b;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;width:120px">SUBMITTED BY</span>
+          <span style="color:#ecfdf5;font-size:13px;font-weight:600">${contractorName}</span>
+        </div>
+        <div style="display:flex;margin-bottom:8px">
+          <span style="color:#64748b;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;width:120px">ENTRIES</span>
+          <span style="color:#34d399;font-size:13px;font-weight:600">${entryCount} item${entryCount === 1 ? '' : 's'} pending review</span>
+        </div>
+        <div style="display:flex">
+          <span style="color:#64748b;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;width:120px">PROJECT</span>
+          <span style="color:#ecfdf5;font-size:13px">KSIA — King Salman International Airport</span>
+        </div>
+      </div>
+
+      <div style="text-align:center;margin-bottom:24px">
+        <a href="${appUrl}" style="display:inline-block;padding:14px 40px;background:linear-gradient(135deg,#047857,#059669);color:#fff;text-decoration:none;border-radius:10px;font-size:14px;font-weight:700;letter-spacing:0.3px">
+          Review Submissions
+        </a>
+      </div>
+
+      <p style="color:#64748b;font-size:11px;text-align:center;margin:0">
+        Log in and go to <strong>Approvals</strong> to review and forward these entries.
+      </p>
+    </div>
+
+    <!-- Footer -->
+    <div style="padding:20px 32px;border-top:1px solid rgba(52,211,153,0.08);text-align:center">
+      <p style="color:#475569;font-size:10px;margin:0">
+        CarbonTrack Pro v2.0 — KSIA Sustainability Program<br>
+        You are receiving this because you are a Consultant on this project.
+      </p>
+    </div>
+  </div>
+</body>
+</html>`;
+
+  const text = `New Data Batch Ready for Review — CarbonTrack Pro
+
+${contractorName} has submitted ${entryCount} material entr${entryCount === 1 ? 'y' : 'ies'} for your review on the KSIA project.
+
+Log in to CarbonTrack Pro and go to the Approvals section to review and forward these entries.
+
+${appUrl}
+
+CarbonTrack Pro v2.0 — KSIA Sustainability Program`;
+
+  return { html, text };
+}
+
+async function handleBatchNotify(body, decoded) {
+  const { contractorName, entryCount } = body;
+  if (!contractorName || !entryCount) {
+    return respond(400, { error: 'contractorName and entryCount are required.' });
+  }
+
+  const db = getDb();
+
+  // Find all consultants for this project
+  const usersSnap = await db.ref('users').once('value');
+  const usersData = usersSnap.val() || {};
+  const consultants = Object.values(usersData).filter(u => u.role === 'consultant' && u.email);
+
+  if (consultants.length === 0) {
+    console.log('[EMAIL] No consultants found to notify.');
+    return respond(200, { success: true, message: 'No consultants to notify.' });
+  }
+
+  const transporter = createTransporter();
+  if (!transporter) {
+    console.warn('[EMAIL] SMTP not configured — skipping batch notification.');
+    return respond(200, { success: true, message: 'Notification skipped — SMTP not configured.' });
+  }
+
+  const appUrl = getAppUrl();
+  const { html, text } = buildBatchNotificationEmail(contractorName, entryCount, appUrl);
+  const fromEmail = process.env.SMTP_FROM || process.env.SMTP_USER;
+  const toAddresses = consultants.map(u => u.email).join(', ');
+
+  try {
+    await transporter.sendMail({
+      from: `"CarbonTrack Pro" <${fromEmail}>`,
+      to: toAddresses,
+      subject: `${contractorName} submitted ${entryCount} entr${entryCount === 1 ? 'y' : 'ies'} for review — CarbonTrack Pro`,
+      text,
+      html
+    });
+
+    console.log('[EMAIL] Batch notification sent to consultants:', toAddresses);
+    return respond(200, { success: true, message: `Notification sent to ${consultants.length} consultant(s).` });
+  } catch (e) {
+    console.error('[EMAIL] Failed to send batch notification:', e.message || e);
+    return respond(500, { error: 'Failed to send notification email: ' + (e.message || 'Unknown error') });
+  }
+}
+
 // === MAIN HANDLER ===
 exports.handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return optionsResponse();
@@ -178,7 +303,8 @@ exports.handler = async (event) => {
     const { action } = body;
 
     switch (action) {
-      case 'send-invite': return await handleSendInvite(body, decoded);
+      case 'send-invite':  return await handleSendInvite(body, decoded);
+      case 'notify-batch': return await handleBatchNotify(body, decoded);
       default: return respond(400, { error: 'Invalid action.' });
     }
   } catch (e) {
