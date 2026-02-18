@@ -64,6 +64,46 @@ async function handleUpdate(event, body) {
   }
 }
 
+async function handleBatchSave(event, body) {
+  const decoded = await verifyToken(event);
+  if (!decoded) return respond(401, { error: 'Unauthorized' });
+
+  const { entries } = body;
+  if (!Array.isArray(entries) || entries.length === 0) {
+    return respond(400, { error: 'No entries provided' });
+  }
+
+  // Validate each entry
+  for (const entry of entries) {
+    if (!entry.id || !entry.category || !entry.type) {
+      return respond(400, { error: 'Invalid entry data in batch: missing id, category, or type' });
+    }
+    if (!entry.qty || entry.qty <= 0) {
+      return respond(400, { error: 'Invalid entry data in batch: invalid quantity' });
+    }
+  }
+
+  try {
+    const db = getDb();
+    const now = new Date().toISOString();
+    const submittedBy = decoded.name || decoded.email;
+
+    // Use a multi-path update to write all entries atomically
+    const updates = {};
+    for (const entry of entries) {
+      entry.submittedBy = submittedBy;
+      entry.submittedAt = now;
+      entry.status = 'pending';
+      updates['projects/ksia/entries/' + entry.id] = entry;
+    }
+
+    await db.ref().update(updates);
+    return respond(200, { success: true, count: entries.length });
+  } catch (e) {
+    return respond(500, { error: 'Failed to save batch' });
+  }
+}
+
 async function handleDelete(event, body) {
   const decoded = await verifyToken(event);
   if (!decoded) return respond(401, { error: 'Unauthorized' });
@@ -98,10 +138,11 @@ exports.handler = async (event) => {
       const { action } = body;
 
       switch (action) {
-        case 'save':   return await handleSave(event, body);
-        case 'update': return await handleUpdate(event, body);
-        case 'delete': return await handleDelete(event, body);
-        default:       return respond(400, { error: 'Invalid action' });
+        case 'save':       return await handleSave(event, body);
+        case 'batch-save': return await handleBatchSave(event, body);
+        case 'update':     return await handleUpdate(event, body);
+        case 'delete':     return await handleDelete(event, body);
+        default:           return respond(400, { error: 'Invalid action' });
       }
     }
 

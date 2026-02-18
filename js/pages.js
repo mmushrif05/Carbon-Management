@@ -33,10 +33,15 @@ function renderDashboard(el) {
   if(Object.keys(matB).length){const tot=Object.values(matB).reduce((s,v)=>s+v.a,0)||1;let ang=0,sh='',lh='';Object.entries(matB).forEach(([c,v])=>{const p=v.a/tot;const a1=ang;ang+=p*360;const lg=p>.5?1:0;const r=55,cx=70,cy=70;const x1=cx+r*Math.cos((a1-90)*Math.PI/180),y1=cy+r*Math.sin((a1-90)*Math.PI/180);const x2=cx+r*Math.cos((ang-90)*Math.PI/180),y2=cy+r*Math.sin((ang-90)*Math.PI/180);const cl=cols[c]||'var(--slate4)';if(p>.001)sh+=`<path d="M${cx},${cy} L${x1},${y1} A${r},${r} 0 ${lg},1 ${x2},${y2} Z" fill="${cl}" opacity="0.7" stroke="var(--bg2)" stroke-width="1.5"/>`;lh+=`<div class="donut-legend-item"><div class="donut-legend-dot" style="background:${cl}"></div>${c}: ${fmt(v.a)} tCO\u2082 (${(p*100).toFixed(1)}%)</div>`;});$('dn').innerHTML=sh;$('dl').innerHTML=lh;}
 }
 
-// ===== ENTRY =====
+// ===== ENTRY (BATCH WORKFLOW) =====
 function renderEntry(el) {
   const yr=new Date().getFullYear(),mo=String(new Date().getMonth()+1).padStart(2,'0');
-  el.innerHTML=`<div class="card"><div class="card-title">New Material Entry \u2014 A1-A4</div>
+  const isContractor = state.role === 'contractor';
+  el.innerHTML=`
+  <div class="card"><div class="card-title">Add Material \u2014 A1-A4</div>
+  ${isContractor?`<div style="padding:10px 14px;background:rgba(96,165,250,0.08);border:1px solid rgba(96,165,250,0.2);border-radius:10px;margin-bottom:14px;font-size:13px;color:var(--blue)">
+    <strong>Batch Mode:</strong> Add as many entries as you need, then submit them all to the consultant at once.
+  </div>`:''}
   <div class="form-row c4"><div class="fg"><label>Year</label><select id="eY">${[yr-1,yr,yr+1].map(y=>`<option ${y===yr?'selected':''}>${y}</option>`).join('')}</select></div>
   <div class="fg"><label>Month</label><select id="eM">${MONTHS.map((m,i)=>`<option value="${String(i+1).padStart(2,'0')}" ${String(i+1).padStart(2,'0')===mo?'selected':''}>${m}</option>`).join('')}</select></div>
   <div class="fg"><label>District</label><input id="eD" value="A"></div>
@@ -52,8 +57,28 @@ function renderEntry(el) {
   <div class="fg"><label>Train (km)</label><input type="number" id="eT" value="0" oninput="preview()"></div></div>
   <div class="fg" style="margin-bottom:12px"><label>Notes</label><input id="eN" placeholder="EPD reference, assumptions..."></div>
   <div id="ePrev"></div>
-  <div class="btn-row"><button class="btn btn-primary" onclick="submitEntry()">\ud83d\udcbe Submit Entry</button><button class="btn btn-secondary" onclick="navigate('entry_a13')">\ud83d\udd04 Clear</button></div></div>
-  <div class="card"><div class="card-title">Recent Entries</div><div class="tbl-wrap"><table><thead><tr><th>Month</th><th>Material</th><th>Type</th><th class="r">Qty</th><th class="r">Baseline</th><th class="r">Actual</th><th class="r">A4</th><th class="r">Total</th><th>Status</th><th></th></tr></thead><tbody id="reTbl"></tbody></table></div></div>`;
+  <div class="btn-row">
+    ${isContractor
+      ? `<button class="btn btn-primary" onclick="addToBatch()">+ Add to Batch</button><button class="btn btn-secondary" onclick="navigate('entry_a13')">\ud83d\udd04 Clear</button>`
+      : `<button class="btn btn-primary" onclick="submitEntry()">\ud83d\udcbe Submit Entry</button><button class="btn btn-secondary" onclick="navigate('entry_a13')">\ud83d\udd04 Clear</button>`
+    }
+  </div></div>
+
+  ${isContractor ? `
+  <div class="card" id="batchCard">
+    <div class="card-title" style="display:flex;align-items:center;justify-content:space-between">
+      <span>Batch Queue <span id="batchCount" style="display:inline-block;background:var(--blue);color:#fff;border-radius:20px;padding:1px 10px;font-size:12px;margin-left:6px">0</span></span>
+      <div id="submitBatchRow" style="display:none">
+        <button class="btn btn-primary" onclick="submitBatch()" style="margin:0">\ud83d\ude80 Submit All to Consultant</button>
+      </div>
+    </div>
+    <div id="batchMsg"></div>
+    <div class="tbl-wrap"><table><thead><tr><th>Month</th><th>Material</th><th>Type</th><th class="r">Qty</th><th class="r">Baseline</th><th class="r">Actual</th><th class="r">A4</th><th class="r">Total</th><th></th></tr></thead><tbody id="batchTbl"></tbody></table></div>
+  </div>` : ''}
+
+  <div class="card"><div class="card-title">${isContractor ? 'Submitted Entries' : 'Recent Entries'}</div><div class="tbl-wrap"><table><thead><tr><th>Month</th><th>Material</th><th>Type</th><th class="r">Qty</th><th class="r">Baseline</th><th class="r">Actual</th><th class="r">A4</th><th class="r">Total</th><th>Status</th><th></th></tr></thead><tbody id="reTbl"></tbody></table></div></div>`;
+
+  if (isContractor) renderBatch();
   renderRecent();
 }
 
@@ -70,6 +95,100 @@ function preview(){
   $('ePrev').innerHTML=`<div class="stats-row" style="margin:16px 0 8px"><div class="stat-card slate"><div class="sc-label">A1-A3 Baseline</div><div class="sc-value">${fmt(b)}</div><div class="sc-sub">ton CO\u2082eq</div></div><div class="stat-card blue"><div class="sc-label">A1-A3 Actual</div><div class="sc-value">${fmt(ac)}</div><div class="sc-sub">ton CO\u2082eq</div></div><div class="stat-card orange"><div class="sc-label">A4 Transport</div><div class="sc-value">${fmt(a4)}</div><div class="sc-sub">ton CO\u2082eq</div></div><div class="stat-card green"><div class="sc-label">A1-A4 Total</div><div class="sc-value">${fmt(tot)}</div><div class="sc-sub">ton CO\u2082eq</div></div><div class="stat-card ${cl}"><div class="sc-label">Reduction</div><div class="sc-value">${fmt(p)}%</div><div class="sc-sub">${fmt(b-ac)} saved</div></div></div>`;
 }
 
+// Add an entry to the local draft batch (contractor only)
+function addToBatch() {
+  const c=$('eCat').value,i=$('eType').value,q=parseFloat($('eQ').value),a=parseFloat($('eA').value);
+  if(!c||i===''||isNaN(q)||isNaN(a)||q<=0||a<=0){alert('Fill all required fields');return;}
+  const m=MATERIALS[c],t=m.types[i],mass=q*m.massFactor;
+  const rd=parseFloat($('eR').value)||0,se=parseFloat($('eS').value)||0,tr=parseFloat($('eT').value)||0;
+  const b=(q*t.baseline)/1000,ac=(q*a)/1000,a4=(mass*rd*TEF.road+mass*se*TEF.sea+mass*tr*TEF.train)/1000;
+  const yr=$('eY').value,mo=$('eM').value;
+
+  const entry={id:Date.now(),category:c,type:t.name,qty:q,unit:m.unit,actual:a,baseline:t.baseline,target:t.target,
+    road:rd,sea:se,train:tr,a13B:b,a13A:ac,a4,a14:ac+a4,pct:b>0?((b-ac)/b)*100:0,
+    year:yr,month:mo,monthKey:yr+'-'+mo,monthLabel:MONTHS[parseInt(mo)-1]+' '+yr,
+    district:$('eD').value,contract:$('eC').value,notes:$('eN').value,
+    addedAt:new Date().toISOString()};
+
+  DB.addDraftEntry(entry);
+  buildSidebar();
+  renderBatch();
+  // Clear form fields to allow easy entry of the next item
+  ['eQ','eA','eN'].forEach(id=>{const el=$( id);if(el)el.value='';});
+  $('ePrev').innerHTML='<div style="padding:10px 14px;background:rgba(52,211,153,0.1);border-radius:10px;color:var(--green);font-weight:600">\u2705 Item added to batch</div>';
+}
+
+function removeDraftEntry(id) {
+  DB.removeDraftEntry(id);
+  buildSidebar();
+  renderBatch();
+}
+
+function renderBatch() {
+  const drafts = DB.getDraftEntries();
+  const countEl = $('batchCount');
+  const tbl = $('batchTbl');
+  const submitRow = $('submitBatchRow');
+  if (!tbl) return;
+
+  if (countEl) countEl.textContent = drafts.length;
+  if (submitRow) submitRow.style.display = drafts.length > 0 ? '' : 'none';
+
+  tbl.innerHTML = drafts.length
+    ? drafts.map(e=>`<tr>
+        <td>${e.monthLabel}</td><td>${e.category}</td><td>${e.type}</td>
+        <td class="r mono">${fmtI(e.qty)}</td>
+        <td class="r mono">${fmt(e.a13B)}</td>
+        <td class="r mono">${fmt(e.a13A)}</td>
+        <td class="r mono">${fmt(e.a4)}</td>
+        <td class="r mono" style="font-weight:700">${fmt(e.a14)}</td>
+        <td><button class="btn btn-danger btn-sm" onclick="removeDraftEntry(${e.id})">\u2715</button></td>
+      </tr>`).join('')
+    : '<tr><td colspan="9" class="empty">No items in batch — add entries above</td></tr>';
+}
+
+// Submit all draft entries to the server at once, then notify consultants
+async function submitBatch() {
+  const drafts = DB.getDraftEntries();
+  if (drafts.length === 0) { alert('Batch is empty. Add entries first.'); return; }
+  if (!dbConnected) { alert('No server connection. Please connect to the internet and try again.'); return; }
+  if (!confirm(`Submit ${drafts.length} entr${drafts.length===1?'y':'ies'} to the consultant?`)) return;
+
+  const msgEl = $('batchMsg');
+  if (msgEl) msgEl.innerHTML = '<div style="padding:10px 14px;background:rgba(96,165,250,0.08);border-radius:10px;color:var(--blue);font-weight:600">Submitting batch...</div>';
+
+  try {
+    // Stamp status + submitter before sending
+    const stamped = drafts.map(e => ({
+      ...e,
+      status: 'pending',
+      submittedBy: state.name,
+      role: state.role,
+      submittedAt: new Date().toISOString()
+    }));
+
+    await DB.submitBatch(stamped);
+
+    // Add to local state so UI reflects immediately
+    stamped.forEach(e => state.entries.push(e));
+
+    // Clear draft queue
+    DB.clearDraftEntries();
+
+    // Notify consultants (best-effort — failure doesn't block workflow)
+    await DB.notifyBatchSubmitted(state.name, stamped.length);
+
+    buildSidebar();
+    renderBatch();
+    renderRecent();
+
+    if (msgEl) msgEl.innerHTML = `<div style="padding:12px 16px;background:rgba(52,211,153,0.1);border-radius:10px;color:var(--green);font-weight:600">\u2705 ${stamped.length} entr${stamped.length===1?'y':'ies'} submitted to consultant. They have been notified.</div>`;
+  } catch (e) {
+    if (msgEl) msgEl.innerHTML = `<div style="padding:10px 14px;background:rgba(239,68,68,0.1);border-radius:10px;color:var(--red);font-weight:600">\u274c Submission failed: ${e.message}</div>`;
+  }
+}
+
+// Direct submit (for non-contractor roles who still submit one at a time)
 async function submitEntry(){
   const c=$('eCat').value,i=$('eType').value,q=parseFloat($('eQ').value),a=parseFloat($('eA').value);
   if(!c||i===''||isNaN(q)||isNaN(a)||q<=0||a<=0){alert('Fill all required fields');return;}
