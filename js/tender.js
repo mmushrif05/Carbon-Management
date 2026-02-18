@@ -176,6 +176,10 @@ function renderTenderForm(el) {
         <div style="font-size:11px;color:var(--slate5)">or click to browse &bull; .xlsx, .xls, .csv</div>
         <div id="tenderBOQFileInfo" style="margin-top:8px;font-size:12px;color:var(--green);font-weight:600;display:none"></div>
       </div>
+      <div id="tenderBOQRemoveWrap" style="display:${_tenderBOQFileName ? '' : 'none'};margin-top:8px;text-align:center">
+        <button class="btn btn-danger btn-sm" onclick="event.stopPropagation();clearTenderBOQUpload()" style="font-size:11px">\u2715 Remove Attachment</button>
+        <span style="font-size:11px;color:var(--slate5);margin-left:8px" id="tenderBOQRemoveLabel">${_tenderBOQFileName ? esc(_tenderBOQFileName) : ''}</span>
+      </div>
       <input type="file" id="tenderBOQFileInput" accept=".xlsx,.xls,.csv" style="display:none" onchange="handleTenderBOQFile(this.files[0])">
       <div id="tenderBOQSheetSel" style="display:none;margin-top:10px">
         <div class="form-row c3">
@@ -259,6 +263,15 @@ function renderTenderForm(el) {
       </tbody>
     </table></div>
   </div>
+
+  <!-- Calculate Embodied Carbon Button -->
+  ${_tenderItems.length ? `<div class="card" style="text-align:center;padding:20px">
+    <button class="btn btn-primary" onclick="calculateTenderEmissions()" style="font-size:15px;padding:12px 32px;font-weight:700">\ud83e\uddee Calculate Embodied Carbon</button>
+    <div style="font-size:11px;color:var(--slate5);margin-top:6px">Recalculate all emissions and identify top 80% contributors</div>
+  </div>` : ''}
+
+  <!-- 80% Contributor (Pareto) Analysis -->
+  <div id="tenderParetoSection">${_tenderItems.length ? renderTenderPareto() : ''}</div>
 
   <!-- Material Breakdown Chart -->
   ${_tenderItems.length ? renderTenderBreakdownChart() : ''}
@@ -468,6 +481,150 @@ async function saveTenderScenario() {
   if (msg) msg.innerHTML = '<div style="padding:12px;background:rgba(52,211,153,0.1);border-radius:10px;color:var(--green);text-align:center;font-weight:600">\u2705 Scenario saved' + (dbConnected ? ' & synced to cloud' : '') + '</div>';
 }
 
+// ===== CLEAR BOQ UPLOAD =====
+function clearTenderBOQUpload() {
+  _tenderBOQFileName = '';
+  _tenderBOQWorkbook = null;
+  _tenderBOQParsed = [];
+  _tenderBOQMatched = [];
+  // Reset UI elements
+  var info = $('tenderBOQFileInfo');
+  if (info) { info.style.display = 'none'; info.textContent = ''; }
+  var removeWrap = $('tenderBOQRemoveWrap');
+  if (removeWrap) removeWrap.style.display = 'none';
+  var sheetSel = $('tenderBOQSheetSel');
+  if (sheetSel) sheetSel.style.display = 'none';
+  var colMap = $('tenderBOQColMap');
+  if (colMap) { colMap.style.display = 'none'; colMap.innerHTML = ''; }
+  var preview = $('tenderBOQPreview');
+  if (preview) { preview.style.display = 'none'; preview.innerHTML = ''; }
+  var parseMsg = $('tenderBOQParseMsg');
+  if (parseMsg) parseMsg.innerHTML = '';
+  var fileInput = $('tenderBOQFileInput');
+  if (fileInput) fileInput.value = '';
+}
+
+// ===== CALCULATE EMBODIED CARBON =====
+function calculateTenderEmissions() {
+  // Recalculate all item emissions
+  _tenderItems.forEach(function(it) {
+    it.baselineEmission = (it.qty * it.baselineEF) / 1000;
+    it.targetEmission = (it.qty * it.targetEF) / 1000;
+  });
+  // Re-render the page to show updated totals and Pareto
+  navigate('tender_entry');
+  // Scroll to Pareto section after render
+  setTimeout(function() {
+    var el = $('tenderParetoSection');
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, 100);
+}
+
+// ===== 80% CONTRIBUTOR (PARETO) ANALYSIS =====
+function renderTenderPareto() {
+  if (!_tenderItems.length) return '';
+
+  var totalBL = 0;
+  _tenderItems.forEach(function(it) { totalBL += it.baselineEmission || 0; });
+  if (totalBL <= 0) return '';
+
+  // Sort items by baseline emission descending
+  var sorted = _tenderItems.map(function(it, idx) {
+    return { idx: idx, category: it.category, type: it.type, qty: it.qty, unit: it.unit, baselineEmission: it.baselineEmission || 0, targetEmission: it.targetEmission || 0 };
+  }).sort(function(a, b) { return b.baselineEmission - a.baselineEmission; });
+
+  // Identify 80% contributors
+  var cumulative = 0;
+  var threshold = totalBL * 0.80;
+  var contributors = [];
+  var restBL = 0, restTG = 0;
+
+  for (var i = 0; i < sorted.length; i++) {
+    if (cumulative < threshold || i === 0) {
+      cumulative += sorted[i].baselineEmission;
+      sorted[i].cumPct = (cumulative / totalBL) * 100;
+      sorted[i].pct = (sorted[i].baselineEmission / totalBL) * 100;
+      contributors.push(sorted[i]);
+    } else {
+      restBL += sorted[i].baselineEmission;
+      restTG += sorted[i].targetEmission;
+    }
+  }
+
+  var html = '<div class="card">' +
+    '<div class="card-title" style="display:flex;align-items:center;gap:8px">' +
+    '<span>\ud83c\udfaf 80% Carbon Contributors (Pareto Analysis)</span>' +
+    '<span style="display:inline-block;background:rgba(239,68,68,0.1);color:var(--red);font-size:10px;padding:2px 8px;border-radius:4px;font-weight:700">' + contributors.length + ' of ' + _tenderItems.length + ' items</span>' +
+    '</div>' +
+    '<div style="padding:10px 14px;background:rgba(239,68,68,0.05);border:1px solid rgba(239,68,68,0.15);border-radius:10px;margin-bottom:14px;font-size:12px;color:var(--slate4);line-height:1.8">' +
+    '<strong style="color:var(--red)">Focus here for maximum impact:</strong> These <strong>' + contributors.length + ' material(s)</strong> account for <strong>' + fmt(contributors.length ? contributors[contributors.length - 1].cumPct : 0) + '%</strong> of total baseline embodied carbon (' + fmt(totalBL) + ' tCO\u2082eq). Reducing emissions from these items will have the greatest effect.' +
+    '</div>';
+
+  // Pareto bar visualization
+  html += '<div style="margin-bottom:14px">';
+  for (var j = 0; j < contributors.length; j++) {
+    var c = contributors[j];
+    var barWidth = Math.max((c.pct / Math.max(contributors[0].pct, 1)) * 100, 2);
+    var barColor = c.cumPct <= 50 ? 'var(--red)' : c.cumPct <= 80 ? 'var(--orange)' : 'var(--yellow)';
+    html += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">' +
+      '<div style="width:180px;font-size:11px;font-weight:600;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex-shrink:0" title="' + escAttrT(c.category + ' / ' + c.type) + '">' + esc(c.category) + '</div>' +
+      '<div style="flex:1;background:var(--bg3);border-radius:4px;height:18px;overflow:hidden">' +
+      '<div style="width:' + barWidth + '%;height:100%;background:' + barColor + ';opacity:0.7;border-radius:4px;transition:width 0.3s"></div></div>' +
+      '<div style="width:60px;font-size:11px;font-weight:700;color:' + barColor + ';text-align:right">' + fmt(c.pct) + '%</div>' +
+      '<div style="width:80px;font-size:10px;color:var(--slate5);text-align:right">' + fmt(c.baselineEmission) + ' tCO\u2082</div>' +
+      '<div style="width:60px;font-size:10px;color:var(--slate5);text-align:right">cum ' + fmt(c.cumPct) + '%</div>' +
+      '</div>';
+  }
+  if (restBL > 0) {
+    html += '<div style="display:flex;align-items:center;gap:8px;margin-top:4px;padding-top:6px;border-top:1px dashed var(--border)">' +
+      '<div style="width:180px;font-size:11px;color:var(--slate5);font-style:italic">Others (' + (sorted.length - contributors.length) + ' items)</div>' +
+      '<div style="flex:1"></div>' +
+      '<div style="width:60px;font-size:11px;color:var(--slate5);text-align:right">' + fmt((restBL / totalBL) * 100) + '%</div>' +
+      '<div style="width:80px;font-size:10px;color:var(--slate5);text-align:right">' + fmt(restBL) + ' tCO\u2082</div>' +
+      '<div style="width:60px;font-size:10px;color:var(--slate5);text-align:right">100%</div>' +
+      '</div>';
+  }
+  html += '</div>';
+
+  // Detailed table of contributors
+  html += '<div class="tbl-wrap"><table>' +
+    '<thead><tr><th>#</th><th>Category</th><th>Type</th><th class="r">Qty</th><th>Unit</th><th class="r">Baseline (tCO\u2082)</th><th class="r">Target (tCO\u2082)</th><th class="r">% of Total</th><th class="r">Cumulative %</th></tr></thead><tbody>';
+
+  for (var k = 0; k < contributors.length; k++) {
+    var ct = contributors[k];
+    html += '<tr style="background:rgba(239,68,68,0.03)">' +
+      '<td style="font-weight:700;color:var(--red)">' + (k + 1) + '</td>' +
+      '<td style="font-weight:600">' + esc(ct.category) + '</td>' +
+      '<td style="font-size:11px">' + esc(ct.type) + '</td>' +
+      '<td class="r mono">' + fmtI(ct.qty) + '</td>' +
+      '<td>' + ct.unit + '</td>' +
+      '<td class="r mono" style="font-weight:700">' + fmt(ct.baselineEmission) + '</td>' +
+      '<td class="r mono" style="color:var(--green)">' + fmt(ct.targetEmission) + '</td>' +
+      '<td class="r mono" style="font-weight:700;color:var(--red)">' + fmt(ct.pct) + '%</td>' +
+      '<td class="r mono" style="color:var(--orange)">' + fmt(ct.cumPct) + '%</td>' +
+      '</tr>';
+  }
+
+  if (restBL > 0) {
+    html += '<tr style="color:var(--slate5)">' +
+      '<td></td><td colspan="4" style="font-style:italic">Remaining ' + (sorted.length - contributors.length) + ' items</td>' +
+      '<td class="r mono">' + fmt(restBL) + '</td>' +
+      '<td class="r mono">' + fmt(restTG) + '</td>' +
+      '<td class="r mono">' + fmt((restBL / totalBL) * 100) + '%</td>' +
+      '<td class="r mono">100%</td>' +
+      '</tr>';
+  }
+
+  html += '<tr class="total-row"><td></td><td colspan="4">Total</td>' +
+    '<td class="r mono">' + fmt(totalBL) + '</td>' +
+    '<td class="r mono" style="color:var(--green)">' + fmt(_tenderItems.reduce(function(s, it) { return s + (it.targetEmission || 0); }, 0)) + '</td>' +
+    '<td class="r mono" style="font-weight:700">100%</td><td></td></tr>';
+
+  html += '</tbody></table></div></div>';
+
+  return html;
+}
+
 // ===== BREAKDOWN CHART =====
 function renderTenderBreakdownChart() {
   const byCategory = {};
@@ -651,6 +808,11 @@ function handleTenderBOQFile(file) {
   var ext = file.name.split('.').pop().toLowerCase();
   var info = $('tenderBOQFileInfo');
   if (info) { info.style.display = ''; info.textContent = 'Loading: ' + file.name + ' (' + (file.size / 1024).toFixed(1) + ' KB)'; }
+  // Show remove attachment button
+  var removeWrap = $('tenderBOQRemoveWrap');
+  if (removeWrap) { removeWrap.style.display = ''; }
+  var removeLabel = $('tenderBOQRemoveLabel');
+  if (removeLabel) { removeLabel.textContent = file.name; }
 
   var reader = new FileReader();
   reader.onload = function(e) {
