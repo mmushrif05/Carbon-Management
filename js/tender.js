@@ -130,7 +130,7 @@ function renderTenderForm(el) {
     <div class="form-row c4">
       <div class="fg"><label>Category</label><select id="tiCat" onchange="onTenderCat()">
         <option value="">Select...</option>
-        ${Object.keys(MATERIALS).map(c => `<option>${c}</option>`).join('')}
+        ${(function(){const g=getMaterialGroups();return Object.entries(g).map(([grp,cats])=>'<optgroup label="'+grp+'">'+cats.map(c=>'<option value="'+c+'">'+c+'</option>').join('')+'</optgroup>').join('');})()}
         <option value="__custom__">Custom Material</option>
       </select></div>
       <div class="fg" id="tiTypeWrap"><label>Type</label><select id="tiType" onchange="onTenderType()"><option>Select category first</option></select></div>
@@ -239,7 +239,12 @@ function onTenderCat() {
     return;
   }
 
-  $('tiType').innerHTML = '<option value="">Select...</option>' + MATERIALS[c].types.map((t, i) => `<option value="${i}">${t.name}</option>`).join('');
+  const m = MATERIALS[c];
+  $('tiType').innerHTML = '<option value="">Select...</option>' + m.types.map((t, i) => {
+    const cov = t.coveragePct;
+    const tag = (m.isMEP && cov !== undefined && cov < MEP_COVERAGE_THRESHOLD) ? ' [A1-A3=0, Cov: ' + cov + '%]' : '';
+    return '<option value="' + i + '">' + t.name + tag + '</option>';
+  }).join('');
   $('tiUnit').textContent = 'Unit: ' + MATERIALS[c].unit;
   $('tiUnitCustom').value = MATERIALS[c].unit;
   $('tiBL').value = '';
@@ -258,12 +263,21 @@ function onTenderType() {
   const c = $('tiCat').value;
   const i = $('tiType').value;
   if (!c || i === '' || !MATERIALS[c]) return;
-  const t = MATERIALS[c].types[i];
+  const m = MATERIALS[c];
+  const t = m.types[i];
   if (!t) return;
-  $('tiBL').value = t.baseline;
-  $('tiTG').value = t.target;
-  $('tiBLHelp').textContent = t.baseline + ' ' + MATERIALS[c].efUnit + ' (from database)';
-  $('tiTGHelp').textContent = t.target + ' ' + MATERIALS[c].efUnit + ' (from database)';
+  const belowThreshold = m.isMEP && t.coveragePct !== undefined && t.coveragePct < MEP_COVERAGE_THRESHOLD;
+  if (belowThreshold) {
+    $('tiBL').value = 0;
+    $('tiTG').value = 0;
+    $('tiBLHelp').textContent = 'A1-A3 = 0 — Complex MEP assembly (Coverage: ' + t.coveragePct + '%)';
+    $('tiTGHelp').textContent = 'A1-A3 = 0 — Below 80% data coverage threshold';
+  } else {
+    $('tiBL').value = t.baseline;
+    $('tiTG').value = t.target;
+    $('tiBLHelp').textContent = t.baseline + ' ' + m.efUnit + ' (from database)' + (t.coveragePct ? ' [' + t.coveragePct + '% coverage]' : '');
+    $('tiTGHelp').textContent = t.target + ' ' + m.efUnit + ' (from database)';
+  }
   tenderItemPreview();
 }
 
