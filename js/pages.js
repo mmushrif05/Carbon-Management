@@ -242,12 +242,19 @@ async function dA5(id){await DB.deleteA5Entry(id);state.a5entries=state.a5entrie
 function renderApprovals(el){
   const r=state.role;
   // Consultant sees both pending (to forward/approve) and review (to approve) items
+  // Entries are already filtered server-side by assignment
   const items=r==='consultant'?state.entries.filter(e=>e.status==='pending'||e.status==='review'):r==='client'?state.entries.filter(e=>e.status==='review'):state.entries;
-  el.innerHTML=`<div class="card"><div class="card-title">Workflow</div>
+
+  // Show assignment info banner for consultants
+  const assignInfo = r==='consultant' && state.assignments.length > 0
+    ? `<div class="card"><div class="card-title">Your Assignments</div><div style="padding:10px 14px;background:rgba(96,165,250,0.08);border:1px solid rgba(96,165,250,0.2);border-radius:10px;font-size:13px;color:var(--blue)">You are reviewing submissions from <strong>${state.assignments.map(a=>a.contractorName).join(', ')}</strong>. Only their entries appear here.</div></div>`
+    : '';
+
+  el.innerHTML=`${assignInfo}<div class="card"><div class="card-title">Workflow</div>
   <div class="flow-steps"><div class="flow-step"><div class="flow-dot done">\ud83c\udfd7\ufe0f</div><div class="flow-label">Contractor</div></div><div class="flow-line done"></div><div class="flow-step"><div class="flow-dot ${r==='consultant'?'current':'done'}">\ud83d\udccb</div><div class="flow-label">Consultant</div></div><div class="flow-line ${r==='client'||r==='consultant'?'done':''}"></div><div class="flow-step"><div class="flow-dot ${r==='client'?'current':(r==='consultant'?'done':'')}">\ud83d\udc54</div><div class="flow-label">Client</div></div></div></div>
-  <div class="card"><div class="card-title">${items.length} Items</div><div class="tbl-wrap"><table><thead><tr><th>Month</th><th>Material</th><th>Type</th><th>By</th><th class="r">Baseline</th><th class="r">Actual</th><th class="r">Reduction</th><th>Status</th>${r!=='contractor'?'<th>Actions</th>':''}</tr></thead><tbody>${items.length?items.map(e=>`<tr><td>${e.monthLabel}</td><td>${e.category}</td><td>${e.type}</td><td>${e.submittedBy||'\u2014'}</td><td class="r mono">${fmt(e.a13B)}</td><td class="r mono">${fmt(e.a13A)}</td><td class="r mono" style="color:${e.pct>20?'var(--green)':'var(--orange)'};font-weight:700">${fmt(e.pct)}%</td><td><span class="badge ${e.status}">${e.status}</span></td>${r==='consultant'?`<td>${e.status==='pending'?`<button class="btn btn-approve btn-sm" onclick="appr(${e.id},'review')">\u2713 Forward</button> `:''}${e.status==='pending'||e.status==='review'?`<button class="btn btn-primary btn-sm" onclick="appr(${e.id},'approved')">\u2713 Approve</button> `:''}<button class="btn btn-danger btn-sm" onclick="appr(${e.id},'rejected')">\u2715 Reject</button></td>`:''}${r==='client'?`<td><button class="btn btn-approve btn-sm" onclick="appr(${e.id},'approved')">\u2713 Approve</button> <button class="btn btn-danger btn-sm" onclick="appr(${e.id},'rejected')">\u2715 Reject</button></td>`:''}</tr>`).join(''):'<tr><td colspan="9" class="empty">No pending items</td></tr>'}</tbody></table></div></div>`;
+  <div class="card"><div class="card-title">${items.length} Items</div><div class="tbl-wrap"><table><thead><tr><th>Month</th><th>Material</th><th>Type</th><th>By</th><th>Org</th><th class="r">Baseline</th><th class="r">Actual</th><th class="r">Reduction</th><th>Status</th>${r!=='contractor'?'<th>Actions</th>':''}</tr></thead><tbody>${items.length?items.map(e=>`<tr><td>${e.monthLabel}</td><td>${e.category}</td><td>${e.type}</td><td>${e.submittedBy||'\u2014'}</td><td style="font-size:11px;color:var(--slate5)">${e.organizationName||'\u2014'}</td><td class="r mono">${fmt(e.a13B)}</td><td class="r mono">${fmt(e.a13A)}</td><td class="r mono" style="color:${e.pct>20?'var(--green)':'var(--orange)'};font-weight:700">${fmt(e.pct)}%</td><td><span class="badge ${e.status}">${e.status}</span></td>${r==='consultant'?`<td>${e.status==='pending'?`<button class="btn btn-approve btn-sm" onclick="appr(${e.id},'review')">\u2713 Forward</button> `:''}${e.status==='pending'||e.status==='review'?`<button class="btn btn-primary btn-sm" onclick="appr(${e.id},'approved')">\u2713 Approve</button> `:''}<button class="btn btn-danger btn-sm" onclick="appr(${e.id},'rejected')">\u2715 Reject</button></td>`:''}${r==='client'?`<td><button class="btn btn-approve btn-sm" onclick="appr(${e.id},'approved')">\u2713 Approve</button> <button class="btn btn-danger btn-sm" onclick="appr(${e.id},'rejected')">\u2715 Reject</button></td>`:''}</tr>`).join(''):'<tr><td colspan="10" class="empty">No pending items</td></tr>'}</tbody></table></div></div>`;
 }
-async function appr(id,s){await DB.updateEntry(id,{status:s,[state.role+'At']:new Date().toISOString(),[state.role+'By']:state.name});const e=state.entries.find(x=>x.id===id);if(e)e.status=s;buildSidebar();navigate('approvals');}
+async function appr(id,s){await DB.updateEntry(id,{status:s,[state.role+'At']:new Date().toISOString(),[state.role+'By']:state.name,[state.role+'ByUid']:state.uid});const e=state.entries.find(x=>x.id===id);if(e)e.status=s;buildSidebar();navigate('approvals');}
 
 // ===== MONTHLY =====
 function renderMonthly(el){
@@ -298,7 +305,7 @@ function renderTeam(el) {
   <div class="card">
     <div class="card-title">Send Invitation</div>
     <div class="invite-form">
-      <div class="form-row c3">
+      <div class="form-row c4">
         <div class="fg">
           <label>Email Address</label>
           <input type="email" id="invEmail" placeholder="contractor@company.com" />
@@ -310,12 +317,18 @@ function renderTeam(el) {
           </select>
         </div>
         <div class="fg">
+          <label>Organization (optional)</label>
+          <select id="invOrg">
+            <option value="">None — assign later</option>
+          </select>
+        </div>
+        <div class="fg">
           <label>Message (optional)</label>
           <input id="invMsg" placeholder="Welcome to the project..." />
         </div>
       </div>
       <div class="btn-row">
-        <button class="btn btn-primary" onclick="sendInvitation()">✉️ Send Invitation</button>
+        <button class="btn btn-primary" onclick="sendInvitation()">Send Invitation</button>
       </div>
       <div class="login-error" id="invError" style="margin-top:12px"></div>
       <div class="login-error" id="invSuccess" style="margin-top:12px"></div>
@@ -370,8 +383,25 @@ function renderTeam(el) {
     </div>
   </div>`;
 
-  // Load invitations
-  if (canInvite) loadInvitations();
+  // Load invitations and populate org dropdown
+  if (canInvite) {
+    loadInvitations();
+    loadInviteOrgDropdown();
+  }
+}
+
+async function loadInviteOrgDropdown() {
+  try {
+    const orgs = await DB.getOrganizations();
+    state.organizations = orgs;
+    const sel = $('invOrg');
+    if (sel) {
+      sel.innerHTML = '<option value="">None — assign later</option>' +
+        orgs.map(o => `<option value="${o.id}" data-name="${o.name}">${o.name} (${o.type.replace('_', ' ')})</option>`).join('');
+    }
+  } catch (e) {
+    console.warn('Failed to load orgs for invite:', e);
+  }
 }
 
 async function loadInvitations() {
@@ -450,13 +480,16 @@ async function sendInvitation() {
   const email = $('invEmail').value.trim();
   const role = $('invRole').value;
   const message = $('invMsg').value.trim();
+  const orgSel = $('invOrg');
+  const organizationId = orgSel ? orgSel.value : '';
+  const organizationName = orgSel && orgSel.selectedOptions[0] ? orgSel.selectedOptions[0].getAttribute('data-name') || '' : '';
 
   if (!email) { showError('invError', 'Please enter an email address.'); return; }
   if (!role) { showError('invError', 'Please select a role.'); return; }
 
   try {
-    // Create invitation
-    const result = await DB.createInvitation(email, role, message);
+    // Create invitation with organization context
+    const result = await DB.createInvitation(email, role, message, organizationId, organizationName);
 
     // Send email notification
     try {
@@ -502,6 +535,381 @@ async function resendInvite(id) {
     loadInvitations();
   } catch (e) {
     alert(e.message || 'Failed to resend invitation.');
+  }
+}
+
+// ===== ORGANIZATIONS & ASSIGNMENTS =====
+async function renderOrganizations(el) {
+  const r = state.role;
+  const canManage = r === 'client' || r === 'consultant';
+
+  if (!canManage) {
+    el.innerHTML = '<div class="card"><div class="card-title">Organizations</div><div class="empty"><div class="empty-icon">🏢</div>Only clients and consultants can manage organizations.</div></div>';
+    return;
+  }
+
+  el.innerHTML = `
+  <!-- Hierarchy explanation -->
+  <div class="card">
+    <div class="card-title">Enterprise Hierarchy</div>
+    <div style="padding:12px 16px;background:rgba(96,165,250,0.06);border:1px solid rgba(96,165,250,0.15);border-radius:10px;font-size:13px;color:var(--slate4);line-height:1.7">
+      <strong style="color:var(--blue)">How it works:</strong> The client (KSIA) hires consultant firms (e.g., Parsons, Bechtel).
+      Each consultant firm oversees contractor companies. Within a firm, specific consultants are assigned to review
+      specific contractors' carbon data submissions.<br>
+      <span style="color:var(--slate5)">Client → Consultant Firms → Contractor Companies → Individual Assignments</span>
+    </div>
+  </div>
+
+  <!-- Create Organization -->
+  <div class="card">
+    <div class="card-title">Add Organization</div>
+    <div class="form-row c3">
+      <div class="fg">
+        <label>Organization Name</label>
+        <input id="orgName" placeholder="e.g. Parsons, Bechtel, ABC Contractors" />
+      </div>
+      <div class="fg">
+        <label>Type</label>
+        <select id="orgType">
+          <option value="consultant_firm">Consultant Firm</option>
+          <option value="contractor_company">Contractor Company</option>
+        </select>
+      </div>
+      <div class="fg" style="display:flex;align-items:flex-end">
+        <button class="btn btn-primary" onclick="createOrg()">+ Add Organization</button>
+      </div>
+    </div>
+    <div class="login-error" id="orgError" style="margin-top:12px"></div>
+    <div class="login-error" id="orgSuccess" style="margin-top:12px"></div>
+  </div>
+
+  <!-- Organizations List -->
+  <div class="card">
+    <div class="card-title">Organizations</div>
+    <div id="orgList"><div class="empty"><div class="empty-icon">...</div>Loading...</div></div>
+  </div>
+
+  <!-- Link Orgs (consultant firm ↔ contractor company) -->
+  <div class="card">
+    <div class="card-title">Link Consultant Firm to Contractor Company</div>
+    <div style="padding:10px 14px;background:rgba(52,211,153,0.06);border:1px solid rgba(52,211,153,0.15);border-radius:10px;margin-bottom:14px;font-size:13px;color:var(--green)">
+      Define which consultant firm oversees which contractor company.
+    </div>
+    <div class="form-row c3">
+      <div class="fg">
+        <label>Consultant Firm</label>
+        <select id="linkConsultantOrg"><option value="">Select...</option></select>
+      </div>
+      <div class="fg">
+        <label>Contractor Company</label>
+        <select id="linkContractorOrg"><option value="">Select...</option></select>
+      </div>
+      <div class="fg" style="display:flex;align-items:flex-end">
+        <button class="btn btn-primary" onclick="linkOrganizations()">Link</button>
+      </div>
+    </div>
+    <div class="login-error" id="linkError" style="margin-top:12px"></div>
+    <div id="linkList" style="margin-top:12px"></div>
+  </div>
+
+  <!-- Assign Consultant to Contractor (user-level) -->
+  <div class="card">
+    <div class="card-title">Assign Consultant to Contractor</div>
+    <div style="padding:10px 14px;background:rgba(251,191,36,0.06);border:1px solid rgba(251,191,36,0.15);border-radius:10px;margin-bottom:14px;font-size:13px;color:var(--yellow)">
+      Assign a specific consultant to review a specific contractor's submissions. This controls who sees what in the approval workflow.
+    </div>
+    <div class="form-row c3">
+      <div class="fg">
+        <label>Consultant</label>
+        <select id="assignConsultant"><option value="">Select consultant...</option></select>
+      </div>
+      <div class="fg">
+        <label>Contractor</label>
+        <select id="assignContractor"><option value="">Select contractor...</option></select>
+      </div>
+      <div class="fg" style="display:flex;align-items:flex-end">
+        <button class="btn btn-primary" onclick="createUserAssignment()">Assign</button>
+      </div>
+    </div>
+    <div class="login-error" id="assignError" style="margin-top:12px"></div>
+    <div id="assignList" style="margin-top:12px"></div>
+  </div>
+
+  <!-- Assign Users to Organizations -->
+  <div class="card">
+    <div class="card-title">Assign User to Organization</div>
+    <div style="padding:10px 14px;background:rgba(167,139,250,0.06);border:1px solid rgba(167,139,250,0.15);border-radius:10px;margin-bottom:14px;font-size:13px;color:var(--purple)">
+      Assign team members to their organization (firm or company).
+    </div>
+    <div class="form-row c3">
+      <div class="fg">
+        <label>User</label>
+        <select id="userToAssign"><option value="">Select user...</option></select>
+      </div>
+      <div class="fg">
+        <label>Organization</label>
+        <select id="orgToAssignTo"><option value="">Select organization...</option></select>
+      </div>
+      <div class="fg" style="display:flex;align-items:flex-end">
+        <button class="btn btn-primary" onclick="assignUserToOrganization()">Assign</button>
+      </div>
+    </div>
+    <div class="login-error" id="userOrgError" style="margin-top:12px"></div>
+    <div id="userOrgList" style="margin-top:12px"></div>
+  </div>`;
+
+  // Load data
+  await loadOrgData();
+}
+
+async function loadOrgData() {
+  try {
+    const [orgs, links, assignments, users] = await Promise.all([
+      DB.getOrganizations(),
+      DB.getOrgLinks(),
+      DB.getAssignments(),
+      DB.getUsers()
+    ]);
+    state.organizations = orgs;
+    state.orgLinks = links;
+    state.assignments = assignments;
+    state.users = users;
+
+    renderOrgList(orgs);
+    renderLinkList(links);
+    renderAssignmentList(assignments);
+    renderUserOrgList(users);
+    populateOrgDropdowns(orgs, users);
+  } catch (e) {
+    console.warn('Failed to load org data:', e);
+  }
+}
+
+function renderOrgList(orgs) {
+  const el = $('orgList');
+  if (!el) return;
+
+  if (!orgs.length) {
+    el.innerHTML = '<div class="empty"><div class="empty-icon">🏢</div>No organizations yet. Create one above.</div>';
+    return;
+  }
+
+  const firms = orgs.filter(o => o.type === 'consultant_firm');
+  const companies = orgs.filter(o => o.type === 'contractor_company');
+
+  el.innerHTML = `
+    <div class="tbl-wrap"><table>
+      <thead><tr><th>Name</th><th>Type</th><th>Created By</th><th>Date</th><th>Actions</th></tr></thead>
+      <tbody>
+        ${firms.length ? '<tr><td colspan="5" style="font-size:11px;font-weight:700;color:var(--green);text-transform:uppercase;letter-spacing:1px;padding:12px 8px 4px">Consultant Firms</td></tr>' : ''}
+        ${firms.map(o => `<tr>
+          <td style="font-weight:600">${o.name}</td>
+          <td><span class="badge approved" style="text-transform:capitalize">${o.type.replace('_', ' ')}</span></td>
+          <td style="color:var(--slate5);font-size:12px">${o.createdByName || '—'}</td>
+          <td style="color:var(--slate5);font-size:11px">${new Date(o.createdAt).toLocaleDateString()}</td>
+          <td>${state.role === 'client' ? `<button class="btn btn-danger btn-sm" onclick="deleteOrg('${o.id}')">Delete</button>` : '—'}</td>
+        </tr>`).join('')}
+        ${companies.length ? '<tr><td colspan="5" style="font-size:11px;font-weight:700;color:var(--blue);text-transform:uppercase;letter-spacing:1px;padding:12px 8px 4px">Contractor Companies</td></tr>' : ''}
+        ${companies.map(o => `<tr>
+          <td style="font-weight:600">${o.name}</td>
+          <td><span class="badge review" style="text-transform:capitalize">${o.type.replace('_', ' ')}</span></td>
+          <td style="color:var(--slate5);font-size:12px">${o.createdByName || '—'}</td>
+          <td style="color:var(--slate5);font-size:11px">${new Date(o.createdAt).toLocaleDateString()}</td>
+          <td>${state.role === 'client' ? `<button class="btn btn-danger btn-sm" onclick="deleteOrg('${o.id}')">Delete</button>` : '—'}</td>
+        </tr>`).join('')}
+      </tbody>
+    </table></div>`;
+}
+
+function renderLinkList(links) {
+  const el = $('linkList');
+  if (!el) return;
+
+  if (!links.length) {
+    el.innerHTML = '<div style="font-size:12px;color:var(--slate5);text-align:center;padding:8px">No org links yet.</div>';
+    return;
+  }
+
+  el.innerHTML = `<div class="tbl-wrap"><table>
+    <thead><tr><th>Consultant Firm</th><th></th><th>Contractor Company</th><th>Actions</th></tr></thead>
+    <tbody>${links.map(l => `<tr>
+      <td style="font-weight:600;color:var(--green)">${l.consultantOrgName}</td>
+      <td style="color:var(--slate5);text-align:center">→</td>
+      <td style="font-weight:600;color:var(--blue)">${l.contractorOrgName}</td>
+      <td><button class="btn btn-danger btn-sm" onclick="unlinkOrganizations('${l.id}')">Unlink</button></td>
+    </tr>`).join('')}</tbody>
+  </table></div>`;
+}
+
+function renderAssignmentList(assignments) {
+  const el = $('assignList');
+  if (!el) return;
+
+  if (!assignments.length) {
+    el.innerHTML = '<div style="font-size:12px;color:var(--slate5);text-align:center;padding:8px">No assignments yet. Assign consultants to contractors above.</div>';
+    return;
+  }
+
+  el.innerHTML = `<div class="tbl-wrap"><table>
+    <thead><tr><th>Consultant</th><th>Org</th><th></th><th>Contractor</th><th>Org</th><th>Created</th><th>Actions</th></tr></thead>
+    <tbody>${assignments.map(a => `<tr>
+      <td style="font-weight:600;color:var(--green)">${a.consultantName}</td>
+      <td style="font-size:11px;color:var(--slate5)">${a.consultantOrgName || '—'}</td>
+      <td style="color:var(--slate5);text-align:center">→</td>
+      <td style="font-weight:600;color:var(--blue)">${a.contractorName}</td>
+      <td style="font-size:11px;color:var(--slate5)">${a.contractorOrgName || '—'}</td>
+      <td style="font-size:11px;color:var(--slate5)">${new Date(a.createdAt).toLocaleDateString()}</td>
+      <td><button class="btn btn-danger btn-sm" onclick="deleteUserAssignment('${a.id}')">Remove</button></td>
+    </tr>`).join('')}</tbody>
+  </table></div>`;
+}
+
+function renderUserOrgList(users) {
+  const el = $('userOrgList');
+  if (!el) return;
+
+  const usersWithOrg = users.filter(u => u.organizationName);
+  if (!usersWithOrg.length) {
+    el.innerHTML = '<div style="font-size:12px;color:var(--slate5);text-align:center;padding:8px">No users assigned to organizations yet.</div>';
+    return;
+  }
+
+  el.innerHTML = `<div class="tbl-wrap"><table>
+    <thead><tr><th>User</th><th>Role</th><th>Organization</th></tr></thead>
+    <tbody>${usersWithOrg.map(u => `<tr>
+      <td style="font-weight:600">${u.name}</td>
+      <td><span class="badge ${u.role === 'consultant' ? 'approved' : u.role === 'contractor' ? 'review' : 'pending'}" style="text-transform:capitalize">${u.role}</span></td>
+      <td style="color:var(--green)">${u.organizationName}</td>
+    </tr>`).join('')}</tbody>
+  </table></div>`;
+}
+
+function populateOrgDropdowns(orgs, users) {
+  const firms = orgs.filter(o => o.type === 'consultant_firm');
+  const companies = orgs.filter(o => o.type === 'contractor_company');
+  const consultants = users.filter(u => u.role === 'consultant');
+  const contractors = users.filter(u => u.role === 'contractor');
+
+  // Link dropdowns
+  const lcEl = $('linkConsultantOrg');
+  const lrEl = $('linkContractorOrg');
+  if (lcEl) lcEl.innerHTML = '<option value="">Select consultant firm...</option>' + firms.map(o => `<option value="${o.id}">${o.name}</option>`).join('');
+  if (lrEl) lrEl.innerHTML = '<option value="">Select contractor company...</option>' + companies.map(o => `<option value="${o.id}">${o.name}</option>`).join('');
+
+  // Assignment dropdowns
+  const acEl = $('assignConsultant');
+  const arEl = $('assignContractor');
+  if (acEl) acEl.innerHTML = '<option value="">Select consultant...</option>' + consultants.map(u => `<option value="${u.uid}">${u.name} (${u.email})${u.organizationName ? ' — ' + u.organizationName : ''}</option>`).join('');
+  if (arEl) arEl.innerHTML = '<option value="">Select contractor...</option>' + contractors.map(u => `<option value="${u.uid}">${u.name} (${u.email})${u.organizationName ? ' — ' + u.organizationName : ''}</option>`).join('');
+
+  // User-to-org dropdowns
+  const uEl = $('userToAssign');
+  const oEl = $('orgToAssignTo');
+  if (uEl) uEl.innerHTML = '<option value="">Select user...</option>' + users.filter(u => u.role !== 'client').map(u => `<option value="${u.uid}">${u.name} (${u.role})${u.organizationName ? ' — ' + u.organizationName : ''}</option>`).join('');
+  if (oEl) oEl.innerHTML = '<option value="">Select organization...</option>' + orgs.map(o => `<option value="${o.id}">${o.name} (${o.type.replace('_', ' ')})</option>`).join('');
+}
+
+async function createOrg() {
+  const errEl = $('orgError');
+  const sucEl = $('orgSuccess');
+  errEl.style.display = 'none';
+  sucEl.style.display = 'none';
+
+  const name = $('orgName').value.trim();
+  const type = $('orgType').value;
+
+  if (!name) { showError('orgError', 'Please enter an organization name.'); return; }
+
+  try {
+    await DB.createOrganization(name, type);
+    showSuccess('orgSuccess', 'Organization "' + name + '" created.');
+    $('orgName').value = '';
+    await loadOrgData();
+  } catch (e) {
+    showError('orgError', e.message || 'Failed to create organization.');
+  }
+}
+
+async function deleteOrg(orgId) {
+  if (!confirm('Delete this organization? Users must be reassigned first.')) return;
+  try {
+    await DB.deleteOrganization(orgId);
+    await loadOrgData();
+  } catch (e) {
+    alert(e.message || 'Failed to delete organization.');
+  }
+}
+
+async function linkOrganizations() {
+  const errEl = $('linkError');
+  errEl.style.display = 'none';
+
+  const consultantOrgId = $('linkConsultantOrg').value;
+  const contractorOrgId = $('linkContractorOrg').value;
+
+  if (!consultantOrgId || !contractorOrgId) { showError('linkError', 'Select both a consultant firm and a contractor company.'); return; }
+
+  try {
+    await DB.linkOrgs(consultantOrgId, contractorOrgId);
+    await loadOrgData();
+  } catch (e) {
+    showError('linkError', e.message || 'Failed to link organizations.');
+  }
+}
+
+async function unlinkOrganizations(linkId) {
+  if (!confirm('Remove this organization link?')) return;
+  try {
+    await DB.unlinkOrgs(linkId);
+    await loadOrgData();
+  } catch (e) {
+    alert(e.message || 'Failed to unlink organizations.');
+  }
+}
+
+async function createUserAssignment() {
+  const errEl = $('assignError');
+  errEl.style.display = 'none';
+
+  const consultantUid = $('assignConsultant').value;
+  const contractorUid = $('assignContractor').value;
+
+  if (!consultantUid || !contractorUid) { showError('assignError', 'Select both a consultant and a contractor.'); return; }
+
+  try {
+    await DB.createAssignment(consultantUid, contractorUid);
+    showSuccess('assignError', 'Assignment created.');
+    await loadOrgData();
+  } catch (e) {
+    showError('assignError', e.message || 'Failed to create assignment.');
+  }
+}
+
+async function deleteUserAssignment(assignmentId) {
+  if (!confirm('Remove this consultant-contractor assignment?')) return;
+  try {
+    await DB.deleteAssignment(assignmentId);
+    await loadOrgData();
+  } catch (e) {
+    alert(e.message || 'Failed to delete assignment.');
+  }
+}
+
+async function assignUserToOrganization() {
+  const errEl = $('userOrgError');
+  errEl.style.display = 'none';
+
+  const userId = $('userToAssign').value;
+  const orgId = $('orgToAssignTo').value;
+
+  if (!userId || !orgId) { showError('userOrgError', 'Select both a user and an organization.'); return; }
+
+  try {
+    await DB.assignUserToOrg(userId, orgId);
+    showSuccess('userOrgError', 'User assigned to organization.');
+    await loadOrgData();
+  } catch (e) {
+    showError('userOrgError', e.message || 'Failed to assign user.');
   }
 }
 

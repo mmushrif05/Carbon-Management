@@ -95,6 +95,9 @@ async function handleCreate(body, decoded) {
     invitedBy: decoded.uid,
     invitedByName: inviterProfile.name || inviterProfile.email || 'Unknown',
     invitedByRole: inviterRole,
+    // Organization context: pass the inviter's org so the invitee inherits the right org
+    organizationId: body.organizationId || inviterProfile.organizationId || null,
+    organizationName: body.organizationName || inviterProfile.organizationName || null,
     createdAt: new Date().toISOString(),
     expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString() // 7 days
   };
