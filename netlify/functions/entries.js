@@ -41,8 +41,10 @@ async function handleList(event) {
           e.submittedByUid === decoded.uid ||
           assignedContractors.includes(e.submittedByUid)
         );
+      } else {
+        // No assignments — consultant sees only their own entries
+        entries = entries.filter(e => e.submittedByUid === decoded.uid);
       }
-      // If no assignments exist yet, consultant sees all (backward compatible)
     } else if (profile && profile.role === 'contractor') {
       entries = entries.filter(e => e.submittedByUid === decoded.uid);
     }
@@ -60,6 +62,11 @@ async function handleSave(event, body) {
 
   const { entry } = body;
   if (!entry || !entry.id) return respond(400, { error: 'Invalid entry data' });
+
+  // Validate ID format — prevent path traversal
+  if (typeof entry.id !== 'string' || entry.id.includes('/') || entry.id.includes('.') || entry.id.includes('$') || entry.id.includes('#') || entry.id.includes('[') || entry.id.includes(']')) {
+    return respond(400, { error: 'Invalid entry ID format.' });
+  }
 
   // Validate required fields server-side
   if (!entry.category || !entry.type) return respond(400, { error: 'Category and type are required' });
@@ -89,6 +96,16 @@ async function handleSave(event, body) {
   }
 }
 
+// Valid status transitions (approval state machine)
+// pending → review (consultant reviews)
+// review → approved (client approves) OR review → rejected (client/consultant rejects)
+// rejected → pending (resubmission allowed)
+const VALID_STATUS_TRANSITIONS = {
+  'pending':  ['review'],
+  'review':   ['approved', 'rejected'],
+  'rejected': ['pending']
+};
+
 async function handleUpdate(event, body) {
   const decoded = await verifyToken(event);
   if (!decoded) return respond(401, { error: 'Unauthorized' });
@@ -96,8 +113,13 @@ async function handleUpdate(event, body) {
   const { id, updates } = body;
   if (!id || !updates) return respond(400, { error: 'ID and updates required' });
 
+  // Validate ID format — prevent path traversal
+  if (typeof id !== 'string' || id.includes('/') || id.includes('.') || id.includes('$') || id.includes('#') || id.includes('[') || id.includes(']')) {
+    return respond(400, { error: 'Invalid entry ID format.' });
+  }
+
   // Only allow updating specific safe fields
-  const allowedFields = ['status', 'consultantAt', 'consultantBy', 'consultantByUid', 'clientAt', 'clientBy', 'clientByUid'];
+  const allowedFields = ['status', 'consultantAt', 'consultantBy', 'consultantByUid', 'clientAt', 'clientBy', 'clientByUid', 'rejectionReason'];
   const safeUpdates = {};
   for (const key of Object.keys(updates)) {
     if (allowedFields.includes(key)) {
@@ -112,16 +134,59 @@ async function handleUpdate(event, body) {
     const profile = await getUserProfile(decoded.uid);
     const projectId = profile ? (profile.projectId || profile.project || 'ksia') : 'ksia';
 
-    // Enforce assignment-based access for consultants
+    // Fetch the entry to check current state
+    const entrySnap = await db.ref(`projects/${projectId}/entries/${id}`).once('value');
+    const entry = entrySnap.val();
+    if (!entry) return respond(404, { error: 'Entry not found.' });
+
+    // ===== SELF-APPROVAL PREVENTION =====
+    // The person who submitted the entry cannot approve/review their own submission
+    if (safeUpdates.status && safeUpdates.status !== 'rejected' && safeUpdates.status !== 'pending') {
+      if (entry.submittedByUid === decoded.uid) {
+        return respond(403, { error: 'You cannot approve or review your own submission. Another reviewer must handle this entry.' });
+      }
+    }
+
+    // ===== APPROVAL STATE MACHINE =====
+    if (safeUpdates.status) {
+      const currentStatus = entry.status || 'pending';
+      const newStatus = safeUpdates.status;
+      const allowed = VALID_STATUS_TRANSITIONS[currentStatus];
+
+      if (!allowed || !allowed.includes(newStatus)) {
+        return respond(400, { error: `Invalid status transition: "${currentStatus}" → "${newStatus}". Allowed transitions from "${currentStatus}": ${(allowed || []).join(', ') || 'none'}.` });
+      }
+
+      // Role-based transition enforcement:
+      // pending → review: consultant or client
+      // review → approved: client only
+      // review → rejected: consultant or client
+      // rejected → pending: contractor (resubmission) or client
+      if (currentStatus === 'review' && newStatus === 'approved') {
+        if (profile.role !== 'client') {
+          return respond(403, { error: 'Only clients can give final approval.' });
+        }
+      }
+    }
+
+    // ===== ASSIGNMENT-BASED ACCESS FOR CONSULTANTS =====
     if (profile && profile.role === 'consultant') {
-      const entrySnap = await db.ref(`projects/${projectId}/entries/${id}`).once('value');
-      const entry = entrySnap.val();
-      if (entry && entry.submittedByUid) {
+      if (entry.submittedByUid) {
         const assignedContractors = await getAssignedContractorUids(decoded.uid);
-        // If assignments exist, check that this entry belongs to an assigned contractor
         if (assignedContractors.length > 0 && !assignedContractors.includes(entry.submittedByUid) && entry.submittedByUid !== decoded.uid) {
           return respond(403, { error: 'You are not assigned to review this contractor\'s submissions.' });
         }
+        // If no assignments exist, consultant is blocked from updating ANY entry
+        if (assignedContractors.length === 0) {
+          return respond(403, { error: 'You have no contractor assignments. Contact the client to get assigned.' });
+        }
+      }
+    }
+
+    // Contractor can only update their own entries (resubmission)
+    if (profile && profile.role === 'contractor') {
+      if (entry.submittedByUid !== decoded.uid) {
+        return respond(403, { error: 'You can only update your own submissions.' });
       }
     }
 
@@ -141,10 +206,18 @@ async function handleBatchSave(event, body) {
     return respond(400, { error: 'No entries provided' });
   }
 
+  // Batch size limit to prevent abuse
+  if (entries.length > 500) {
+    return respond(400, { error: 'Batch size limit is 500 entries. Please split into smaller batches.' });
+  }
+
   // Validate each entry
   for (const entry of entries) {
     if (!entry.id || !entry.category || !entry.type) {
       return respond(400, { error: 'Invalid entry data in batch: missing id, category, or type' });
+    }
+    if (typeof entry.id !== 'string' || entry.id.includes('/') || entry.id.includes('.') || entry.id.includes('$') || entry.id.includes('#') || entry.id.includes('[') || entry.id.includes(']')) {
+      return respond(400, { error: 'Invalid entry ID format in batch.' });
     }
     if (!entry.qty || entry.qty <= 0) {
       return respond(400, { error: 'Invalid entry data in batch: invalid quantity' });
@@ -188,14 +261,38 @@ async function handleDelete(event, body) {
   const { id } = body;
   if (!id) return respond(400, { error: 'ID required' });
 
+  // Validate ID format — prevent path traversal
+  if (typeof id !== 'string' || id.includes('/') || id.includes('.') || id.includes('$') || id.includes('#') || id.includes('[') || id.includes(']')) {
+    return respond(400, { error: 'Invalid entry ID format.' });
+  }
+
   try {
     const db = getDb();
-    const projectId = await getUserProjectId(decoded.uid);
+    const profile = await getUserProfile(decoded.uid);
+    const projectId = profile ? (profile.projectId || profile.project || 'ksia') : 'ksia';
 
-    // Verify the entry exists and belongs to the user or user has permission
     const snap = await db.ref(`projects/${projectId}/entries/${id}`).once('value');
     const entry = snap.val();
     if (!entry) return respond(404, { error: 'Entry not found' });
+
+    // Ownership & role-based delete permissions:
+    // - Client can delete any entry
+    // - Consultant can delete entries from their assigned contractors
+    // - Contractor can only delete their own entries (and only if still pending)
+    if (profile.role === 'contractor') {
+      if (entry.submittedByUid !== decoded.uid) {
+        return respond(403, { error: 'You can only delete your own entries.' });
+      }
+      if (entry.status && entry.status !== 'pending') {
+        return respond(403, { error: 'You can only delete entries that are still in "pending" status.' });
+      }
+    } else if (profile.role === 'consultant') {
+      const assignedContractors = await getAssignedContractorUids(decoded.uid);
+      if (entry.submittedByUid !== decoded.uid && !assignedContractors.includes(entry.submittedByUid)) {
+        return respond(403, { error: 'You can only delete entries from your assigned contractors.' });
+      }
+    }
+    // Client can delete any entry — no restriction
 
     await db.ref(`projects/${projectId}/entries/${id}`).remove();
     return respond(200, { success: true });

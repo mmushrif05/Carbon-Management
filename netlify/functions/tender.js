@@ -69,6 +69,12 @@ async function handleUpdate(event, body) {
   }
 }
 
+async function getUserProfile(uid) {
+  const db = getDb();
+  const snap = await db.ref('users/' + uid).once('value');
+  return snap.val();
+}
+
 async function handleDelete(event, body) {
   const decoded = await verifyToken(event);
   if (!decoded) return respond(401, { error: 'Unauthorized' });
@@ -76,11 +82,23 @@ async function handleDelete(event, body) {
   const { id } = body;
   if (!id) return respond(400, { error: 'ID required' });
 
+  // Validate ID format — prevent path traversal
+  if (typeof id !== 'string' || id.includes('/') || id.includes('.') || id.includes('$') || id.includes('#') || id.includes('[') || id.includes(']')) {
+    return respond(400, { error: 'Invalid scenario ID format.' });
+  }
+
   try {
     const db = getDb();
     const dbPath = await getDbPath(decoded.uid);
     const snap = await db.ref(dbPath + '/' + id).once('value');
-    if (!snap.val()) return respond(404, { error: 'Scenario not found' });
+    const scenario = snap.val();
+    if (!scenario) return respond(404, { error: 'Scenario not found' });
+
+    // Ownership check: only client or the creator can delete
+    const profile = await getUserProfile(decoded.uid);
+    if (profile.role !== 'client' && scenario.createdBy !== decoded.uid && scenario.createdBy !== (decoded.name || decoded.email)) {
+      return respond(403, { error: 'You can only delete scenarios you created.' });
+    }
 
     await db.ref(dbPath + '/' + id).remove();
     return respond(200, { success: true });

@@ -218,20 +218,44 @@ async function handleDeleteOrg(body, decoded) {
 
   await db.ref('organizations/' + orgId).remove();
 
-  // Cascade: remove assignments referencing this org
-  const assignSnap = await db.ref('assignments').once('value');
-  const assignments = assignSnap.val() || {};
+  // Cascade: remove all references to this org across assignments, org_links, project_firms
+  const [assignSnap, linksSnap, pfSnap] = await Promise.all([
+    db.ref('assignments').once('value'),
+    db.ref('org_links').once('value'),
+    db.ref('project_firms').once('value')
+  ]);
+
   const toDelete = {};
+
+  // Remove assignments referencing this org
+  const assignments = assignSnap.val() || {};
   for (const [id, a] of Object.entries(assignments)) {
     if (a.consultantOrgId === orgId || a.contractorOrgId === orgId) {
       toDelete['assignments/' + id] = null;
     }
   }
+
+  // Remove org_links referencing this org
+  const links = linksSnap.val() || {};
+  for (const [id, l] of Object.entries(links)) {
+    if (l.consultantOrgId === orgId || l.contractorOrgId === orgId) {
+      toDelete['org_links/' + id] = null;
+    }
+  }
+
+  // Remove project_firms referencing this org
+  const projectFirms = pfSnap.val() || {};
+  for (const [id, pf] of Object.entries(projectFirms)) {
+    if (pf.orgId === orgId) {
+      toDelete['project_firms/' + id] = null;
+    }
+  }
+
   if (Object.keys(toDelete).length > 0) {
     await db.ref().update(toDelete);
   }
 
-  console.log('[ORG] Deleted organization:', orgId);
+  console.log('[ORG] Deleted organization:', orgId, '- cascaded', Object.keys(toDelete).length, 'references');
   return respond(200, { success: true });
 }
 

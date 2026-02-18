@@ -1,0 +1,93 @@
+{
+  "rules": {
+    "users": {
+      "$uid": {
+        ".read": "auth != null && (auth.uid === $uid || root.child('users').child(auth.uid).child('role').val() === 'client')",
+        ".write": "auth != null && (auth.uid === $uid || root.child('users').child(auth.uid).child('role').val() === 'client')"
+      },
+      ".read": "auth != null && (root.child('users').child(auth.uid).child('role').val() === 'client' || root.child('users').child(auth.uid).child('role').val() === 'consultant')",
+      ".write": false,
+      ".indexOn": ["email", "organizationId", "role", "projectId"]
+    },
+
+    "projects": {
+      "$projectId": {
+        "entries": {
+          "$entryId": {
+            ".read": "auth != null",
+            ".write": "auth != null",
+            ".validate": "newData.hasChildren(['id', 'category', 'type', 'qty', 'submittedByUid'])"
+          },
+          ".read": "auth != null",
+          ".indexOn": ["submittedByUid", "organizationId", "status"]
+        },
+        "a5entries": {
+          "$entryId": {
+            ".read": "auth != null",
+            ".write": "auth != null",
+            ".validate": "newData.hasChildren(['id', 'source', 'qty'])"
+          },
+          ".read": "auth != null",
+          ".indexOn": ["submittedByUid"]
+        },
+        "tenderScenarios": {
+          "$scenarioId": {
+            ".read": "auth != null",
+            ".write": "auth != null",
+            ".validate": "newData.hasChildren(['id', 'name'])"
+          },
+          ".read": "auth != null",
+          ".indexOn": ["createdBy"]
+        },
+        "_meta": {
+          ".read": "auth != null",
+          ".write": "auth != null && root.child('users').child(auth.uid).child('role').val() === 'client'"
+        }
+      }
+    },
+
+    "projects_registry": {
+      ".read": "auth != null",
+      ".write": "auth != null && root.child('users').child(auth.uid).child('role').val() === 'client'",
+      ".indexOn": ["status"]
+    },
+
+    "organizations": {
+      ".read": "auth != null && root.child('users').child(auth.uid).child('role').val() !== 'contractor'",
+      ".write": "auth != null && root.child('users').child(auth.uid).child('role').val() === 'client'",
+      ".indexOn": ["type", "project"]
+    },
+
+    "project_firms": {
+      ".read": "auth != null",
+      ".write": "auth != null && root.child('users').child(auth.uid).child('role').val() === 'client'",
+      ".indexOn": ["projectId", "orgId"]
+    },
+
+    "org_links": {
+      ".read": "auth != null && root.child('users').child(auth.uid).child('role').val() !== 'contractor'",
+      ".write": "auth != null && root.child('users').child(auth.uid).child('role').val() === 'client'",
+      ".indexOn": ["consultantOrgId", "contractorOrgId"]
+    },
+
+    "assignments": {
+      ".read": "auth != null && root.child('users').child(auth.uid).child('role').val() !== 'contractor'",
+      ".write": "auth != null && (root.child('users').child(auth.uid).child('role').val() === 'client' || root.child('users').child(auth.uid).child('role').val() === 'consultant')",
+      ".indexOn": ["consultantUid", "contractorUid", "consultantOrgId", "projectId"]
+    },
+
+    "invitations": {
+      "$inviteId": {
+        ".read": "auth != null || data.child('token').val() === query.orderByChild",
+        ".write": "auth != null"
+      },
+      ".read": "auth != null && (root.child('users').child(auth.uid).child('role').val() === 'client' || root.child('users').child(auth.uid).child('role').val() === 'consultant')",
+      ".indexOn": ["email", "token", "project", "status"]
+    },
+
+    "$other": {
+      ".read": false,
+      ".write": false
+    }
+  }
+}

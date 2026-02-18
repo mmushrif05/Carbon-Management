@@ -36,6 +36,12 @@ async function handleSave(event, body) {
   }
 }
 
+async function getUserProfile(uid) {
+  const db = getDb();
+  const snap = await db.ref('users/' + uid).once('value');
+  return snap.val();
+}
+
 async function handleDelete(event, body) {
   const decoded = await verifyToken(event);
   if (!decoded) return respond(401, { error: 'Unauthorized' });
@@ -43,9 +49,30 @@ async function handleDelete(event, body) {
   const { id } = body;
   if (!id) return respond(400, { error: 'ID required' });
 
+  // Validate ID format — prevent path traversal
+  if (typeof id !== 'string' || id.includes('/') || id.includes('.') || id.includes('$') || id.includes('#') || id.includes('[') || id.includes(']')) {
+    return respond(400, { error: 'Invalid entry ID format.' });
+  }
+
   try {
     const db = getDb();
-    const projectId = await getUserProjectId(decoded.uid);
+    const profile = await getUserProfile(decoded.uid);
+    const projectId = profile ? (profile.projectId || profile.project || 'ksia') : 'ksia';
+
+    const snap = await db.ref(`projects/${projectId}/a5entries/${id}`).once('value');
+    const entry = snap.val();
+    if (!entry) return respond(404, { error: 'A5 entry not found.' });
+
+    // Ownership check: contractor can only delete their own
+    if (profile.role === 'contractor' && entry.submittedByUid !== decoded.uid) {
+      return respond(403, { error: 'You can only delete your own A5 entries.' });
+    }
+    // Consultant can delete entries they submitted or from assigned scope
+    if (profile.role === 'consultant' && entry.submittedByUid !== decoded.uid) {
+      return respond(403, { error: 'You can only delete your own A5 entries.' });
+    }
+    // Client can delete any entry
+
     await db.ref(`projects/${projectId}/a5entries/${id}`).remove();
     return respond(200, { success: true });
   } catch (e) {
