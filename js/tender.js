@@ -123,6 +123,15 @@ let _tenderBOQParsed = [];
 let _tenderBOQMatched = [];
 let _tenderBOQFileName = '';
 
+// Open file picker for BOQ upload — ensures document picker on mobile (not camera)
+function openTenderFileInput() {
+  var input = document.getElementById('tenderBOQFileInput');
+  if (!input) return;
+  // Reset value so the same file can be re-selected
+  input.value = '';
+  input.click();
+}
+
 // ===== TENDER FORM (create/edit scenario) =====
 function renderTenderForm(el) {
   const s = _tenderEdit;
@@ -165,7 +174,7 @@ function renderTenderForm(el) {
         Only <strong>baseline values</strong> are used. System identifies materials contributing to <strong>80% of total embodied carbon</strong>.
       </div>
       <div id="tenderBOQDropZone" style="border:2px dashed rgba(52,211,153,0.3);border-radius:14px;padding:32px 20px;text-align:center;cursor:pointer;transition:all 0.2s;background:rgba(52,211,153,0.02)"
-        onclick="document.getElementById('tenderBOQFileInput').click()"
+        onclick="openTenderFileInput()"
         ondragover="event.preventDefault();this.style.borderColor='var(--green)';this.style.background='rgba(52,211,153,0.06)'"
         ondragleave="this.style.borderColor='rgba(52,211,153,0.3)';this.style.background='rgba(52,211,153,0.02)'"
         ondrop="event.preventDefault();this.style.borderColor='rgba(52,211,153,0.3)';this.style.background='rgba(52,211,153,0.02)';handleTenderBOQDrop(event)">
@@ -174,7 +183,7 @@ function renderTenderForm(el) {
         <div style="font-size:11px;color:var(--slate5)">or click to browse &bull; .pdf, .xlsx, .xls, .csv</div>
         <div id="tenderBOQFileInfo" style="margin-top:8px;font-size:12px;color:var(--green);font-weight:600;display:none"></div>
       </div>
-      <input type="file" id="tenderBOQFileInput" accept=".pdf,.xlsx,.xls,.csv" style="display:none" onchange="handleTenderBOQFile(this.files[0])">
+      <input type="file" id="tenderBOQFileInput" accept="application/pdf,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/csv,.pdf,.xlsx,.xls,.csv" style="display:none" onchange="handleTenderBOQFile(this.files[0])">
       <div id="tenderPDFStatus" style="display:none;margin-top:10px"></div>
       <div id="tenderBOQSheetSel" style="display:none;margin-top:10px">
         <div class="form-row c3">
