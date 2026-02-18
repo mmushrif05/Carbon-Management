@@ -1,26 +1,36 @@
 // ===== MATERIAL & EMISSION FACTOR DATA =====
+// These are the FIXED A1-A3 categories — do NOT modify unless explicitly instructed.
 const MATERIALS = {
-  Concrete:{unit:"m\u00b3",massFactor:2400,efUnit:"kgCO\u2082e/m\u00b3",types:[
+  Concrete:{unit:"m³",massFactor:2400,efUnit:"kgCO₂e/m³",types:[
     {name:"C15-20",baseline:323,target:220},{name:"C20-30",baseline:354,target:301},{name:"C30-40",baseline:431,target:340},
-    {name:"C40-50",baseline:430,target:360},{name:"C50-60",baseline:483,target:342},{name:"C60-70",baseline:522,target:345}]},
-  Steel:{unit:"kg",massFactor:1,efUnit:"kgCO\u2082e/kg",types:[
+    {name:"C40-50",baseline:430,target:360},{name:"C40-50 (PCC-C45)",baseline:430,target:360},
+    {name:"C50-60",baseline:483,target:342},{name:"C60-70",baseline:522,target:345}]},
+  Steel:{unit:"kg",massFactor:1,efUnit:"kgCO₂e/kg",types:[
     {name:"Structural (I sections)",baseline:2.46,target:1.78},{name:"Rebar",baseline:2.26,target:1.30},
     {name:"Hollow (Tube) sections",baseline:2.52,target:1.83},{name:"Hot Dip Galvanized",baseline:2.74,target:2.07}]},
-  Asphalt:{unit:"tons",massFactor:1000,efUnit:"kgCO\u2082e/ton",types:[
+  Asphalt:{unit:"tons",massFactor:1000,efUnit:"kgCO₂e/ton",types:[
     {name:"3% Binder",baseline:50.1,target:40.08},{name:"3.5% Binder",baseline:51.1,target:40.88},{name:"4% Binder",baseline:52.2,target:41.76},
     {name:"4.5% Binder",baseline:53.2,target:42.56},{name:"5% Binder",baseline:54.2,target:43.36},{name:"5.5% Binder",baseline:55.3,target:44.24},
     {name:"6% Binder",baseline:56.3,target:45.04},{name:"6.5% Binder",baseline:57.3,target:45.84},{name:"7% Binder",baseline:58.4,target:46.72}]},
-  Aluminum:{unit:"kg",massFactor:1,efUnit:"kgCO\u2082e/kg",types:[
-    {name:"Profile Without Coating",baseline:8.24,target:6.59},{name:"Profile With Coating",baseline:9.12,target:7.30},
-    {name:"Sheets Without Coating",baseline:7.85,target:6.28},{name:"Anodized Sections",baseline:10.20,target:8.16}]},
-  Glass:{unit:"kg",massFactor:1,efUnit:"kgCO\u2082e/kg",types:[
-    {name:"Annealed",baseline:1.30,target:1.04},{name:"Coated",baseline:1.60,target:1.28},
-    {name:"Laminated",baseline:1.80,target:1.44},{name:"IGU",baseline:2.50,target:2.00}]},
-  Pipes:{unit:"m",massFactor:1,efUnit:"kgCO\u2082e/m",types:[
-    {name:"Precast 600mm",baseline:138.89,target:138.89},{name:"Precast 800mm",baseline:241.29,target:241.29},
-    {name:"Precast 1000mm",baseline:394.70,target:394.70},{name:"Precast 1200mm",baseline:543.80,target:543.80}]},
-  Earthwork:{unit:"tons",massFactor:1000,efUnit:"kgCO\u2082e/ton",types:[
-    {name:"Excavation/Hauling",baseline:3.50,target:2.80},{name:"Coarse Aggregate",baseline:5.20,target:4.16},{name:"Sand",baseline:4.80,target:3.84}]},
+  Aluminum:{unit:"kg",massFactor:1,efUnit:"kgCO₂e/kg",types:[
+    {name:"Profile Without Coating (Sections)",baseline:10.8,target:7.2},{name:"Profile With Coating (Sections)",baseline:10.8,target:8.6},
+    {name:"Profile Anodized (Sections)",baseline:10.8,target:10.7},{name:"Sheets Without Coating",baseline:13.5,target:13.5},
+    {name:"Sheets With Coating",baseline:12.9,target:12.9}]},
+  Glass:{unit:"kg",massFactor:1,efUnit:"kgCO₂e/kg",types:[
+    {name:"Basis Annealed",baseline:1.28,target:1.17},{name:"Coated",baseline:1.61,target:1.39},
+    {name:"Laminated",baseline:1.77,target:1.64},{name:"Specialty",baseline:1.84,target:1.66},{name:"IGU",baseline:4.12,target:2.76}]},
+  Earth_Work:{unit:"tkm",massFactor:1,efUnit:"kgCO₂/tkm",types:[
+    {name:"Excavation/Hauling",baseline:0.11,target:0.11},{name:"Demolition Removal",baseline:0.11,target:0.11}]},
+  Subgrade:{unit:"kg",massFactor:1,efUnit:"kgCO₂e/kg",types:[
+    {name:"Coarse & Fine Aggregate (Recycled)",baseline:0.0006,target:0.0006},{name:"Coarse Aggregate",baseline:0.0103,target:0.0103},
+    {name:"Sand (River Sand)",baseline:0.0052,target:0.0052}]},
+  Pipes:{unit:"m",massFactor:1,efUnit:"kgCO₂e/m",types:[
+    {name:"Precast Concrete Pipe 600mm",baseline:179.895,target:179.895},{name:"Precast Concrete Pipe 700mm",baseline:241.292,target:241.292},
+    {name:"Precast Concrete Pipe 800mm",baseline:307.164,target:307.164},{name:"Precast Concrete Pipe 900mm",baseline:394.695,target:394.695},
+    {name:"Precast Concrete Pipe 1000mm",baseline:436.223,target:436.223},{name:"Precast Concrete Pipe 1100mm",baseline:490.997,target:490.997},
+    {name:"Precast Concrete Pipe 1200mm",baseline:543.802,target:543.802},{name:"Precast Concrete Pipe 1400mm",baseline:735.690,target:735.690},
+    {name:"Precast Concrete Pipe 1500mm",baseline:814.092,target:814.092},{name:"Precast Concrete Pipe 1800mm",baseline:1138.261,target:1138.261},
+    {name:"Precast Concrete Pipe 2000mm",baseline:1409.267,target:1409.267},{name:"Precast Concrete Pipe Other Diameter",baseline:0,target:0}]},
 };
 
 const A5_EFS = {
