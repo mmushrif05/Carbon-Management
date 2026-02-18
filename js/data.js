@@ -361,6 +361,80 @@ const ICE_MATERIALS = {
     {name:"Intumescent Fire Wrap",baseline:3.20,target:2.56,coveragePct:80}]},
 };
 
+// ===== TENDER GWP LOOKUP — A1-A3 MATERIALS FIRST, THEN ICE FALLBACK =====
+// Priority: Use consultant-defined A1-A3 baseline factors from MATERIALS.
+// Only if a material is NOT found in MATERIALS, fallback to ICE database.
+// Tender quantities use BASELINE ONLY — no target values.
+function lookupTenderGWP(desc, catHint, unitHint) {
+  var d = desc.toLowerCase();
+  // Step 1: Try matching to A1-A3 MATERIALS (consultant-defined baseline factors)
+  var a13Match = matchToA13Materials(d, catHint);
+  if (a13Match.matched) return a13Match;
+  // Step 2: Fallback to ICE database
+  var iceMatch = matchToICE(desc, catHint, unitHint);
+  if (iceMatch.matched) {
+    iceMatch.gwpSource = 'ICE';
+    // In tender mode, use only baseline — set target = baseline
+    iceMatch.target = iceMatch.baseline;
+    return iceMatch;
+  }
+  return { matched: false, score: 0, gwpSource: 'none' };
+}
+
+// Match description against A1-A3 MATERIALS (consultant-defined factors)
+function matchToA13Materials(desc, catHint) {
+  var d = desc.toLowerCase();
+  var bestScore = 0, bestCat = '', bestType = '', bestIdx = -1, bestMat = null, bestTypeObj = null;
+
+  Object.keys(MATERIALS).forEach(function(cat) {
+    var m = MATERIALS[cat];
+    var catL = cat.toLowerCase();
+    var catBonus = 0;
+    if (catHint && catHint.toLowerCase().indexOf(catL) !== -1) catBonus = 30;
+    if (d.indexOf(catL) !== -1) catBonus += 15;
+
+    m.types.forEach(function(t, idx) {
+      var score = catBonus;
+      var words = t.name.toLowerCase().split(/[\s\/\-\(\)]+/).filter(function(w) { return w.length > 2; });
+      words.forEach(function(w) { if (d.indexOf(w) !== -1) score += 12; });
+
+      // Concrete grade matching
+      var gradeMatch = d.match(/c(\d{2,3})/i);
+      if (gradeMatch && t.name.toLowerCase().indexOf('c' + gradeMatch[1]) !== -1) score += 40;
+
+      // Pipe size matching
+      var pipeMatch = d.match(/(\d{3,4})\s*mm/);
+      if (pipeMatch && t.name.indexOf(pipeMatch[1] + 'mm') !== -1) score += 35;
+
+      if (score > bestScore) {
+        bestScore = score;
+        bestCat = cat;
+        bestType = t.name;
+        bestIdx = idx;
+        bestMat = m;
+        bestTypeObj = t;
+      }
+    });
+  });
+
+  if (bestScore < 10) return { matched: false, score: 0, gwpSource: 'none' };
+
+  return {
+    matched: true,
+    score: bestScore,
+    category: bestCat,
+    typeName: bestType,
+    typeIdx: bestIdx,
+    baseline: bestTypeObj.baseline,
+    target: bestTypeObj.baseline, // Tender = baseline only, no target
+    isMEP: false,
+    belowThreshold: false,
+    coveragePct: 100,
+    mat: bestMat,
+    gwpSource: 'A1-A3' // From consultant-defined MATERIALS
+  };
+}
+
 // ===== ICE HELPERS (for Tender BOQ only — never touch MATERIALS) =====
 function getICEGroups() {
   var groups = {};
