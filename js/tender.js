@@ -123,13 +123,32 @@ let _tenderBOQParsed = [];
 let _tenderBOQMatched = [];
 let _tenderBOQFileName = '';
 
-// Open file picker for BOQ upload — ensures document picker on mobile (not camera)
+// Detect mobile device
+function isMobileDevice() {
+  return /Android|iPhone|iPad|iPod|webOS|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || (window.innerWidth <= 768);
+}
+
+// Open file picker for BOQ upload
 function openTenderFileInput() {
   var input = document.getElementById('tenderBOQFileInput');
   if (!input) return;
   // Reset value so the same file can be re-selected
   input.value = '';
   input.click();
+}
+
+// Validate selected file type after user picks a file
+function validateAndHandleTenderFile(input) {
+  var file = input.files && input.files[0];
+  if (!file) return;
+  var ext = file.name.split('.').pop().toLowerCase();
+  var allowed = ['pdf', 'xlsx', 'xls', 'csv'];
+  if (allowed.indexOf(ext) === -1) {
+    alert('Unsupported file type: .' + ext + '\n\nPlease select a PDF, Excel (.xlsx/.xls), or CSV file.\n\nOn mobile: tap "Browse" or "Choose Files" to find your document.');
+    input.value = '';
+    return;
+  }
+  handleTenderBOQFile(file);
 }
 
 // ===== TENDER FORM (create/edit scenario) =====
@@ -179,11 +198,12 @@ function renderTenderForm(el) {
         ondragleave="this.style.borderColor='rgba(52,211,153,0.3)';this.style.background='rgba(52,211,153,0.02)'"
         ondrop="event.preventDefault();this.style.borderColor='rgba(52,211,153,0.3)';this.style.background='rgba(52,211,153,0.02)';handleTenderBOQDrop(event)">
         <div style="font-size:28px;opacity:0.4;margin-bottom:4px">\ud83d\udcc2</div>
-        <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:3px">Drop Tender PDF, Excel, or CSV BOQ file here</div>
-        <div style="font-size:11px;color:var(--slate5)">or click to browse &bull; .pdf, .xlsx, .xls, .csv</div>
+        <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:3px">${isMobileDevice() ? 'Tap to select your BOQ file' : 'Drop Tender PDF, Excel, or CSV BOQ file here'}</div>
+        <div style="font-size:11px;color:var(--slate5)">${isMobileDevice() ? 'Select <strong>"Browse"</strong> or <strong>"Choose Files"</strong> from the menu to find your PDF / Excel document' : 'or click to browse &bull; .pdf, .xlsx, .xls, .csv'}</div>
         <div id="tenderBOQFileInfo" style="margin-top:8px;font-size:12px;color:var(--green);font-weight:600;display:none"></div>
       </div>
-      <input type="file" id="tenderBOQFileInput" accept="application/pdf,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/csv,.pdf,.xlsx,.xls,.csv" style="display:none" onchange="handleTenderBOQFile(this.files[0])">
+      ${isMobileDevice() ? '<div style="margin-top:8px;padding:8px 12px;background:rgba(251,191,36,0.08);border:1px solid rgba(251,191,36,0.2);border-radius:8px;font-size:11px;color:var(--slate4);line-height:1.6"><strong style="color:#fbbf24">Mobile tip:</strong> When the menu appears, choose <strong>"Browse"</strong> or <strong>"Choose Files"</strong> (not Camera or Photos) to select your PDF or Excel BOQ document from your device storage.</div>' : ''}
+      <input type="file" id="tenderBOQFileInput" accept="application/pdf,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/csv,.pdf,.xlsx,.xls,.csv" style="display:none" onchange="validateAndHandleTenderFile(this)">
       <div id="tenderPDFStatus" style="display:none;margin-top:10px"></div>
       <div id="tenderBOQSheetSel" style="display:none;margin-top:10px">
         <div class="form-row c3">
