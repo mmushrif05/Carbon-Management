@@ -200,7 +200,7 @@ function renderTenderForm(el) {
     <div class="form-row c4">
       <div class="fg"><label>Category</label><select id="tiCat" onchange="onTenderCat()">
         <option value="">Select...</option>
-        ${Object.keys(MATERIALS).map(c => `<option>${c}</option>`).join('')}
+        ${Object.entries(getICEGroups()).map(([grp, cats]) => `<optgroup label="${grp}">${cats.map(c => `<option>${c}</option>`).join('')}</optgroup>`).join('')}
         <option value="__custom__">Custom Material</option>
       </select></div>
       <div class="fg" id="tiTypeWrap"><label>Type</label><select id="tiType" onchange="onTenderType()"><option>Select category first</option></select></div>
@@ -300,7 +300,7 @@ function onTenderCat() {
   customFields.style.display = 'none';
   typeWrap.style.display = '';
 
-  if (!c || !MATERIALS[c]) {
+  if (!c || !ICE_MATERIALS[c]) {
     $('tiType').innerHTML = '<option>Select category first</option>';
     $('tiUnit').textContent = '\u2014';
     $('tiUnitCustom').value = '';
@@ -309,9 +309,13 @@ function onTenderCat() {
     return;
   }
 
-  $('tiType').innerHTML = '<option value="">Select...</option>' + MATERIALS[c].types.map((t, i) => `<option value="${i}">${t.name}</option>`).join('');
-  $('tiUnit').textContent = 'Unit: ' + MATERIALS[c].unit;
-  $('tiUnitCustom').value = MATERIALS[c].unit;
+  const mat = ICE_MATERIALS[c];
+  $('tiType').innerHTML = '<option value="">Select...</option>' + mat.types.map((t, i) => {
+    const covTag = (mat.isMEP && t.coveragePct !== undefined && t.coveragePct < ICE_COVERAGE_THRESHOLD) ? ' [A1-A3=0]' : '';
+    return `<option value="${i}">${t.name}${covTag}</option>`;
+  }).join('');
+  $('tiUnit').textContent = 'Unit: ' + mat.unit;
+  $('tiUnitCustom').value = mat.unit;
   $('tiBL').value = '';
   $('tiTG').value = '';
   // Allow manual override — baseline/target fields are editable
@@ -327,13 +331,17 @@ function onTenderCat() {
 function onTenderType() {
   const c = $('tiCat').value;
   const i = $('tiType').value;
-  if (!c || i === '' || !MATERIALS[c]) return;
-  const t = MATERIALS[c].types[i];
+  if (!c || i === '' || !ICE_MATERIALS[c]) return;
+  const mat = ICE_MATERIALS[c];
+  const t = mat.types[i];
   if (!t) return;
-  $('tiBL').value = t.baseline;
-  $('tiTG').value = t.target;
-  $('tiBLHelp').textContent = t.baseline + ' ' + MATERIALS[c].efUnit + ' (from database)';
-  $('tiTGHelp').textContent = t.target + ' ' + MATERIALS[c].efUnit + ' (from database)';
+  const belowThreshold = mat.isMEP && t.coveragePct !== undefined && t.coveragePct < ICE_COVERAGE_THRESHOLD;
+  const bl = belowThreshold ? 0 : t.baseline;
+  const tg = belowThreshold ? 0 : t.target;
+  $('tiBL').value = bl;
+  $('tiTG').value = tg;
+  $('tiBLHelp').textContent = bl + ' ' + mat.efUnit + (belowThreshold ? ' (MEP <80% coverage → A1-A3=0)' : ' (from ICE database)');
+  $('tiTGHelp').textContent = tg + ' ' + mat.efUnit + (belowThreshold ? ' (MEP <80% coverage → A1-A3=0)' : ' (from ICE database)');
   tenderItemPreview();
 }
 
@@ -369,15 +377,15 @@ function addTenderItem() {
     efUnit = $('tiCustomEFUnit').value.trim() || 'kgCO\u2082e/' + unit;
     if (!category) { alert('Enter a material name for custom material'); return; }
   } else {
-    if (!cat || !MATERIALS[cat]) { alert('Select a category'); return; }
+    if (!cat || !ICE_MATERIALS[cat]) { alert('Select a category'); return; }
     const i = $('tiType').value;
     if (i === '') { alert('Select a material type'); return; }
-    const t = MATERIALS[cat].types[i];
+    const t = ICE_MATERIALS[cat].types[i];
     category = cat;
     type = t ? t.name : cat;
-    unit = MATERIALS[cat].unit;
-    efUnit = MATERIALS[cat].efUnit;
-    massFactor = MATERIALS[cat].massFactor;
+    unit = ICE_MATERIALS[cat].unit;
+    efUnit = ICE_MATERIALS[cat].efUnit;
+    massFactor = ICE_MATERIALS[cat].massFactor;
   }
 
   const qty = parseFloat($('tiQty').value);
