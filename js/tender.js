@@ -304,6 +304,60 @@ function renderTenderForm(el) {
     </div>
     <div id="tsSaveMsg" style="margin-top:12px"></div>
   </div>`;
+
+  // Restore BOQ upload state if a file was being processed when re-render occurred
+  restoreTenderBOQState();
+}
+
+// ===== RESTORE BOQ STATE AFTER RE-RENDER =====
+// When Firestore listeners trigger navigate() during file processing,
+// renderTenderForm rebuilds the DOM via innerHTML. This function
+// re-populates the BOQ upload section from the saved JS state variables.
+function restoreTenderBOQState() {
+  // Nothing to restore if no file was being processed
+  if (!_tenderBOQProcessing && _tenderBOQParsed.length === 0 && _tenderBOQMatched.length === 0) return;
+
+  // Ensure the BOQ body is visible
+  var body = $('tenderBOQBody');
+  var btn = $('tenderBOQToggleBtn');
+  if (body) body.style.display = '';
+  if (btn) btn.textContent = 'Collapse';
+  _tenderBOQMode = true;
+
+  // Restore file info
+  var info = $('tenderBOQFileInfo');
+  if (info && _tenderBOQFileName) {
+    info.style.display = '';
+    if (_tenderBOQWorkbook) {
+      info.textContent = _tenderBOQFileName + ' \u2014 ' + _tenderBOQWorkbook.SheetNames.length + ' sheet(s) found';
+    } else if (_tenderBOQParsed.length > 0) {
+      info.textContent = _tenderBOQFileName + ' \u2014 ' + (_tenderBOQParsed.length - 1) + ' data rows loaded';
+    } else {
+      info.textContent = 'Loading: ' + _tenderBOQFileName;
+    }
+  }
+
+  // Restore sheet selector for Excel files
+  if (_tenderBOQWorkbook) {
+    var sheetSel = $('tenderBOQSheet');
+    var sheetSelWrap = $('tenderBOQSheetSel');
+    if (sheetSel && sheetSelWrap) {
+      sheetSel.innerHTML = _tenderBOQWorkbook.SheetNames.map(function(name, i) {
+        return '<option value="' + i + '">' + name + '</option>';
+      }).join('');
+      sheetSelWrap.style.display = '';
+    }
+  }
+
+  // Restore column mapping if we have parsed data
+  if (_tenderBOQParsed.length >= 2) {
+    tenderBOQAutoMapColumns(_tenderBOQParsed);
+  }
+
+  // Restore matched results preview if we have matched data
+  if (_tenderBOQMatched.length > 0) {
+    renderTenderBOQPreview();
+  }
 }
 
 // ===== CATEGORY / TYPE HANDLERS =====
