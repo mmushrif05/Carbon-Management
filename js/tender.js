@@ -183,15 +183,16 @@ function renderTenderForm(el) {
   <!-- ===== BULK BOQ UPLOAD SECTION ===== -->
   <div class="card" id="tenderBOQCard">
     <div class="card-title" style="display:flex;align-items:center;justify-content:space-between">
-      <span>\ud83d\udcc2 Bulk Import from BOQ File</span>
+      <span>\ud83d\udcc2 Upload BOQ File</span>
       <button class="btn btn-secondary btn-sm" onclick="toggleTenderBOQUpload()" id="tenderBOQToggleBtn">${_tenderBOQMode ? 'Collapse' : 'Expand'}</button>
     </div>
     <div id="tenderBOQBody" style="${_tenderBOQMode ? '' : 'display:none'}">
       <div style="padding:10px 14px;background:rgba(52,211,153,0.06);border:1px solid rgba(52,211,153,0.15);border-radius:10px;margin-bottom:14px;font-size:12px;color:var(--slate4);line-height:1.8">
-        <strong style="color:var(--green)">Upload your Tender Document / BOQ</strong> to auto-populate line items.<br>
-        Supports <strong>.pdf</strong> (tender documents), <strong>.xlsx, .xls, .csv</strong> files.<br>
-        GWP factors: <strong>A1-A3 baseline factors</strong> used first \u2192 <strong>ICE Database</strong> fallback for remaining items.<br>
-        Only <strong>baseline values</strong> are used. System identifies materials contributing to <strong>80% of total embodied carbon</strong>.
+        <strong style="color:var(--green)">Upload your BOQ</strong> \u2014 the system will automatically:<br>
+        \u2705 Read & parse your file (PDF, Excel, CSV)<br>
+        \u2705 Identify materials and quantities<br>
+        \u2705 Match to <strong>A1-A3 baseline factors</strong> (priority) then <strong>ICE Database</strong> (fallback)<br>
+        \u2705 Calculate embodied carbon & identify materials contributing to <strong>80% of total emissions</strong>
       </div>
       <div id="tenderBOQDropZone" style="border:2px dashed rgba(52,211,153,0.3);border-radius:14px;padding:32px 20px;text-align:center;cursor:pointer;transition:all 0.2s;background:rgba(52,211,153,0.02)"
         onclick="openTenderFileInput()"
@@ -199,27 +200,13 @@ function renderTenderForm(el) {
         ondragleave="this.style.borderColor='rgba(52,211,153,0.3)';this.style.background='rgba(52,211,153,0.02)'"
         ondrop="event.preventDefault();this.style.borderColor='rgba(52,211,153,0.3)';this.style.background='rgba(52,211,153,0.02)';handleTenderBOQDrop(event)">
         <div style="font-size:28px;opacity:0.4;margin-bottom:4px">\ud83d\udcc2</div>
-        <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:3px">${isMobileDevice() ? 'Tap to select your BOQ file' : 'Drop Tender PDF, Excel, or CSV BOQ file here'}</div>
-        <div style="font-size:11px;color:var(--slate5)">${isMobileDevice() ? 'Select <strong>"Browse"</strong> or <strong>"Choose Files"</strong> from the menu to find your PDF / Excel document' : 'or click to browse &bull; .pdf, .xlsx, .xls, .csv'}</div>
-        <div id="tenderBOQFileInfo" style="margin-top:8px;font-size:12px;color:var(--green);font-weight:600;display:none"></div>
+        <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:3px">${isMobileDevice() ? 'Tap to select your BOQ file' : 'Drop your BOQ file here \u2014 processing is fully automatic'}</div>
+        <div style="font-size:11px;color:var(--slate5)">${isMobileDevice() ? 'Tap <strong>"Browse"</strong> or <strong>"Choose Files"</strong> to find your document' : 'Supports .pdf, .xlsx, .xls, .csv \u2014 no manual steps required'}</div>
       </div>
-      ${isMobileDevice() ? '<div style="margin-top:8px;padding:8px 12px;background:rgba(251,191,36,0.08);border:1px solid rgba(251,191,36,0.2);border-radius:8px;font-size:11px;color:var(--slate4);line-height:1.6"><strong style="color:#fbbf24">Mobile tip:</strong> When the menu appears, choose <strong>"Browse"</strong> or <strong>"Choose Files"</strong> (not Camera or Photos) to select your PDF or Excel BOQ document from your device storage.</div>' : ''}
+      ${isMobileDevice() ? '<div style="margin-top:8px;padding:8px 12px;background:rgba(251,191,36,0.08);border:1px solid rgba(251,191,36,0.2);border-radius:8px;font-size:11px;color:var(--slate4);line-height:1.6"><strong style="color:#fbbf24">Mobile tip:</strong> Choose <strong>"Browse"</strong> or <strong>"Choose Files"</strong> (not Camera or Photos) to select your document.</div>' : ''}
       <input type="file" id="tenderBOQFileInput" accept="application/pdf,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/csv,.pdf,.xlsx,.xls,.csv" style="display:none" onchange="validateAndHandleTenderFile(this)">
-      <div id="tenderPDFStatus" style="display:none;margin-top:10px"></div>
-      <div id="tenderBOQSheetSel" style="display:none;margin-top:10px">
-        <div class="form-row c3">
-          <div class="fg"><label>Sheet</label><select id="tenderBOQSheet"></select></div>
-          <div class="fg"><label>Header Row</label><select id="tenderBOQHeaderRow"><option value="0">Row 1</option><option value="1">Row 2</option><option value="2">Row 3</option><option value="3">Row 4</option></select></div>
-          <div class="fg" style="display:flex;align-items:flex-end"><button class="btn btn-primary btn-sm" onclick="processTenderBOQSheet()">Process Sheet</button></div>
-        </div>
-      </div>
+      <div id="tenderBOQStatus" style="display:none;margin-top:12px"></div>
       <div id="tenderBOQParseMsg" style="margin-top:10px"></div>
-      <div id="tenderBOQColMap" style="display:none;margin-top:12px"></div>
-      <div id="tenderBOQPreview" style="display:none;margin-top:12px"></div>
-      <div style="margin-top:14px;padding-top:10px;border-top:1px solid var(--border)">
-        <div style="font-size:11px;color:var(--slate5);margin-bottom:6px">Need a template?</div>
-        <div class="btn-row"><button class="btn btn-secondary btn-sm" onclick="downloadBOQTemplate()">CSV Template</button><button class="btn btn-secondary btn-sm" onclick="downloadBOQTemplateFull()">Full ICE Database CSV</button></div>
-      </div>
     </div>
   </div>
 
@@ -304,60 +291,6 @@ function renderTenderForm(el) {
     </div>
     <div id="tsSaveMsg" style="margin-top:12px"></div>
   </div>`;
-
-  // Restore BOQ upload state if a file was being processed when re-render occurred
-  restoreTenderBOQState();
-}
-
-// ===== RESTORE BOQ STATE AFTER RE-RENDER =====
-// When Firestore listeners trigger navigate() during file processing,
-// renderTenderForm rebuilds the DOM via innerHTML. This function
-// re-populates the BOQ upload section from the saved JS state variables.
-function restoreTenderBOQState() {
-  // Nothing to restore if no file was being processed
-  if (!_tenderBOQProcessing && _tenderBOQParsed.length === 0 && _tenderBOQMatched.length === 0) return;
-
-  // Ensure the BOQ body is visible
-  var body = $('tenderBOQBody');
-  var btn = $('tenderBOQToggleBtn');
-  if (body) body.style.display = '';
-  if (btn) btn.textContent = 'Collapse';
-  _tenderBOQMode = true;
-
-  // Restore file info
-  var info = $('tenderBOQFileInfo');
-  if (info && _tenderBOQFileName) {
-    info.style.display = '';
-    if (_tenderBOQWorkbook) {
-      info.textContent = _tenderBOQFileName + ' \u2014 ' + _tenderBOQWorkbook.SheetNames.length + ' sheet(s) found';
-    } else if (_tenderBOQParsed.length > 0) {
-      info.textContent = _tenderBOQFileName + ' \u2014 ' + (_tenderBOQParsed.length - 1) + ' data rows loaded';
-    } else {
-      info.textContent = 'Loading: ' + _tenderBOQFileName;
-    }
-  }
-
-  // Restore sheet selector for Excel files
-  if (_tenderBOQWorkbook) {
-    var sheetSel = $('tenderBOQSheet');
-    var sheetSelWrap = $('tenderBOQSheetSel');
-    if (sheetSel && sheetSelWrap) {
-      sheetSel.innerHTML = _tenderBOQWorkbook.SheetNames.map(function(name, i) {
-        return '<option value="' + i + '">' + name + '</option>';
-      }).join('');
-      sheetSelWrap.style.display = '';
-    }
-  }
-
-  // Restore column mapping if we have parsed data
-  if (_tenderBOQParsed.length >= 2) {
-    tenderBOQAutoMapColumns(_tenderBOQParsed);
-  }
-
-  // Restore matched results preview if we have matched data
-  if (_tenderBOQMatched.length > 0) {
-    renderTenderBOQPreview();
-  }
 }
 
 // ===== CATEGORY / TYPE HANDLERS =====
@@ -796,7 +729,7 @@ function toggleTenderBOQUpload() {
   } else {
     body.style.display = 'none';
     _tenderBOQMode = false;
-    _tenderBOQProcessing = false; // Allow re-renders when BOQ section is collapsed
+    _tenderBOQProcessing = false;
     if (btn) btn.textContent = 'Expand';
   }
 }
@@ -806,13 +739,27 @@ function handleTenderBOQDrop(event) {
   if (file) handleTenderBOQFile(file);
 }
 
+// Show processing status in the BOQ upload section
+function showBOQStatus(msg, type) {
+  var el = $('tenderBOQStatus');
+  if (!el) return;
+  el.style.display = '';
+  var colors = { info: 'rgba(96,165,250', green: 'rgba(52,211,153', red: 'rgba(239,68,68', yellow: 'rgba(251,191,36' };
+  var colorVars = { info: 'var(--blue)', green: 'var(--green)', red: 'var(--red)', yellow: 'var(--yellow)' };
+  var c = colors[type] || colors.info;
+  var cv = colorVars[type] || colorVars.info;
+  el.innerHTML = '<div style="padding:10px 14px;background:' + c + ',0.06);border:1px solid ' + c + ',0.15);border-radius:10px;font-size:12px;color:' + cv + '">' + msg + '</div>';
+}
+
+// ===== FULLY AUTOMATIC BOQ FILE PROCESSING =====
+// Upload file → parse → detect columns → match GWP → add to tender → show results
+// No manual steps required from the contractor
+
 function handleTenderBOQFile(file) {
   if (!file) return;
-  _tenderBOQProcessing = true; // Prevent Firestore re-renders while parsing
+  _tenderBOQProcessing = true;
   _tenderBOQFileName = file.name;
   var ext = file.name.split('.').pop().toLowerCase();
-  var info = $('tenderBOQFileInfo');
-  if (info) { info.style.display = ''; info.textContent = 'Loading: ' + file.name + ' (' + (file.size / 1024).toFixed(1) + ' KB)'; }
 
   // Auto-populate scenario name from file name if empty
   var nameInput = $('tsName');
@@ -822,7 +769,8 @@ function handleTenderBOQFile(file) {
     if (_tenderEdit) _tenderEdit.name = baseName;
   }
 
-  // Handle PDF tender documents
+  showBOQStatus('<strong>Step 1/4:</strong> Reading ' + file.name + ' (' + (file.size / 1024).toFixed(1) + ' KB)...', 'info');
+
   if (ext === 'pdf') {
     handleTenderPDFFile(file);
     return;
@@ -831,67 +779,163 @@ function handleTenderBOQFile(file) {
   var reader = new FileReader();
   reader.onload = function(e) {
     try {
+      var rows;
       if (ext === 'csv') {
-        var text = e.target.result;
-        var rows = parseCSV(text);
-        _tenderBOQParsed = rows;
-        _tenderBOQWorkbook = null;
-        $('tenderBOQSheetSel').style.display = 'none';
-        if (info) info.textContent = file.name + ' \u2014 ' + (rows.length - 1) + ' data rows loaded';
-        tenderBOQAutoMapColumns(rows);
+        rows = parseCSV(e.target.result);
       } else {
         if (typeof XLSX === 'undefined') {
           _tenderBOQProcessing = false;
-          showTenderBOQError('SheetJS library not loaded. Please check your internet connection and refresh.');
+          showBOQStatus('<strong>Error:</strong> SheetJS library not loaded. Please refresh the page.', 'red');
           return;
         }
         var data = new Uint8Array(e.target.result);
         var wb = XLSX.read(data, { type: 'array' });
-        _tenderBOQWorkbook = wb;
-        var sheetSel = $('tenderBOQSheet');
-        sheetSel.innerHTML = wb.SheetNames.map(function(name, i) {
-          return '<option value="' + i + '">' + name + '</option>';
-        }).join('');
-        $('tenderBOQSheetSel').style.display = '';
-        processTenderBOQSheet();
-        if (info) info.textContent = file.name + ' \u2014 ' + wb.SheetNames.length + ' sheet(s) found';
+        // Auto-select first sheet, auto-detect header row
+        var sheet = wb.Sheets[wb.SheetNames[0]];
+        var jsonData = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
+        // Auto-detect header row (first row with 2+ text columns)
+        var headerRowIdx = autoDetectHeaderRow(jsonData);
+        rows = jsonData.slice(headerRowIdx);
       }
+
+      if (!rows || rows.length < 2) {
+        _tenderBOQProcessing = false;
+        showBOQStatus('<strong>Error:</strong> File has no usable data rows. Please check the file and try again.', 'red');
+        return;
+      }
+
+      showBOQStatus('<strong>Step 2/4:</strong> Found ' + (rows.length - 1) + ' data rows. Identifying columns...', 'info');
+
+      // Auto-detect columns and immediately match + add
+      autoMatchAndAddBOQ(rows, file.name);
+
     } catch (err) {
       _tenderBOQProcessing = false;
-      showTenderBOQError('Failed to parse file: ' + err.message);
+      showBOQStatus('<strong>Error:</strong> Failed to parse file: ' + err.message, 'red');
     }
   };
   if (ext === 'csv') reader.readAsText(file);
   else reader.readAsArrayBuffer(file);
 }
 
+// Auto-detect header row index in Excel/CSV data
+function autoDetectHeaderRow(jsonData) {
+  for (var i = 0; i < Math.min(jsonData.length, 10); i++) {
+    var row = jsonData[i];
+    if (!row || row.length < 2) continue;
+    var textCols = 0;
+    for (var j = 0; j < row.length; j++) {
+      var cell = String(row[j] || '').toLowerCase().trim();
+      if (cell && /[a-z]{2,}/.test(cell)) textCols++;
+    }
+    if (textCols >= 2) return i;
+  }
+  return 0;
+}
+
+// Fully automatic: detect columns → match GWP → add items to tender → re-render
+function autoMatchAndAddBOQ(rows, fileName) {
+  var headers = rows[0].map(function(h) { return String(h).toLowerCase().trim(); });
+
+  var descCol = findColumn(headers, ['description', 'desc', 'item description', 'material description', 'boq item', 'item', 'material', 'name', 'element', 'component', 'spec', 'specification']);
+  var qtyCol = findColumn(headers, ['quantity', 'qty', 'amount', 'vol', 'volume', 'weight', 'mass', 'total qty', 'boq qty', 'total quantity']);
+  var unitCol = findColumn(headers, ['unit', 'uom', 'unit of measure', 'units', 'measure']);
+  var catCol = findColumn(headers, ['category', 'cat', 'material category', 'group', 'material group', 'type', 'material type', 'class']);
+  var efCol = findColumn(headers, ['ef', 'emission factor', 'carbon factor', 'gwp', 'co2', 'kgco2', 'embodied carbon', 'a1-a3', 'a1a3', 'epd']);
+  var notesCol = findColumn(headers, ['notes', 'remarks', 'comment', 'comments', 'reference', 'ref', 'epd ref', 'source']);
+
+  if (descCol < 0 || qtyCol < 0) {
+    _tenderBOQProcessing = false;
+    showBOQStatus('<strong>Error:</strong> Could not auto-detect Description and Quantity columns in your file. Headers found: ' + headers.filter(function(h) { return h; }).join(', '), 'red');
+    return;
+  }
+
+  showBOQStatus('<strong>Step 3/4:</strong> Matching materials to A1-A3 factors & ICE database...', 'info');
+
+  // Match all rows to GWP database
+  var dataRows = rows.slice(1);
+  var matchedItems = [];
+  var a13Count = 0, iceCount = 0, unmatchedCount = 0;
+
+  for (var r = 0; r < dataRows.length; r++) {
+    var row = dataRows[r];
+    var desc = String(row[descCol] || '').trim();
+    var rawQty = String(row[qtyCol] || '').replace(/,/g, '');
+    var qty = parseFloat(rawQty);
+    var unit = unitCol >= 0 ? String(row[unitCol] || '').trim() : '';
+    var catHint = catCol >= 0 ? String(row[catCol] || '').trim() : '';
+    var efValue = efCol >= 0 ? parseFloat(row[efCol]) : NaN;
+    var notes = notesCol >= 0 ? String(row[notesCol] || '').trim() : '';
+
+    if (!desc || isNaN(qty) || qty <= 0) continue;
+
+    var match = lookupTenderGWP(desc, catHint, unit);
+
+    if (match.gwpSource === 'A1-A3') a13Count++;
+    else if (match.gwpSource === 'ICE') iceCount++;
+    else unmatchedCount++;
+
+    var m = match.mat || MATERIALS[match.category] || ICE_MATERIALS[match.category];
+    var bl = (match.belowThreshold ? 0 : match.baseline) || 0;
+    var blEm = (qty * bl) / 1000;
+
+    _tenderItems.push({
+      id: Date.now() + r,
+      category: match.category || 'Unmatched',
+      type: match.typeName || desc,
+      qty: qty,
+      unit: unit || (m ? m.unit : ''),
+      efUnit: m ? m.efUnit : '',
+      massFactor: m ? m.massFactor : 1,
+      baselineEF: bl,
+      targetEF: bl,
+      baselineEmission: blEm,
+      targetEmission: blEm,
+      isCustom: !match.matched,
+      gwpSource: match.gwpSource || (match.matched ? 'ICE' : 'Manual'),
+      notes: desc + (notes ? ' | ' + notes : '') + (match.belowThreshold ? ' [MEP <80% Coverage]' : '') + (match.gwpSource ? ' [' + match.gwpSource + ']' : '')
+    });
+  }
+
+  // Calculate 80% material identification
+  recalcTender80Pct();
+
+  // Auto-fill description
+  var descInput = $('tsDesc');
+  if (descInput && !descInput.value.trim()) {
+    descInput.value = 'Imported from BOQ: ' + fileName;
+  }
+
+  // Clear processing state
+  _tenderBOQMode = false;
+  _tenderBOQMatched = [];
+  _tenderBOQParsed = [];
+  _tenderBOQWorkbook = null;
+  _tenderBOQProcessing = false;
+
+  // Re-render the form with results
+  navigate('tender_entry');
+}
+
 // ===== PDF TENDER DOCUMENT PARSING =====
 async function handleTenderPDFFile(file) {
-  var info = $('tenderBOQFileInfo');
-  var statusEl = $('tenderPDFStatus');
-
   if (typeof pdfjsLib === 'undefined') {
     _tenderBOQProcessing = false;
-    showTenderBOQError('PDF.js library not loaded. Please check your internet connection and refresh.');
+    showBOQStatus('<strong>Error:</strong> PDF.js library not loaded. Please refresh the page.', 'red');
     return;
   }
 
   try {
-    if (statusEl) {
-      statusEl.style.display = '';
-      statusEl.innerHTML = '<div style="padding:10px 14px;background:rgba(96,165,250,0.06);border:1px solid rgba(96,165,250,0.15);border-radius:10px;font-size:12px;color:var(--blue)"><strong>Reading PDF...</strong> Extracting text from tender document pages...</div>';
-    }
+    showBOQStatus('<strong>Step 1/4:</strong> Reading PDF... Extracting text from pages...', 'info');
 
     var arrayBuffer = await file.arrayBuffer();
     var pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
     var totalPages = pdf.numPages;
 
-    if (info) info.textContent = file.name + ' \u2014 ' + totalPages + ' page(s) \u2014 Extracting text...';
-
-    // Extract text from all pages
     var allText = '';
     var allLines = [];
     for (var p = 1; p <= totalPages; p++) {
+      showBOQStatus('<strong>Step 1/4:</strong> Reading PDF page ' + p + ' of ' + totalPages + '...', 'info');
       var page = await pdf.getPage(p);
       var textContent = await page.getTextContent();
       var pageLines = extractLinesFromTextContent(textContent);
@@ -899,36 +943,22 @@ async function handleTenderPDFFile(file) {
       allText += pageLines.join('\n') + '\n';
     }
 
-    if (statusEl) {
-      statusEl.innerHTML = '<div style="padding:10px 14px;background:rgba(52,211,153,0.06);border:1px solid rgba(52,211,153,0.15);border-radius:10px;font-size:12px;color:var(--green)"><strong>PDF text extracted.</strong> ' + allLines.length + ' lines from ' + totalPages + ' pages. Parsing BOQ table structure...</div>';
-    }
+    showBOQStatus('<strong>Step 2/4:</strong> Extracted ' + allLines.length + ' lines from ' + totalPages + ' pages. Parsing BOQ structure...', 'info');
 
-    // Parse the extracted text into structured BOQ rows
     var parsedRows = parsePDFTextToBOQ(allLines, allText);
 
     if (parsedRows.length < 2) {
       _tenderBOQProcessing = false;
-      showTenderBOQError('Could not extract a BOQ table from this PDF. The document may not contain a structured Bill of Quantities, or the format is not recognized. Try uploading an Excel/CSV version instead.');
-      if (statusEl) statusEl.style.display = 'none';
+      showBOQStatus('<strong>Error:</strong> Could not extract a BOQ table from this PDF. The document may not contain a structured Bill of Quantities. Try uploading an Excel/CSV version instead.', 'red');
       return;
     }
 
-    _tenderBOQParsed = parsedRows;
-    _tenderBOQWorkbook = null;
-    $('tenderBOQSheetSel').style.display = 'none';
-
-    if (info) info.textContent = file.name + ' \u2014 PDF \u2014 ' + (parsedRows.length - 1) + ' BOQ rows extracted';
-
-    if (statusEl) {
-      statusEl.innerHTML = '<div style="padding:10px 14px;background:rgba(52,211,153,0.06);border:1px solid rgba(52,211,153,0.15);border-radius:10px;font-size:12px;color:var(--green)"><strong>\u2705 PDF parsed successfully.</strong> Found ' + (parsedRows.length - 1) + ' potential BOQ line items. Map columns below and match to database.</div>';
-    }
-
-    tenderBOQAutoMapColumns(parsedRows);
+    // Auto-match and add to tender
+    autoMatchAndAddBOQ(parsedRows, file.name);
 
   } catch (err) {
     _tenderBOQProcessing = false;
-    showTenderBOQError('Failed to parse PDF: ' + err.message);
-    if (statusEl) statusEl.style.display = 'none';
+    showBOQStatus('<strong>Error:</strong> Failed to parse PDF: ' + err.message, 'red');
   }
 }
 
@@ -936,79 +966,56 @@ async function handleTenderPDFFile(file) {
 function extractLinesFromTextContent(textContent) {
   if (!textContent || !textContent.items || !textContent.items.length) return [];
 
-  // Group text items by their Y-position (rounded to group items on same line)
   var lineMap = {};
   textContent.items.forEach(function(item) {
     if (!item.str || !item.str.trim()) return;
-    var y = Math.round(item.transform[5]); // Y-coordinate
-    var x = item.transform[4]; // X-coordinate
+    var y = Math.round(item.transform[5]);
+    var x = item.transform[4];
     if (!lineMap[y]) lineMap[y] = [];
     lineMap[y].push({ x: x, text: item.str });
   });
 
-  // Sort lines by Y descending (PDF coordinates are bottom-up)
   var yKeys = Object.keys(lineMap).map(Number).sort(function(a, b) { return b - a; });
   var lines = [];
-
   yKeys.forEach(function(y) {
     var items = lineMap[y].sort(function(a, b) { return a.x - b.x; });
-    // Check if items are spread across columns (table-like)
-    var lineText = items.map(function(it) { return it.text.trim(); }).join('\t');
-    lines.push(lineText);
+    lines.push(items.map(function(it) { return it.text.trim(); }).join('\t'));
   });
-
   return lines;
 }
 
 // Parse extracted PDF text lines into structured BOQ rows (header + data)
 function parsePDFTextToBOQ(lines, fullText) {
-  // Strategy 1: Try to find tabular data with tab separators
   var tabularRows = [];
   for (var i = 0; i < lines.length; i++) {
     var parts = lines[i].split('\t').map(function(s) { return s.trim(); }).filter(function(s) { return s; });
-    if (parts.length >= 2) {
-      tabularRows.push(parts);
-    }
+    if (parts.length >= 2) tabularRows.push(parts);
   }
 
-  // Find the header row — look for rows containing keywords like "description", "quantity", "unit"
   var headerIdx = -1;
   var headerKeywords = ['description', 'item', 'material', 'qty', 'quantity', 'unit', 'amount', 'rate', 'total'];
   for (var h = 0; h < Math.min(tabularRows.length, 20); h++) {
     var rowLower = tabularRows[h].map(function(c) { return c.toLowerCase(); });
     var keywordHits = 0;
     headerKeywords.forEach(function(kw) {
-      rowLower.forEach(function(cell) {
-        if (cell.indexOf(kw) !== -1) keywordHits++;
-      });
+      rowLower.forEach(function(cell) { if (cell.indexOf(kw) !== -1) keywordHits++; });
     });
-    if (keywordHits >= 2) {
-      headerIdx = h;
-      break;
-    }
+    if (keywordHits >= 2) { headerIdx = h; break; }
   }
 
-  // If found a header, extract structured data
   if (headerIdx >= 0 && tabularRows.length > headerIdx + 1) {
     var header = tabularRows[headerIdx];
     var dataRows = tabularRows.slice(headerIdx + 1);
-
-    // Normalize column count to match header
     var colCount = header.length;
     var normalizedRows = [header];
 
     dataRows.forEach(function(row) {
-      // Skip rows that look like subtotals or section headers
       var joined = row.join(' ').toLowerCase();
       if (joined.indexOf('subtotal') !== -1 || joined.indexOf('sub-total') !== -1 ||
           joined.indexOf('total') === 0 || joined.indexOf('grand total') !== -1 ||
           joined.indexOf('page ') !== -1) return;
-
-      // Pad or trim to match header column count
       while (row.length < colCount) row.push('');
       if (row.length > colCount) row = row.slice(0, colCount);
-
-      // Must have at least one non-empty cell with potential quantity data
       var hasNumber = row.some(function(c) { return /\d/.test(c); });
       var hasText = row.some(function(c) { return /[a-zA-Z]{2,}/.test(c); });
       if (hasNumber && hasText) normalizedRows.push(row);
@@ -1017,11 +1024,9 @@ function parsePDFTextToBOQ(lines, fullText) {
     if (normalizedRows.length >= 2) return normalizedRows;
   }
 
-  // Strategy 2: Try to extract BOQ items using pattern matching on individual lines
-  // Look for lines that have: description text followed by numbers (qty, rate, amount)
+  // Strategy 2: Pattern matching
   var patternRows = [];
   var descQtyPattern = /^(.+?)\s+(\d[\d,]*\.?\d*)\s+(m[²³]?|m2|m3|kg|tons?|nr|no|nos?|ls|set|lot|pcs?|each|lm|rm|sqm|cum)\b/i;
-  var numAtEndPattern = /^(.{10,}?)\s+(\d[\d,]*\.?\d*)\s*$/;
 
   for (var j = 0; j < lines.length; j++) {
     var line = lines[j].replace(/\t/g, '  ').trim();
@@ -1032,13 +1037,11 @@ function parsePDFTextToBOQ(lines, fullText) {
       var desc = m1[1].trim();
       var qty = m1[2].replace(/,/g, '');
       var unit = m1[3].trim();
-      // Skip lines that are clearly not BOQ items
       if (desc.length < 3 || /^(page|date|ref|no\.|item no|sl)/i.test(desc)) continue;
       patternRows.push([desc, qty, unit, '', '']);
       continue;
     }
 
-    // Try to extract from tab-separated columns
     var tabParts = line.split(/\t+/).map(function(s) { return s.trim(); }).filter(function(s) { return s; });
     if (tabParts.length >= 3) {
       var hasDesc = /[a-zA-Z]{3,}/.test(tabParts[0]);
@@ -1047,13 +1050,9 @@ function parsePDFTextToBOQ(lines, fullText) {
       for (var k = 1; k < tabParts.length; k++) {
         var numMatch = tabParts[k].match(/^(\d[\d,]*\.?\d*)$/);
         if (numMatch && !hasQty) { hasQty = true; qtyVal = numMatch[1].replace(/,/g, ''); }
-        if (/^(m[²³]?|m2|m3|kg|tons?|nr|no|nos?|ls|set|lot|pcs?|each|lm|rm|sqm|cum)$/i.test(tabParts[k])) {
-          unitVal = tabParts[k];
-        }
+        if (/^(m[²³]?|m2|m3|kg|tons?|nr|no|nos?|ls|set|lot|pcs?|each|lm|rm|sqm|cum)$/i.test(tabParts[k])) unitVal = tabParts[k];
       }
-      if (hasDesc && hasQty) {
-        patternRows.push([tabParts[0], qtyVal, unitVal, '', '']);
-      }
+      if (hasDesc && hasQty) patternRows.push([tabParts[0], qtyVal, unitVal, '', '']);
     }
   }
 
@@ -1061,363 +1060,10 @@ function parsePDFTextToBOQ(lines, fullText) {
     patternRows.unshift(['Description', 'Quantity', 'Unit', 'Category', 'Notes']);
     return patternRows;
   }
-
-  // Strategy 3: Return empty if nothing found
   return [];
-}
-
-function processTenderBOQSheet() {
-  if (!_tenderBOQWorkbook) return;
-  var sheetIdx = parseInt($('tenderBOQSheet').value) || 0;
-  var headerRowIdx = parseInt($('tenderBOQHeaderRow').value) || 0;
-  var sheet = _tenderBOQWorkbook.Sheets[_tenderBOQWorkbook.SheetNames[sheetIdx]];
-  var jsonData = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
-  if (jsonData.length <= headerRowIdx) {
-    showTenderBOQError('Sheet is empty or header row is beyond data.');
-    return;
-  }
-  var rows = jsonData.slice(headerRowIdx);
-  _tenderBOQParsed = rows;
-  var info = $('tenderBOQFileInfo');
-  if (info) info.textContent = _tenderBOQFileName + ' \u2014 Sheet: ' + _tenderBOQWorkbook.SheetNames[sheetIdx] + ' \u2014 ' + (rows.length - 1) + ' data rows';
-  tenderBOQAutoMapColumns(rows);
-}
-
-function tenderBOQAutoMapColumns(rows) {
-  if (rows.length < 2) { showTenderBOQError('File has no data rows (need at least header + 1 row).'); return; }
-  var headers = rows[0].map(function(h) { return String(h).toLowerCase().trim(); });
-
-  var descCol = findColumn(headers, ['description', 'desc', 'item description', 'material description', 'boq item', 'item', 'material', 'name', 'element', 'component', 'spec', 'specification']);
-  var qtyCol = findColumn(headers, ['quantity', 'qty', 'amount', 'vol', 'volume', 'weight', 'mass', 'total qty', 'boq qty', 'total quantity']);
-  var unitCol = findColumn(headers, ['unit', 'uom', 'unit of measure', 'units', 'measure']);
-  var catCol = findColumn(headers, ['category', 'cat', 'material category', 'group', 'material group', 'type', 'material type', 'class']);
-  var efCol = findColumn(headers, ['ef', 'emission factor', 'carbon factor', 'gwp', 'co2', 'kgco2', 'embodied carbon', 'a1-a3', 'a1a3', 'epd']);
-  var notesCol = findColumn(headers, ['notes', 'remarks', 'comment', 'comments', 'reference', 'ref', 'epd ref', 'source']);
-
-  var mapEl = $('tenderBOQColMap');
-  mapEl.style.display = '';
-  mapEl.innerHTML =
-    '<div style="padding:8px 12px;background:rgba(52,211,153,0.06);border:1px solid rgba(52,211,153,0.15);border-radius:10px;margin-bottom:12px;font-size:11px;color:var(--green)">Auto-detected columns from your file. Adjust if needed.</div>' +
-    '<div class="form-row c3">' +
-    buildColSelect('tBOQMapDesc', 'Description / Material *', headers, descCol) +
-    buildColSelect('tBOQMapQty', 'Quantity *', headers, qtyCol) +
-    buildColSelect('tBOQMapUnit', 'Unit', headers, unitCol) +
-    '</div><div class="form-row c3">' +
-    buildColSelect('tBOQMapCat', 'Category (optional)', headers, catCol) +
-    buildColSelect('tBOQMapEF', 'Emission Factor (optional)', headers, efCol) +
-    buildColSelect('tBOQMapNotes', 'Notes (optional)', headers, notesCol) +
-    '</div>' +
-    '<div class="btn-row"><button class="btn btn-primary" onclick="matchTenderBOQRows()">\ud83d\udd17 Match to A1-A3 / ICE Database</button></div>';
-}
-
-function matchTenderBOQRows() {
-  var descIdx = parseInt($('tBOQMapDesc').value);
-  var qtyIdx = parseInt($('tBOQMapQty').value);
-  var unitIdx = parseInt($('tBOQMapUnit').value);
-  var catIdx = parseInt($('tBOQMapCat').value);
-  var efIdx = parseInt($('tBOQMapEF').value);
-  var notesIdx = parseInt($('tBOQMapNotes').value);
-
-  if (descIdx < 0 || qtyIdx < 0) {
-    showTenderBOQError('Please map at least Description and Quantity columns.');
-    return;
-  }
-
-  var dataRows = _tenderBOQParsed.slice(1);
-  _tenderBOQMatched = [];
-
-  for (var r = 0; r < dataRows.length; r++) {
-    var row = dataRows[r];
-    var desc = String(row[descIdx] || '').trim();
-    var rawQty = String(row[qtyIdx] || '').replace(/,/g, '');
-    var qty = parseFloat(rawQty);
-    var unit = unitIdx >= 0 ? String(row[unitIdx] || '').trim() : '';
-    var catHint = catIdx >= 0 ? String(row[catIdx] || '').trim() : '';
-    var efValue = efIdx >= 0 ? parseFloat(row[efIdx]) : NaN;
-    var notes = notesIdx >= 0 ? String(row[notesIdx] || '').trim() : '';
-
-    if (!desc || isNaN(qty) || qty <= 0) continue;
-
-    // Use lookupTenderGWP: A1-A3 MATERIALS first, then ICE fallback
-    var match = lookupTenderGWP(desc, catHint, unit);
-
-    _tenderBOQMatched.push({
-      rowNum: r + 2,
-      description: desc,
-      qty: qty,
-      unit: unit || (match.mat ? match.mat.unit : ''),
-      category: match.category || '',
-      typeName: match.typeName || '',
-      typeIdx: match.typeIdx,
-      matched: match.matched,
-      matchScore: match.score,
-      baseline: match.baseline || 0,
-      target: match.baseline || 0, // Tender = baseline only
-      efOverride: !isNaN(efValue) ? efValue : 0,
-      isMEP: match.isMEP || false,
-      belowThreshold: match.belowThreshold || false,
-      coveragePct: match.coveragePct || 100,
-      notes: notes,
-      mat: match.mat,
-      gwpSource: match.gwpSource || 'none'
-    });
-  }
-
-  renderTenderBOQPreview();
-}
-
-function renderTenderBOQPreview() {
-  var matchedCount = _tenderBOQMatched.filter(function(r) { return r.matched; }).length;
-  var unmatchedCount = _tenderBOQMatched.length - matchedCount;
-  var a13Count = _tenderBOQMatched.filter(function(r) { return r.gwpSource === 'A1-A3'; }).length;
-  var iceCount = _tenderBOQMatched.filter(function(r) { return r.gwpSource === 'ICE'; }).length;
-
-  var totalBL = 0;
-  _tenderBOQMatched.filter(function(r) { return r.matched; }).forEach(function(r) {
-    totalBL += (r.qty * r.baseline) / 1000;
-  });
-
-  var prevEl = $('tenderBOQPreview');
-  prevEl.style.display = '';
-
-  var html = '<div class="stats-row" style="margin-bottom:12px">' +
-    '<div class="stat-card green"><div class="sc-label">A1-A3 Matched</div><div class="sc-value">' + a13Count + '</div><div class="sc-sub">consultant baseline factors</div></div>' +
-    '<div class="stat-card blue"><div class="sc-label">ICE Matched</div><div class="sc-value">' + iceCount + '</div><div class="sc-sub">ICE database fallback</div></div>' +
-    '<div class="stat-card orange"><div class="sc-label">Unmatched</div><div class="sc-value">' + unmatchedCount + '</div><div class="sc-sub">need manual edit</div></div>' +
-    '<div class="stat-card cyan"><div class="sc-label">Total Baseline</div><div class="sc-value">' + fmt(totalBL) + '</div><div class="sc-sub">tCO\u2082eq (baseline only)</div></div>' +
-    '</div>';
-
-  html += '<div class="tbl-wrap" style="max-height:400px;overflow-y:auto"><table><thead><tr><th>Row</th><th>BOQ Description</th><th class="r">Qty</th><th>Unit</th><th>Category</th><th>Type</th><th class="r">Baseline EF</th><th>GWP Source</th><th>Status</th><th></th></tr></thead><tbody>';
-
-  for (var i = 0; i < _tenderBOQMatched.length; i++) {
-    var r = _tenderBOQMatched[i];
-    var srcBadge = r.gwpSource === 'A1-A3'
-      ? '<span style="display:inline-block;background:rgba(52,211,153,0.1);color:var(--green);font-size:9px;padding:2px 6px;border-radius:4px;font-weight:600">A1-A3</span>'
-      : r.gwpSource === 'ICE'
-      ? '<span style="display:inline-block;background:rgba(96,165,250,0.1);color:var(--blue);font-size:9px;padding:2px 6px;border-radius:4px;font-weight:600">ICE</span>'
-      : '';
-    var statusBadge = r.matched
-      ? (r.belowThreshold
-        ? '<span style="display:inline-block;background:rgba(239,68,68,0.1);color:var(--red);font-size:9px;padding:2px 6px;border-radius:4px;font-weight:600">MEP A1-A3=0</span>'
-        : '<span style="display:inline-block;background:rgba(52,211,153,0.1);color:var(--green);font-size:9px;padding:2px 6px;border-radius:4px;font-weight:600">Matched (' + r.matchScore + ')</span>')
-      : '<span style="display:inline-block;background:rgba(251,191,36,0.1);color:var(--yellow);font-size:9px;padding:2px 6px;border-radius:4px;font-weight:600">Unmatched</span>';
-
-    html += '<tr' + (!r.matched ? ' style="background:rgba(251,191,36,0.03)"' : r.belowThreshold ? ' style="background:rgba(239,68,68,0.03)"' : '') + '>' +
-      '<td style="color:var(--slate5);font-size:11px">' + r.rowNum + '</td>' +
-      '<td style="font-size:11px;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="' + escAttrT(r.description) + '">' + esc(r.description) + '</td>' +
-      '<td class="r mono" style="font-size:11px">' + fmtI(r.qty) + '</td>' +
-      '<td style="font-size:11px">' + esc(r.unit) + '</td>' +
-      '<td style="font-weight:600;font-size:11px;color:' + (r.matched ? 'var(--text)' : 'var(--yellow)') + '">' + (r.category || '\u2014') + '</td>' +
-      '<td style="font-size:10px">' + (r.typeName || '\u2014') + '</td>' +
-      '<td class="r mono" style="font-size:11px">' + (r.baseline || '\u2014') + '</td>' +
-      '<td>' + srcBadge + '</td>' +
-      '<td>' + statusBadge + '</td>' +
-      '<td><button class="btn btn-secondary btn-sm" style="font-size:10px;padding:2px 6px" onclick="editTenderBOQRow(' + i + ')">Edit</button>' +
-      ' <button class="btn btn-danger btn-sm" style="font-size:10px;padding:2px 6px" onclick="removeTenderBOQRow(' + i + ')">\u2715</button></td>' +
-      '</tr>';
-  }
-  html += '</tbody></table></div>';
-
-  html += '<div class="btn-row" style="margin-top:14px">' +
-    '<button class="btn btn-primary" onclick="addTenderBOQToItems()">\u2705 Add ' + matchedCount + ' Matched Items to Tender</button>' +
-    '<button class="btn btn-secondary" onclick="addTenderBOQAllToItems()">Add All ' + _tenderBOQMatched.length + ' Items (incl. unmatched)</button>' +
-    '</div>' +
-    '<div id="tenderBOQAddMsg" style="margin-top:8px"></div>';
-
-  prevEl.innerHTML = html;
-}
-
-function escAttrT(s) { return String(s).replace(/"/g, '&quot;').replace(/</g, '&lt;'); }
-
-function editTenderBOQRow(idx) {
-  var r = _tenderBOQMatched[idx];
-
-  // Build category options: A1-A3 MATERIALS first, then ICE
-  var catOptions = '<option value="">Select category...</option>';
-  // A1-A3 categories first
-  var a13Cats = Object.keys(MATERIALS);
-  if (a13Cats.length > 0) {
-    catOptions += '<optgroup label="A1-A3 Baseline Factors">';
-    a13Cats.forEach(function(c) { catOptions += '<option value="' + c + '"' + (c === r.category ? ' selected' : '') + '>' + c + ' (A1-A3)</option>'; });
-    catOptions += '</optgroup>';
-  }
-  // ICE categories
-  var groups = getICEGroups();
-  Object.entries(groups).forEach(function(entry) {
-    var grp = entry[0];
-    var cats = entry[1];
-    catOptions += '<optgroup label="ICE: ' + grp + '">';
-    cats.forEach(function(c) { catOptions += '<option value="' + c + '"' + (c === r.category && r.gwpSource !== 'A1-A3' ? ' selected' : '') + '>' + c + '</option>'; });
-    catOptions += '</optgroup>';
-  });
-
-  var typeOptions = '<option value="">Select type...</option>';
-  var editMat = MATERIALS[r.category] || ICE_MATERIALS[r.category];
-  if (r.category && editMat) {
-    var isA13Edit = !!MATERIALS[r.category];
-    editMat.types.forEach(function(t, i) {
-      var covTag = (!isA13Edit && ICE_MATERIALS[r.category] && ICE_MATERIALS[r.category].isMEP && t.coveragePct !== undefined && t.coveragePct < ICE_COVERAGE_THRESHOLD) ? ' [A1-A3=0]' : '';
-      typeOptions += '<option value="' + i + '"' + (t.name === r.typeName ? ' selected' : '') + '>' + t.name + covTag + '</option>';
-    });
-  }
-
-  var overlay = document.createElement('div');
-  overlay.id = 'tBOQEditOverlay';
-  overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.6);z-index:1000;display:flex;align-items:center;justify-content:center;padding:20px';
-  overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
-  overlay.innerHTML = '<div style="max-width:560px;width:100%"><div class="card">' +
-    '<div class="card-title">Edit BOQ Row ' + r.rowNum + ': ' + esc(r.description.substring(0, 50)) + '</div>' +
-    '<div class="form-row c2">' +
-    '<div class="fg"><label>ICE Category</label><select id="tBOQEditCat" onchange="onTBOQEditCat()">' + catOptions + '</select></div>' +
-    '<div class="fg"><label>ICE Type</label><select id="tBOQEditType">' + typeOptions + '</select></div>' +
-    '</div>' +
-    '<div class="form-row c2">' +
-    '<div class="fg"><label>Quantity</label><input type="number" id="tBOQEditQty" value="' + r.qty + '"></div>' +
-    '<div class="fg"><label>Unit</label><input id="tBOQEditUnit" value="' + esc(r.unit) + '"></div>' +
-    '</div>' +
-    '<div class="form-row c2">' +
-    '<div class="fg"><label>Notes</label><input id="tBOQEditNotes" value="' + escAttrT(r.notes) + '"></div>' +
-    '<div class="fg"></div>' +
-    '</div>' +
-    '<div class="btn-row"><button class="btn btn-primary" onclick="saveTenderBOQEdit(' + idx + ')">Save</button>' +
-    '<button class="btn btn-secondary" onclick="document.getElementById(\'tBOQEditOverlay\').remove()">Cancel</button></div>' +
-    '</div></div>';
-  document.body.appendChild(overlay);
-}
-
-function onTBOQEditCat() {
-  var cat = $('tBOQEditCat').value;
-  var typeSel = $('tBOQEditType');
-  typeSel.innerHTML = '<option value="">Select type...</option>';
-  // Check A1-A3 first, then ICE
-  var a13m = MATERIALS[cat];
-  var icem = ICE_MATERIALS[cat];
-  var m = a13m || icem;
-  if (cat && m) {
-    m.types.forEach(function(t, i) {
-      var covTag = (!a13m && icem && icem.isMEP && t.coveragePct !== undefined && t.coveragePct < ICE_COVERAGE_THRESHOLD) ? ' [A1-A3=0]' : '';
-      typeSel.innerHTML += '<option value="' + i + '">' + t.name + covTag + '</option>';
-    });
-  }
-}
-
-function saveTenderBOQEdit(idx) {
-  var cat = $('tBOQEditCat').value;
-  var typeIdx = parseInt($('tBOQEditType').value);
-  var qty = parseFloat($('tBOQEditQty').value);
-  var unit = $('tBOQEditUnit').value.trim();
-  var notes = $('tBOQEditNotes').value.trim();
-
-  var r = _tenderBOQMatched[idx];
-  r.qty = isNaN(qty) ? r.qty : qty;
-  r.unit = unit || r.unit;
-  r.notes = notes;
-
-  if (cat && !isNaN(typeIdx) && typeIdx >= 0) {
-    // Check A1-A3 MATERIALS first, then ICE
-    var a13m = MATERIALS[cat];
-    var icem = ICE_MATERIALS[cat];
-    var m = a13m || icem;
-    if (m) {
-      var t = m.types[typeIdx];
-      var isA13 = !!a13m;
-      var belowThreshold = !isA13 && icem && icem.isMEP && t.coveragePct !== undefined && t.coveragePct < ICE_COVERAGE_THRESHOLD;
-      r.category = cat;
-      r.typeName = t.name;
-      r.typeIdx = typeIdx;
-      r.matched = true;
-      r.matchScore = 100;
-      r.baseline = belowThreshold ? 0 : t.baseline;
-      r.target = r.baseline; // Tender = baseline only
-      r.isMEP = !isA13 && !!icem && !!icem.isMEP;
-      r.belowThreshold = belowThreshold;
-      r.coveragePct = t.coveragePct || 100;
-      r.mat = m;
-      r.gwpSource = isA13 ? 'A1-A3' : 'ICE';
-    }
-  }
-
-  var overlay = $('tBOQEditOverlay');
-  if (overlay) overlay.remove();
-  renderTenderBOQPreview();
-}
-
-function removeTenderBOQRow(idx) {
-  _tenderBOQMatched.splice(idx, 1);
-  renderTenderBOQPreview();
-}
-
-function addTenderBOQToItems() {
-  var matched = _tenderBOQMatched.filter(function(r) { return r.matched; });
-  if (matched.length === 0) {
-    showTenderBOQMsg('tenderBOQAddMsg', 'No matched rows to add. Edit unmatched rows first.', 'red');
-    return;
-  }
-  _addBOQItemsToTender(matched);
-}
-
-function addTenderBOQAllToItems() {
-  if (_tenderBOQMatched.length === 0) {
-    showTenderBOQMsg('tenderBOQAddMsg', 'No rows to add.', 'red');
-    return;
-  }
-  _addBOQItemsToTender(_tenderBOQMatched);
-}
-
-function _addBOQItemsToTender(rows) {
-  var count = 0;
-  for (var i = 0; i < rows.length; i++) {
-    var r = rows[i];
-    var m = r.mat || MATERIALS[r.category] || ICE_MATERIALS[r.category];
-    var bl = r.belowThreshold ? 0 : r.baseline;
-    var blEm = (r.qty * bl) / 1000;
-
-    _tenderItems.push({
-      id: Date.now() + i,
-      category: r.category || 'Unmatched',
-      type: r.typeName || r.description,
-      qty: r.qty,
-      unit: r.unit || (m ? m.unit : ''),
-      efUnit: m ? m.efUnit : '',
-      massFactor: m ? m.massFactor : 1,
-      baselineEF: bl,
-      targetEF: bl, // Tender = baseline only
-      baselineEmission: blEm,
-      targetEmission: blEm, // Tender = baseline only
-      isCustom: !r.matched,
-      gwpSource: r.gwpSource || (r.matched ? 'ICE' : 'Manual'),
-      notes: r.description + (r.notes ? ' | ' + r.notes : '') + (r.belowThreshold ? ' [MEP <80% Coverage]' : '') + (r.gwpSource ? ' [' + r.gwpSource + ']' : '')
-    });
-    count++;
-  }
-
-  // Recalculate 80% flags after adding all items
-  recalcTender80Pct();
-
-  var nameInput = $('tsName');
-  if (nameInput && !nameInput.value.trim()) {
-    nameInput.value = _tenderBOQFileName ? _tenderBOQFileName.replace(/\.[^.]+$/, '') : 'BOQ Upload';
-  }
-  var descInput = $('tsDesc');
-  if (descInput && !descInput.value.trim()) {
-    descInput.value = 'Imported from BOQ: ' + _tenderBOQFileName;
-  }
-
-  _tenderBOQMode = false;
-  _tenderBOQMatched = [];
-  _tenderBOQParsed = [];
-  _tenderBOQWorkbook = null;
-  _tenderBOQProcessing = false; // Done processing, allow re-renders again
-
-  navigate('tender_entry');
 }
 
 function showTenderBOQError(msg) {
   var el = $('tenderBOQParseMsg');
   if (el) el.innerHTML = '<div style="padding:8px 12px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.2);border-radius:10px;color:var(--red);font-size:12px">' + msg + '</div>';
-}
-
-function showTenderBOQMsg(elId, msg, color) {
-  var el = $(elId);
-  if (el) el.innerHTML = '<div style="padding:8px 12px;background:rgba(' + (color === 'green' ? '52,211,153' : color === 'red' ? '239,68,68' : '251,191,36') + ',0.1);border-radius:10px;color:var(--' + color + ');font-size:12px;font-weight:600">' + msg + '</div>';
 }
