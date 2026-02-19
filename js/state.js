@@ -27,5 +27,5 @@ async function loadAllData() {
   // Setup real-time listeners
   DB.onEntriesChange(data => { state.entries = data; if (state.page) navigate(state.page); });
   DB.onA5Change(data => { state.a5entries = data; if (state.page === 'entry_a5' || state.page === 'dashboard') navigate(state.page); });
-  DB.onTenderChange(data => { state.tenderScenarios = data; if (state.page === 'tender_entry' || state.page === 'tender_compare') navigate(state.page); });
+  DB.onTenderChange(data => { state.tenderScenarios = data; if ((state.page === 'tender_entry' || state.page === 'tender_compare') && !_tenderBOQProcessing) navigate(state.page); });
 }

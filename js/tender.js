@@ -122,6 +122,7 @@ let _tenderBOQWorkbook = null;
 let _tenderBOQParsed = [];
 let _tenderBOQMatched = [];
 let _tenderBOQFileName = '';
+let _tenderBOQProcessing = false; // Guard: true while a file is being parsed/mapped
 
 // Detect mobile device
 function isMobileDevice() {
@@ -736,9 +737,12 @@ function toggleTenderBOQUpload() {
   if (!body) return;
   if (body.style.display === 'none') {
     body.style.display = '';
+    _tenderBOQMode = true;
     if (btn) btn.textContent = 'Collapse';
   } else {
     body.style.display = 'none';
+    _tenderBOQMode = false;
+    _tenderBOQProcessing = false; // Allow re-renders when BOQ section is collapsed
     if (btn) btn.textContent = 'Expand';
   }
 }
@@ -750,6 +754,7 @@ function handleTenderBOQDrop(event) {
 
 function handleTenderBOQFile(file) {
   if (!file) return;
+  _tenderBOQProcessing = true; // Prevent Firestore re-renders while parsing
   _tenderBOQFileName = file.name;
   var ext = file.name.split('.').pop().toLowerCase();
   var info = $('tenderBOQFileInfo');
@@ -782,6 +787,7 @@ function handleTenderBOQFile(file) {
         tenderBOQAutoMapColumns(rows);
       } else {
         if (typeof XLSX === 'undefined') {
+          _tenderBOQProcessing = false;
           showTenderBOQError('SheetJS library not loaded. Please check your internet connection and refresh.');
           return;
         }
@@ -797,6 +803,7 @@ function handleTenderBOQFile(file) {
         if (info) info.textContent = file.name + ' \u2014 ' + wb.SheetNames.length + ' sheet(s) found';
       }
     } catch (err) {
+      _tenderBOQProcessing = false;
       showTenderBOQError('Failed to parse file: ' + err.message);
     }
   };
@@ -810,6 +817,7 @@ async function handleTenderPDFFile(file) {
   var statusEl = $('tenderPDFStatus');
 
   if (typeof pdfjsLib === 'undefined') {
+    _tenderBOQProcessing = false;
     showTenderBOQError('PDF.js library not loaded. Please check your internet connection and refresh.');
     return;
   }
@@ -845,6 +853,7 @@ async function handleTenderPDFFile(file) {
     var parsedRows = parsePDFTextToBOQ(allLines, allText);
 
     if (parsedRows.length < 2) {
+      _tenderBOQProcessing = false;
       showTenderBOQError('Could not extract a BOQ table from this PDF. The document may not contain a structured Bill of Quantities, or the format is not recognized. Try uploading an Excel/CSV version instead.');
       if (statusEl) statusEl.style.display = 'none';
       return;
@@ -863,6 +872,7 @@ async function handleTenderPDFFile(file) {
     tenderBOQAutoMapColumns(parsedRows);
 
   } catch (err) {
+    _tenderBOQProcessing = false;
     showTenderBOQError('Failed to parse PDF: ' + err.message);
     if (statusEl) statusEl.style.display = 'none';
   }
@@ -1343,6 +1353,7 @@ function _addBOQItemsToTender(rows) {
   _tenderBOQMatched = [];
   _tenderBOQParsed = [];
   _tenderBOQWorkbook = null;
+  _tenderBOQProcessing = false; // Done processing, allow re-renders again
 
   navigate('tender_entry');
 }
