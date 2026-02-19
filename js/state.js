@@ -25,7 +25,9 @@ async function loadAllData() {
   }
 
   // Setup real-time listeners
-  DB.onEntriesChange(data => { state.entries = data; if (state.page) navigate(state.page); });
-  DB.onA5Change(data => { state.a5entries = data; if (state.page === 'entry_a5' || state.page === 'dashboard') navigate(state.page); });
-  DB.onTenderChange(data => { state.tenderScenarios = data; if (state.page === 'tender_entry' || state.page === 'tender_compare') navigate(state.page); });
+  // IMPORTANT: Never re-render via navigate() while user is editing a tender form (_tenderEdit !== null).
+  // Polling data still updates state silently — the UI refreshes only on explicit user actions.
+  DB.onEntriesChange(data => { state.entries = data; if (state.page && !_tenderEdit) navigate(state.page); });
+  DB.onA5Change(data => { state.a5entries = data; if ((state.page === 'entry_a5' || state.page === 'dashboard') && !_tenderEdit) navigate(state.page); });
+  DB.onTenderChange(data => { state.tenderScenarios = data; if ((state.page === 'tender_entry' || state.page === 'tender_compare') && !_tenderEdit) navigate(state.page); });
 }
