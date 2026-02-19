@@ -195,17 +195,18 @@ function renderTenderForm(el) {
         \u2705 Match to <strong>A1-A3 baseline factors</strong> (priority) then <strong>ICE Database</strong> (fallback)<br>
         \u2705 Calculate embodied carbon & identify materials contributing to <strong>80% of total emissions</strong>
       </div>
-      <div id="tenderBOQDropZone" style="border:2px dashed rgba(52,211,153,0.3);border-radius:14px;padding:32px 20px;text-align:center;cursor:pointer;transition:all 0.2s;background:rgba(52,211,153,0.02)"
-        onclick="openTenderFileInput()"
+      <label for="tenderBOQFileInput" id="tenderBOQDropZone" style="display:block;border:2px dashed rgba(52,211,153,0.3);border-radius:14px;padding:32px 20px;text-align:center;cursor:pointer;transition:all 0.2s;background:rgba(52,211,153,0.02)"
         ondragover="event.preventDefault();this.style.borderColor='var(--green)';this.style.background='rgba(52,211,153,0.06)'"
         ondragleave="this.style.borderColor='rgba(52,211,153,0.3)';this.style.background='rgba(52,211,153,0.02)'"
         ondrop="event.preventDefault();this.style.borderColor='rgba(52,211,153,0.3)';this.style.background='rgba(52,211,153,0.02)';handleTenderBOQDrop(event)">
         <div style="font-size:28px;opacity:0.4;margin-bottom:4px">\ud83d\udcc2</div>
-        <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:3px">${isMobileDevice() ? 'Tap to select your BOQ file' : 'Drop your BOQ file here \u2014 processing is fully automatic'}</div>
-        <div style="font-size:11px;color:var(--slate5)">${isMobileDevice() ? 'Tap <strong>"Browse"</strong> or <strong>"Choose Files"</strong> to find your document' : 'Supports .pdf, .xlsx, .xls, .csv \u2014 no manual steps required'}</div>
+        <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:3px">Tap to select your BOQ file</div>
+        <div style="font-size:11px;color:var(--slate5)">Supports .pdf, .xlsx, .xls, .csv</div>
+      </label>
+      <input type="file" id="tenderBOQFileInput" accept=".pdf,.xlsx,.xls,.csv" style="position:absolute;left:-9999px;opacity:0" onchange="validateAndHandleTenderFile(this)">
+      <div style="margin-top:10px;text-align:center">
+        <label for="tenderBOQFileInput" class="btn btn-primary" style="display:inline-block;cursor:pointer;margin:0">Choose File</label>
       </div>
-      ${isMobileDevice() ? '<div style="margin-top:8px;padding:8px 12px;background:rgba(251,191,36,0.08);border:1px solid rgba(251,191,36,0.2);border-radius:8px;font-size:11px;color:var(--slate4);line-height:1.6"><strong style="color:#fbbf24">Mobile tip:</strong> Choose <strong>"Browse"</strong> or <strong>"Choose Files"</strong> (not Camera or Photos) to select your document.</div>' : ''}
-      <input type="file" id="tenderBOQFileInput" accept="application/pdf,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/csv,.pdf,.xlsx,.xls,.csv" style="display:none" onchange="validateAndHandleTenderFile(this)">
       <div id="tenderBOQStatus" style="display:none;margin-top:12px"></div>
       <div id="tenderBOQParseMsg" style="margin-top:10px"></div>
       ${_tenderBOQLastResult ? renderBOQResultSummary(_tenderBOQLastResult) : ''}
