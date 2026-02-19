@@ -123,6 +123,7 @@ let _tenderBOQParsed = [];
 let _tenderBOQMatched = [];
 let _tenderBOQFileName = '';
 let _tenderBOQProcessing = false; // Guard: true while a file is being parsed/mapped
+let _tenderBOQLastResult = null;  // Stores last upload result summary for display
 
 // Detect mobile device
 function isMobileDevice() {
@@ -207,6 +208,7 @@ function renderTenderForm(el) {
       <input type="file" id="tenderBOQFileInput" accept="application/pdf,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/csv,.pdf,.xlsx,.xls,.csv" style="display:none" onchange="validateAndHandleTenderFile(this)">
       <div id="tenderBOQStatus" style="display:none;margin-top:12px"></div>
       <div id="tenderBOQParseMsg" style="margin-top:10px"></div>
+      ${_tenderBOQLastResult ? renderBOQResultSummary(_tenderBOQLastResult) : ''}
     </div>
   </div>
 
@@ -716,6 +718,28 @@ function renderScenarioDetail(s) {
   </div>`;
 }
 
+// ===== BOQ UPLOAD RESULT SUMMARY =====
+function renderBOQResultSummary(r) {
+  return '<div style="margin-top:14px;padding:14px 16px;background:rgba(52,211,153,0.08);border:2px solid rgba(52,211,153,0.3);border-radius:12px">' +
+    '<div style="font-size:14px;font-weight:700;color:var(--green);margin-bottom:10px">\u2705 BOQ processed successfully: ' + esc(r.fileName) + '</div>' +
+    '<div class="stats-row" style="margin-bottom:8px">' +
+    '<div class="stat-card green"><div class="sc-label">A1-A3 Matched</div><div class="sc-value">' + r.a13Count + '</div></div>' +
+    '<div class="stat-card blue"><div class="sc-label">ICE Matched</div><div class="sc-value">' + r.iceCount + '</div></div>' +
+    '<div class="stat-card orange"><div class="sc-label">Unmatched</div><div class="sc-value">' + r.unmatchedCount + '</div></div>' +
+    '<div class="stat-card cyan"><div class="sc-label">Total Baseline</div><div class="sc-value">' + fmt(r.totalBL) + '</div><div class="sc-sub">tCO\u2082eq</div></div>' +
+    '</div>' +
+    '<div style="font-size:12px;color:var(--slate4)">' + r.totalItems + ' line items added. See the <strong>BOQ Line Items</strong> table and <strong>80% Material Identification</strong> bar below.</div>' +
+    '<div class="btn-row" style="margin-top:10px"><button class="btn btn-secondary btn-sm" onclick="clearBOQResult()">Dismiss</button>' +
+    '<button class="btn btn-primary btn-sm" onclick="clearBOQResult();openTenderFileInput()">Upload Another File</button></div>' +
+    '</div>';
+}
+
+function clearBOQResult() {
+  _tenderBOQLastResult = null;
+  _tenderBOQMode = false;
+  navigate('tender_entry');
+}
+
 // ===== TENDER BOQ UPLOAD HANDLERS =====
 
 function toggleTenderBOQUpload() {
@@ -906,15 +930,34 @@ function autoMatchAndAddBOQ(rows, fileName) {
     descInput.value = 'Imported from BOQ: ' + fileName;
   }
 
-  // Clear processing state
-  _tenderBOQMode = false;
+  // Store result summary for display after re-render
+  var totalItems = _tenderItems.length;
+  var totalBL = 0;
+  _tenderItems.forEach(function(it) { totalBL += it.baselineEmission || 0; });
+
+  // Clear processing state but keep BOQ section visible to show results
+  _tenderBOQMode = true; // Keep visible to show success
   _tenderBOQMatched = [];
   _tenderBOQParsed = [];
   _tenderBOQWorkbook = null;
   _tenderBOQProcessing = false;
+  _tenderBOQLastResult = {
+    fileName: fileName,
+    totalItems: totalItems,
+    a13Count: a13Count,
+    iceCount: iceCount,
+    unmatchedCount: unmatchedCount,
+    totalBL: totalBL
+  };
 
-  // Re-render the form with results
+  // Re-render the form with results, then scroll to show them
   navigate('tender_entry');
+
+  // Scroll to the result summary after DOM update
+  setTimeout(function() {
+    var boqCard = $('tenderBOQCard');
+    if (boqCard) boqCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, 100);
 }
 
 // ===== PDF TENDER DOCUMENT PARSING =====
