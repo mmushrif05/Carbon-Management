@@ -24,8 +24,10 @@ async function loadAllData() {
     state.assignments = [];
   }
 
-  // Setup real-time listeners (skip re-render on tender page while BOQ file is being processed)
-  DB.onEntriesChange(data => { state.entries = data; if (state.page && !(state.page === 'tender_entry' && _tenderBOQProcessing)) navigate(state.page); });
-  DB.onA5Change(data => { state.a5entries = data; if (state.page === 'entry_a5' || state.page === 'dashboard') navigate(state.page); });
-  DB.onTenderChange(data => { state.tenderScenarios = data; if ((state.page === 'tender_entry' || state.page === 'tender_compare') && !_tenderBOQProcessing) navigate(state.page); });
+  // Setup real-time listeners
+  // IMPORTANT: Never re-render via navigate() while user is editing a tender form (_tenderEdit !== null).
+  // Polling data still updates state silently — the UI refreshes only on explicit user actions.
+  DB.onEntriesChange(data => { state.entries = data; if (state.page && !_tenderEdit) navigate(state.page); });
+  DB.onA5Change(data => { state.a5entries = data; if ((state.page === 'entry_a5' || state.page === 'dashboard') && !_tenderEdit) navigate(state.page); });
+  DB.onTenderChange(data => { state.tenderScenarios = data; if ((state.page === 'tender_entry' || state.page === 'tender_compare') && !_tenderEdit) navigate(state.page); });
 }
