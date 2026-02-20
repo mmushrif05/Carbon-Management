@@ -59,6 +59,7 @@ IMPORTANT: The text might be fragmented. Item numbers and descriptions might app
 9. DO NOT make silly mistakes — "grouting" is NOT tin, it is cement/concrete. "GERCC" means General Excavation, Return, Compaction, and Carting — it is earthwork, NOT a metal.
 10. Multi-line descriptions: If a description spans multiple lines, combine them into one complete description.
 11. Look at section headers (like "STORM WATER DRAINAGE", "EARTHWORKS", "CONCRETE") to understand the context of items below them.
+12. EXTRACT THICKNESS/DEPTH: If the description mentions a thickness, depth, or layer dimension (e.g., "depth 450mm", "150mm thick", "200mm layer", "thk 100mm"), extract it as "thicknessMM" in millimeters. This is CRITICAL for unit conversion (m² → m³). Do NOT confuse rebar diameter (e.g., "16mm dia rebar") or pipe diameter (e.g., "200mm dia HDPE") with layer thickness.
 
 ## MATERIAL MATCHING — A1-A3 CATEGORIES (Priority 1)
 Match to these first. These are consultant-defined baseline emission factors:
@@ -113,11 +114,18 @@ MEP - Electrical: Cable, Cable Tray, Transformer, Switchgear, LED
 MEP - Plumbing: Copper/PPR/CPVC/PEX pipe, Pumps, Tanks
 MEP - Fire Protection: Sprinkler pipe, Fire pump, Dampers
 
-## UNIT HANDLING
-- If BOQ quantity is in m² but the material factor is per m³ (e.g., concrete slab), note in assumption: "Area given, thickness needed for volume conversion"
-- If BOQ quantity is in m³ and factor is per m³, use directly
-- If BOQ gives weight (kg/tonnes), convert units as needed (1 tonne = 1000 kg)
-- Always note any unit conversion assumption
+## UNIT HANDLING — CRITICAL
+- ALWAYS extract thickness/depth from description if present. Set "thicknessMM" to the value in mm.
+- If BOQ quantity is in m² but the material factor is per m³ (e.g., concrete slab), the system will auto-convert using thickness. You MUST set thicknessMM.
+- If BOQ quantity is in m³ and factor is per m³, use directly. Set thicknessMM to null.
+- If BOQ gives weight (kg/tonnes), the system will auto-convert. Set thicknessMM to null.
+- Examples of thickness extraction:
+  - "Portland cement concrete, depth 450mm" → thicknessMM: 450
+  - "Concrete slab 200mm thick" → thicknessMM: 200
+  - "150mm blinding layer" → thicknessMM: 150
+  - "Cement treated base course, thickness 150mm" → thicknessMM: 150
+  - "Rebar B500B 16mm dia" → thicknessMM: null (bar diameter, NOT layer thickness)
+  - "200mm dia HDPE pipe" → thicknessMM: null (pipe diameter, NOT layer thickness)
 
 ## OUTPUT FORMAT
 Return ONLY a valid JSON array, no other text. Each element:
@@ -126,6 +134,7 @@ Return ONLY a valid JSON array, no other text. Each element:
   "description": "THE FULL WORK DESCRIPTION — NOT the item number. Example: 'Supply and install 200mm dia HDPE pipe for storm water drainage including all fittings and jointing'. MUST be the actual description text, at least 10+ characters.",
   "qty": number,
   "unit": "unit as in BOQ",
+  "thicknessMM": number or null (extracted thickness/depth in mm from the description, NOT pipe/rebar diameter),
   "category": "material category name from lists above",
   "type": "specific type name from lists above",
   "gwpSource": "A1-A3" or "ICE" or "none",
@@ -215,6 +224,7 @@ Return ONLY the JSON array. No markdown, no explanation.`;
         description: desc,
         qty: Number(item.qty) || 0,
         unit: String(item.unit || ''),
+        thicknessMM: (item.thicknessMM != null && !isNaN(item.thicknessMM) && Number(item.thicknessMM) > 0) ? Number(item.thicknessMM) : null,
         category: String(item.category || 'Unmatched'),
         type: String(item.type || desc || ''),
         gwpSource: item.gwpSource === 'A1-A3' ? 'A1-A3' : item.gwpSource === 'ICE' ? 'ICE' : 'none',

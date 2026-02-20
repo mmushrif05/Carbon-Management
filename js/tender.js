@@ -5,6 +5,152 @@
 let _tenderEdit = null;   // scenario being edited (null = list view)
 let _tenderItems = [];    // line items for current scenario
 
+// ===== UNIT CONVERSION HELPERS =====
+
+// Extract thickness/depth dimension from BOQ description (returns meters, or null)
+function extractThickness(description) {
+  if (!description) return null;
+  var d = description.toLowerCase();
+  // Skip rebar/pipe diameter patterns — these are NOT layer thickness
+  // "16mm dia", "200mm diameter", "DN200" etc.
+  var patterns = [
+    /(?:depth|thick(?:ness)?|thk|dp)[:\s=]*(\d+(?:\.\d+)?)\s*(mm|cm|m)\b/i,
+    /(\d+(?:\.\d+)?)\s*(mm|cm|m)\s*(?:thick(?:ness)?|thk|deep|depth)/i,
+    /t\s*=\s*(\d+(?:\.\d+)?)\s*(mm|cm|m)\b/i
+  ];
+  for (var i = 0; i < patterns.length; i++) {
+    var match = d.match(patterns[i]);
+    if (match) {
+      var val = parseFloat(match[1]);
+      var unit = match[2].toLowerCase();
+      if (unit === 'mm') val = val / 1000;
+      else if (unit === 'cm') val = val / 100;
+      // Sanity check: thickness should be 0.001m to 5m
+      if (val > 0.001 && val < 5) {
+        return { value: val, raw: match[0].trim(), source: 'desc' };
+      }
+    }
+  }
+  return null;
+}
+
+// Normalize a unit string for comparison
+function normalizeUnitStr(u) {
+  if (!u) return '';
+  u = u.toLowerCase().trim()
+    .replace(/²/g, '2').replace(/³/g, '3').replace(/\s+/g, '');
+  // Common aliases
+  if (u === 'sqm' || u === 'sq.m' || u === 'sqm.' || u === 'sq m') return 'm2';
+  if (u === 'cum' || u === 'cu.m' || u === 'cbm' || u === 'cu m') return 'm3';
+  if (u === 'tonne' || u === 'tonnes' || u === 'ton' || u === 'mt' || u === 't') return 'tons';
+  if (u === 'lm' || u === 'lin.m' || u === 'rm' || u === 'linm' || u === 'lin m') return 'm';
+  if (u === 'nr' || u === 'nos' || u === 'no' || u === 'each' || u === 'ea' || u === 'pcs') return 'nr';
+  return u;
+}
+
+// Convert BOQ quantity to match the emission factor's expected unit
+// Returns { convertedQty, conversionType, conversionNote }
+function convertBOQQuantity(boqQty, boqUnit, materialUnit, thickness, massFactor) {
+  var bU = normalizeUnitStr(boqUnit);
+  var mU = normalizeUnitStr(materialUnit);
+
+  // Same units → no conversion
+  if (bU === mU || !bU || !mU) {
+    return { convertedQty: boqQty, conversionType: 'none', conversionNote: '' };
+  }
+
+  // m² → m³: area to volume (needs thickness)
+  if (bU === 'm2' && mU === 'm3') {
+    if (!thickness || thickness <= 0) {
+      return { convertedQty: boqQty, conversionType: 'area_to_volume_missing',
+        conversionNote: '\u26a0 BOQ in m\u00b2 but EF per m\u00b3 \u2014 thickness not found in description' };
+    }
+    var vol = boqQty * thickness;
+    var thkMM = Math.round(thickness * 1000);
+    return { convertedQty: vol, conversionType: 'area_to_volume',
+      conversionNote: fmtI(boqQty) + ' m\u00b2 \u00d7 ' + thkMM + 'mm = ' + fmt(vol) + ' m\u00b3' };
+  }
+
+  // tons → kg
+  if (bU === 'tons' && mU === 'kg') {
+    var kg = boqQty * 1000;
+    return { convertedQty: kg, conversionType: 'tons_to_kg',
+      conversionNote: fmtI(boqQty) + ' tons \u00d7 1000 = ' + fmtI(kg) + ' kg' };
+  }
+
+  // kg → tons
+  if (bU === 'kg' && mU === 'tons') {
+    var tons = boqQty / 1000;
+    return { convertedQty: tons, conversionType: 'kg_to_tons',
+      conversionNote: fmtI(boqQty) + ' kg \u00f7 1000 = ' + fmt(tons) + ' tons' };
+  }
+
+  // m² → kg: area to mass (needs thickness + density)
+  if (bU === 'm2' && mU === 'kg') {
+    if (!thickness || thickness <= 0 || !massFactor || massFactor <= 1) {
+      return { convertedQty: boqQty, conversionType: 'area_to_mass_missing',
+        conversionNote: '\u26a0 BOQ in m\u00b2 but EF per kg \u2014 thickness or density needed' };
+    }
+    var mass = boqQty * thickness * massFactor;
+    var thkMM2 = Math.round(thickness * 1000);
+    return { convertedQty: mass, conversionType: 'area_to_mass',
+      conversionNote: fmtI(boqQty) + ' m\u00b2 \u00d7 ' + thkMM2 + 'mm \u00d7 ' + massFactor + ' kg/m\u00b3 = ' + fmtI(Math.round(mass)) + ' kg' };
+  }
+
+  // m³ → kg: volume to mass (needs density = massFactor)
+  if (bU === 'm3' && mU === 'kg') {
+    if (!massFactor || massFactor <= 1) {
+      return { convertedQty: boqQty, conversionType: 'volume_to_mass_missing',
+        conversionNote: '\u26a0 BOQ in m\u00b3 but EF per kg \u2014 density not available' };
+    }
+    var massV = boqQty * massFactor;
+    return { convertedQty: massV, conversionType: 'volume_to_mass',
+      conversionNote: fmtI(boqQty) + ' m\u00b3 \u00d7 ' + massFactor + ' kg/m\u00b3 = ' + fmtI(Math.round(massV)) + ' kg' };
+  }
+
+  // m³ → tons
+  if (bU === 'm3' && mU === 'tons') {
+    if (!massFactor || massFactor <= 1) {
+      return { convertedQty: boqQty, conversionType: 'volume_to_tons_missing',
+        conversionNote: '\u26a0 BOQ in m\u00b3 but EF per ton \u2014 density not available' };
+    }
+    var tonsV = (boqQty * massFactor) / 1000;
+    return { convertedQty: tonsV, conversionType: 'volume_to_tons',
+      conversionNote: fmtI(boqQty) + ' m\u00b3 \u00d7 ' + massFactor + ' kg/m\u00b3 \u00f7 1000 = ' + fmt(tonsV) + ' tons' };
+  }
+
+  // No recognized conversion
+  return { convertedQty: boqQty, conversionType: 'unknown_mismatch',
+    conversionNote: '\u26a0 Unit mismatch: BOQ=' + (boqUnit || '?') + ' vs EF=' + (materialUnit || '?') };
+}
+
+// User manually enters thickness for items missing it
+function updateItemThickness(idx, thicknessMM) {
+  var item = _tenderItems[idx];
+  if (!item) return;
+  var mm = parseFloat(thicknessMM);
+  if (isNaN(mm) || mm <= 0) return;
+  var meters = mm / 1000;
+  item.thickness = meters;
+  item.thicknessSource = 'user';
+
+  var matDB = MATERIALS[item.category] || ICE_MATERIALS[item.category];
+  var materialUnit = matDB ? matDB.unit : item.unit;
+  var mf = matDB ? matDB.massFactor : (item.massFactor || 1);
+
+  var conversion = convertBOQQuantity(item.boqQty, item.boqUnit, materialUnit, meters, mf);
+  item.qty = conversion.convertedQty;
+  item.convertedQty = conversion.convertedQty;
+  item.conversionNote = conversion.conversionNote;
+  item.conversionType = conversion.conversionType;
+  item.needsConversion = conversion.conversionType !== 'none';
+  item.baselineEmission = (item.qty * item.baselineEF) / 1000;
+  item.targetEmission = item.baselineEmission;
+
+  recalcTender80Pct();
+  navigate('tender_entry');
+}
+
 // ===== TENDER ENTRY PAGE =====
 function renderTenderEntry(el) {
   if (_tenderEdit) { renderTenderForm(el); return; }
@@ -67,7 +213,20 @@ function editTenderScenario(id) {
   const s = state.tenderScenarios.find(x => String(x.id) === String(id));
   if (!s) return;
   _tenderEdit = JSON.parse(JSON.stringify(s));
-  _tenderItems = _tenderEdit.items || [];
+  _tenderItems = (_tenderEdit.items || []).map(function(it) {
+    // Migrate items saved before unit conversion feature
+    if (it.boqQty === undefined) {
+      it.boqQty = it.qty;
+      it.boqUnit = it.unit;
+      it.thickness = null;
+      it.thicknessSource = null;
+      it.convertedQty = it.qty;
+      it.conversionNote = '';
+      it.conversionType = 'none';
+      it.needsConversion = false;
+    }
+    return it;
+  });
   navigate('tender_entry');
 }
 
@@ -80,7 +239,15 @@ function dupTenderScenario(id) {
   _tenderEdit.status = 'draft';
   _tenderEdit.createdBy = state.name;
   _tenderEdit.createdAt = new Date().toISOString();
-  _tenderItems = _tenderEdit.items || [];
+  _tenderItems = (_tenderEdit.items || []).map(function(it) {
+    if (it.boqQty === undefined) {
+      it.boqQty = it.qty; it.boqUnit = it.unit;
+      it.thickness = null; it.thicknessSource = null;
+      it.convertedQty = it.qty; it.conversionNote = '';
+      it.conversionType = 'none'; it.needsConversion = false;
+    }
+    return it;
+  });
   navigate('tender_entry');
 }
 
@@ -258,7 +425,7 @@ function renderTenderForm(el) {
       ${_tenderItems.length ? '<div><button class="btn btn-secondary btn-sm" onclick="exportTenderExcel()" style="margin-right:6px">\ud83d\udcc4 Excel</button><button class="btn btn-secondary btn-sm" onclick="exportTenderPDF()">\ud83d\udcc4 PDF</button></div>' : ''}
     </div>
     <div class="tbl-wrap"><table>
-      <thead><tr><th style="min-width:50px">BOQ #</th><th>BOQ Description</th><th>Category</th><th>Type</th><th class="r">Qty</th><th>Unit</th><th class="r">EF</th><th class="r">tCO\u2082</th><th>Source</th><th>80%</th><th>Remarks</th><th></th></tr></thead>
+      <thead><tr><th style="min-width:50px">BOQ #</th><th>BOQ Description</th><th>Category</th><th>Type</th><th class="r">BOQ Qty</th><th class="r">Calc Qty</th><th class="r">EF</th><th class="r">tCO\u2082</th><th>Source</th><th>80%</th><th>Remarks</th><th></th></tr></thead>
       <tbody id="tenderItemsTbl">${_tenderItems.length ? _tenderItems.map((it, idx) => {
         const in80 = it._in80Pct;
         const srcBadge = it.gwpSource === 'A1-A3'
@@ -293,26 +460,44 @@ function renderTenderForm(el) {
         } else {
           typeDropdown = '<span style="font-size:10px;color:var(--yellow)">' + esc(it.type) + '</span>';
         }
-        // Build remarks with assumption and ICE reference
-        let remarks = it.assumption || '';
+        // Build remarks with conversion note, assumption, and ICE reference
+        let remarks = '';
+        // Show conversion note first (most important for audit)
+        if (it.conversionNote) {
+          var isWarning = it.conversionType && it.conversionType.indexOf('missing') !== -1;
+          remarks += '<span style="color:' + (isWarning ? 'var(--red)' : 'var(--cyan)') + ';font-size:9px;font-weight:600">' + esc(it.conversionNote) + '</span>';
+          if (isWarning) {
+            remarks += '<br><label style="font-size:8px;color:var(--slate5)">Thickness: </label><input type="number" placeholder="mm" style="width:48px;font-size:9px;padding:1px 3px;background:var(--bg3);color:var(--text);border:1px solid var(--border);border-radius:3px" onchange="updateItemThickness(' + idx + ',this.value)"><span style="font-size:8px;color:var(--slate5)"> mm</span>';
+          }
+        }
+        if (it.assumption) {
+          remarks += (remarks ? '<br>' : '') + '<span style="font-size:9px">' + esc(it.assumption) + '</span>';
+        }
         if (it.iceRefUrl && it.gwpSource === 'ICE') {
           remarks += (remarks ? ' ' : '') + '<a href="' + it.iceRefUrl + '" target="_blank" rel="noopener" style="color:var(--blue);font-size:9px;text-decoration:underline">\ud83d\udd17 ICE DB Ref</a>';
         }
         if (it.notes) {
           remarks += (remarks ? '<br>' : '') + '<span style="color:var(--slate5)">' + esc(it.notes) + '</span>';
         }
+        // Calc Qty cell: show converted qty + unit if conversion happened, else "same"
+        const hasConversion = it.needsConversion && it.conversionType !== 'none' && it.conversionType && it.conversionType.indexOf('missing') === -1;
+        const calcQtyCell = hasConversion
+          ? '<span style="color:var(--blue);font-weight:600">' + fmt(it.qty) + '</span> <span style="font-size:8px;color:var(--slate5)">' + esc(it.unit || '') + '</span>'
+          : (it.conversionType && it.conversionType.indexOf('missing') !== -1
+            ? '<span style="color:var(--red);font-size:9px">\u26a0 needs thickness</span>'
+            : '<span style="color:var(--slate5);font-size:9px">\u2014</span>');
         return `<tr${in80 ? ' style="background:rgba(52,211,153,0.04)"' : ''}>
           <td style="font-weight:600;color:var(--slate4);font-size:11px;white-space:nowrap">${esc(it.boqItemNo || '')}</td>
           <td style="font-size:11px;color:var(--text)">${esc(it.originalDesc || it.type)}</td>
           <td style="font-size:10px">${catDropdown}</td>
           <td style="font-size:10px">${typeDropdown}</td>
-          <td class="r mono">${fmtI(it.qty)}</td>
-          <td>${it.unit}</td>
-          <td class="r mono">${fmt(it.baselineEF)}</td>
+          <td class="r mono" style="font-size:10px">${fmtI(it.boqQty != null ? it.boqQty : it.qty)} <span style="font-size:8px;color:var(--slate5)">${esc(it.boqUnit || it.unit || '')}</span></td>
+          <td class="r mono" style="font-size:10px">${calcQtyCell}</td>
+          <td class="r mono" style="font-size:10px">${fmt(it.baselineEF)} <span style="font-size:8px;color:var(--slate5)">${esc(it.efUnit || '')}</span></td>
           <td class="r mono">${fmt(it.baselineEmission)}</td>
           <td>${srcBadge}</td>
           <td>${in80 ? '<span style="color:var(--green);font-weight:700;font-size:11px">\u2713</span>' : ''}</td>
-          <td style="font-size:9px;max-width:220px;line-height:1.4">${remarks}</td>
+          <td style="font-size:9px;max-width:240px;line-height:1.4">${remarks}</td>
           <td><button class="btn btn-danger btn-sm" onclick="removeTenderItem(${idx})">✕</button></td>
         </tr>`;
       }).join('') : '<tr><td colspan="12" class="empty">No line items yet. Use the form above to add materials.</td></tr>'}
@@ -527,10 +712,18 @@ function addTenderItem() {
     originalDesc: isCustom ? category : type,
     category,
     type,
+    boqQty: qty,
+    boqUnit: unit,
     qty,
     unit,
     efUnit,
     massFactor,
+    thickness: null,
+    thicknessSource: null,
+    convertedQty: qty,
+    conversionNote: '',
+    conversionType: 'none',
+    needsConversion: false,
     baselineEF,
     targetEF: baselineEF, // Tender = baseline only
     baselineEmission,
@@ -998,7 +1191,16 @@ function autoMatchAndAddBOQ(rows, fileName) {
 
     var m = match.mat || MATERIALS[match.category] || ICE_MATERIALS[match.category];
     var bl = (match.belowThreshold ? 0 : match.baseline) || 0;
-    var blEm = (qty * bl) / 1000;
+    var materialUnit = m ? m.unit : (unit || '');
+    var mf = m ? m.massFactor : 1;
+
+    // --- Unit Conversion ---
+    var thicknessObj = extractThickness(desc);
+    var thickness = thicknessObj ? thicknessObj.value : null;
+    var thicknessSource = thicknessObj ? thicknessObj.source : null;
+    var conversion = convertBOQQuantity(qty, unit, materialUnit, thickness, mf);
+    var convertedQty = conversion.convertedQty;
+    var blEm = (convertedQty * bl) / 1000;
 
     var boqItemNo = itemNoCol >= 0 ? String(row[itemNoCol] || '').trim() : String(r + 1);
 
@@ -1008,10 +1210,18 @@ function autoMatchAndAddBOQ(rows, fileName) {
       originalDesc: desc,
       category: match.category || 'Unmatched',
       type: match.typeName || desc,
-      qty: qty,
-      unit: unit || (m ? m.unit : ''),
+      boqQty: qty,
+      boqUnit: unit,
+      qty: convertedQty,
+      unit: materialUnit,
       efUnit: m ? m.efUnit : '',
-      massFactor: m ? m.massFactor : 1,
+      massFactor: mf,
+      thickness: thickness,
+      thicknessSource: thicknessSource,
+      convertedQty: convertedQty,
+      conversionNote: conversion.conversionNote,
+      conversionType: conversion.conversionType,
+      needsConversion: conversion.conversionType !== 'none',
       baselineEF: bl,
       targetEF: bl,
       baselineEmission: blEm,
@@ -1213,7 +1423,28 @@ function aiAddBOQItems(aiItems, fileName) {
       unit = item.materialUnit || (matDB ? matDB.unit : item.unit);
     }
 
-    var blEm = (item.qty * bl) / 1000;
+    // --- Unit Conversion ---
+    var boqQty = item.qty;
+    var boqUnit = item.unit || '';
+    var materialUnit = unit; // EF's expected unit (from local match or AI)
+
+    // Extract thickness: AI may provide thicknessMM, otherwise extract from description
+    var thicknessObj = null;
+    if (item.thicknessMM && item.thicknessMM > 0) {
+      thicknessObj = { value: item.thicknessMM / 1000, raw: item.thicknessMM + 'mm', source: 'ai' };
+    }
+    if (!thicknessObj) {
+      thicknessObj = extractThickness(desc);
+    }
+    var thickness = thicknessObj ? thicknessObj.value : null;
+    var thicknessSource = thicknessObj ? thicknessObj.source : null;
+
+    var conversion = convertBOQQuantity(boqQty, boqUnit, materialUnit, thickness, massFactor);
+    var convertedQty = conversion.convertedQty;
+    var conversionNote = conversion.conversionNote;
+    var conversionType = conversion.conversionType;
+
+    var blEm = (convertedQty * bl) / 1000;
 
     if (gwpSource === 'A1-A3') a13Count++;
     else if (gwpSource === 'ICE') iceCount++;
@@ -1225,10 +1456,18 @@ function aiAddBOQItems(aiItems, fileName) {
       originalDesc: desc,
       category: category,
       type: typeName,
-      qty: item.qty,
-      unit: unit,
+      boqQty: boqQty,
+      boqUnit: boqUnit,
+      qty: convertedQty,
+      unit: materialUnit,
       efUnit: efUnit,
       massFactor: massFactor,
+      thickness: thickness,
+      thicknessSource: thicknessSource,
+      convertedQty: convertedQty,
+      conversionNote: conversionNote,
+      conversionType: conversionType,
+      needsConversion: conversionType !== 'none',
       baselineEF: bl,
       targetEF: bl,
       baselineEmission: blEm,
@@ -1466,12 +1705,20 @@ function changeTenderItemCategory(idx, val) {
   var firstType = mat.types[0];
   var firstBL = alternatives[0].baseline;
 
+  // Re-convert from original BOQ qty/unit to new material unit
+  var conversion = convertBOQQuantity(item.boqQty || item.qty, item.boqUnit || item.unit, mat.unit, item.thickness, mat.massFactor);
+
   item.category = catName;
   item.type = firstType.name;
   item.gwpSource = source;
+  item.qty = conversion.convertedQty;
   item.unit = mat.unit;
   item.efUnit = mat.efUnit;
   item.massFactor = mat.massFactor;
+  item.convertedQty = conversion.convertedQty;
+  item.conversionNote = conversion.conversionNote;
+  item.conversionType = conversion.conversionType;
+  item.needsConversion = conversion.conversionType !== 'none';
   item.baselineEF = firstBL;
   item.targetEF = firstBL;
   item.baselineEmission = (item.qty * firstBL) / 1000;
@@ -1543,23 +1790,28 @@ function exportTenderPDF() {
 
   // BOQ Items Table
   html += '<h2>Bill of Quantities \u2014 Embodied Carbon Analysis</h2>';
-  html += '<table><thead><tr><th>BOQ #</th><th>BOQ Description</th><th>Matched As</th><th class="r">Qty</th><th>Unit</th><th class="r">Baseline EF</th><th class="r">tCO\u2082eq</th><th>GWP Source</th><th>80%</th><th>Remarks</th></tr></thead><tbody>';
+  html += '<table><thead><tr><th>BOQ #</th><th>BOQ Description</th><th>Matched As</th><th class="r">BOQ Qty</th><th class="r">Calc Qty</th><th class="r">Baseline EF</th><th>EF Unit</th><th class="r">tCO\u2082eq</th><th>GWP Source</th><th>80%</th><th>Remarks</th></tr></thead><tbody>';
 
   _tenderItems.forEach(function(it) {
     var srcClass = it.gwpSource === 'A1-A3' ? 'badge-a13' : it.gwpSource === 'ICE' ? 'badge-ice' : 'badge-manual';
-    var remarkText = it.assumption || '';
+    var remarkText = '';
+    if (it.conversionNote) remarkText = it.conversionNote;
+    if (it.assumption) remarkText += (remarkText ? ' | ' : '') + it.assumption;
     if (it.gwpSource === 'ICE' && it.iceRefUrl) {
       remarkText += (remarkText ? ' | ' : '') + 'Ref: ICE Database v3.0 (circularecology.com)';
     }
     if (it.notes) remarkText += (remarkText ? ' | ' : '') + it.notes;
 
+    var hasConv = it.needsConversion && it.conversionType && it.conversionType.indexOf('missing') === -1;
+
     html += '<tr>';
     html += '<td>' + esc(it.boqItemNo || '') + '</td>';
     html += '<td>' + esc(it.originalDesc || it.type) + '</td>';
     html += '<td>' + esc(it.type) + '</td>';
-    html += '<td class="r mono">' + fmtI(it.qty) + '</td>';
-    html += '<td>' + (it.unit || '') + '</td>';
+    html += '<td class="r mono">' + fmtI(it.boqQty != null ? it.boqQty : it.qty) + ' ' + esc(it.boqUnit || it.unit || '') + '</td>';
+    html += '<td class="r mono">' + (hasConv ? fmt(it.qty) + ' ' + esc(it.unit || '') : '\u2014') + '</td>';
     html += '<td class="r mono">' + fmt(it.baselineEF) + '</td>';
+    html += '<td>' + esc(it.efUnit || '') + '</td>';
     html += '<td class="r mono">' + fmt(it.baselineEmission) + '</td>';
     html += '<td><span class="' + srcClass + '">' + (it.gwpSource || 'Manual') + '</span></td>';
     html += '<td>' + (it._in80Pct ? '\u2713' : '') + '</td>';
@@ -1568,7 +1820,7 @@ function exportTenderPDF() {
   });
 
   if (_tenderItems.length > 1) {
-    html += '<tr class="total-row"><td colspan="6">Total</td><td class="r mono">' + fmt(totals.baseline) + '</td><td colspan="3"></td></tr>';
+    html += '<tr class="total-row"><td colspan="7">Total</td><td class="r mono">' + fmt(totals.baseline) + '</td><td colspan="3"></td></tr>';
   }
 
   html += '</tbody></table>';
@@ -1611,7 +1863,7 @@ function exportTenderExcel() {
   data.push([]);
 
   // Column headers
-  data.push(['BOQ #', 'BOQ Description', 'Category', 'Matched Type', 'Qty', 'Unit', 'EF Unit', 'Baseline EF', 'Baseline tCO\u2082eq', 'GWP Source', 'In 80%', 'Assumption / Remarks', 'Reference']);
+  data.push(['BOQ #', 'BOQ Description', 'Category', 'Matched Type', 'BOQ Qty', 'BOQ Unit', 'Calc Qty', 'Calc Unit', 'Conversion', 'EF Unit', 'Baseline EF', 'Baseline tCO\u2082eq', 'GWP Source', 'In 80%', 'Assumption / Remarks', 'Reference']);
 
   // Data rows
   _tenderItems.forEach(function(it) {
@@ -1621,14 +1873,18 @@ function exportTenderExcel() {
     if (it.gwpSource === 'ICE' && it.iceRefUrl) {
       refLink = it.iceRefUrl;
     }
+    var hasConv = it.needsConversion && it.conversionType && it.conversionType.indexOf('missing') === -1;
 
     data.push([
       it.boqItemNo || '',
       it.originalDesc || it.type,
       it.category,
       it.type,
-      it.qty,
-      it.unit || '',
+      it.boqQty != null ? it.boqQty : it.qty,
+      it.boqUnit || it.unit || '',
+      hasConv ? it.qty : '',
+      hasConv ? (it.unit || '') : '',
+      it.conversionNote || '',
       it.efUnit || '',
       it.baselineEF,
       it.baselineEmission,
@@ -1641,7 +1897,7 @@ function exportTenderExcel() {
 
   // Totals row
   data.push([]);
-  data.push(['', '', '', 'TOTAL', '', '', '', '', totals.baseline, '', '', '', '']);
+  data.push(['', '', '', 'TOTAL', '', '', '', '', '', '', '', totals.baseline, '', '', '', '']);
 
   // Create workbook and worksheet
   var ws = XLSX.utils.aoa_to_sheet(data);
@@ -1652,8 +1908,11 @@ function exportTenderExcel() {
     { wch: 35 },  // Description
     { wch: 14 },  // Category
     { wch: 25 },  // Matched Type
-    { wch: 12 },  // Qty
-    { wch: 8 },   // Unit
+    { wch: 12 },  // BOQ Qty
+    { wch: 8 },   // BOQ Unit
+    { wch: 12 },  // Calc Qty
+    { wch: 8 },   // Calc Unit
+    { wch: 35 },  // Conversion
     { wch: 14 },  // EF Unit
     { wch: 12 },  // Baseline EF
     { wch: 14 },  // tCO2
