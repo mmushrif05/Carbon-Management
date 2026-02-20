@@ -501,14 +501,22 @@ function renderTenderForm(el) {
       <thead><tr><th style="min-width:50px">BOQ #</th><th>BOQ Description</th><th>Stage</th><th>Category</th><th>Type</th><th class="r">BOQ Qty</th><th class="r">Calc Qty</th><th class="r">EF</th><th class="r">tCO\u2082</th><th>Source</th><th>80%</th><th>Remarks</th><th></th></tr></thead>
       <tbody id="tenderItemsTbl">${_tenderItems.length ? _tenderItems.map((it, idx) => {
         const in80 = it._in80Pct;
-        const srcBadge = it.gwpSource === 'A1-A3'
+        const srcBadge = it.gwpSource === 'ECCS-Zero'
+          ? '<span style="display:inline-block;background:rgba(148,163,184,0.15);color:var(--slate5);font-size:9px;padding:2px 6px;border-radius:4px;font-weight:600" title="' + esc(it.assumption || 'ECCS: Carbon factor = 0') + '">EF=0</span>'
+          : it.gwpSource === 'A1-A3'
           ? '<span style="display:inline-block;background:rgba(52,211,153,0.1);color:var(--green);font-size:9px;padding:2px 6px;border-radius:4px;font-weight:600">A1-A3</span>'
           : it.gwpSource === 'ICE'
           ? '<span style="display:inline-block;background:rgba(96,165,250,0.1);color:var(--blue);font-size:9px;padding:2px 6px;border-radius:4px;font-weight:600">ICE</span>'
           : '<span style="display:inline-block;background:rgba(251,191,36,0.1);color:var(--yellow);font-size:9px;padding:2px 6px;border-radius:4px;font-weight:600">Manual</span>';
+        // For ECCS-Zero items, show category as static label (no dropdown needed)
+        let catDropdown, typeDropdown;
+        if (it.eccsZero) {
+          catDropdown = '<span style="font-size:10px;color:var(--slate5);font-weight:600">' + esc(it.category) + '</span>';
+          typeDropdown = '<span style="font-size:9px;color:var(--slate5)">' + esc(it.type || it.category) + '</span>';
+        } else {
         // Build category dropdown — A1-A3 categories first, then ICE
         const catDropdownId = 'tiCatDd_' + idx;
-        let catDropdown = '<select id="' + catDropdownId + '" onchange="changeTenderItemCategory(' + idx + ',this.value)" style="font-size:10px;padding:2px 4px;background:var(--bg3);color:var(--text);border:1px solid var(--border);border-radius:4px;max-width:130px">';
+        catDropdown = '<select id="' + catDropdownId + '" onchange="changeTenderItemCategory(' + idx + ',this.value)" style="font-size:10px;padding:2px 4px;background:var(--bg3);color:var(--text);border:1px solid var(--border);border-radius:4px;max-width:130px">';
         catDropdown += '<optgroup label="\u2500\u2500 A1-A3 (Consultant) \u2500\u2500">';
         Object.keys(MATERIALS).forEach(function(cat) {
           catDropdown += '<option value="A1-A3:' + cat + '"' + (it.gwpSource === 'A1-A3' && it.category === cat ? ' selected' : '') + '>' + cat + '</option>';
@@ -533,6 +541,7 @@ function renderTenderForm(el) {
         } else {
           typeDropdown = '<span style="font-size:10px;color:var(--yellow)">' + esc(it.type) + '</span>';
         }
+        } // end else (non-ECCS-Zero items)
         // Build remarks with conversion note, assumption, and ICE reference
         let remarks = '';
         // Determine if units differ (BOQ unit vs EF unit)
@@ -1080,7 +1089,9 @@ function renderScenarioDetail(s) {
     <div class="tbl-wrap"><table>
       <thead><tr><th>BOQ #</th><th>BOQ Description</th><th>Stage</th><th>Category</th><th>Type</th><th class="r">Qty</th><th>Unit</th><th class="r">EF</th><th class="r">tCO\u2082</th><th>Source</th><th>Remarks</th></tr></thead>
       <tbody>${items.map(it => {
-        const srcBadge = it.gwpSource === 'A1-A3'
+        const srcBadge = it.gwpSource === 'ECCS-Zero'
+          ? '<span style="display:inline-block;background:rgba(148,163,184,0.15);color:var(--slate5);font-size:9px;padding:2px 6px;border-radius:4px;font-weight:600">EF=0</span>'
+          : it.gwpSource === 'A1-A3'
           ? '<span style="display:inline-block;background:rgba(52,211,153,0.1);color:var(--green);font-size:9px;padding:2px 6px;border-radius:4px;font-weight:600">A1-A3</span>'
           : it.gwpSource === 'ICE'
           ? '<span style="display:inline-block;background:rgba(96,165,250,0.1);color:var(--blue);font-size:9px;padding:2px 6px;border-radius:4px;font-weight:600">ICE</span>'
@@ -1553,37 +1564,64 @@ function autoMatchAndAddBOQ(rows, fileName) {
       unit = extractUnitFromDescription(desc);
     }
 
-    var match = lookupTenderGWP(desc, catHint, unit);
-
-    if (match.gwpSource === 'A1-A3') a13Count++;
-    else if (match.gwpSource === 'ICE') iceCount++;
-    else unmatchedCount++;
-
-    var m = match.mat || MATERIALS[match.category] || ICE_MATERIALS[match.category];
-    var bl = (match.belowThreshold ? 0 : match.baseline) || 0;
-    var materialUnit = m ? m.unit : (unit || '');
-    var mf = m ? m.massFactor : 1;
-
-    // --- Unit Conversion ---
-    var thicknessObj = extractThickness(desc);
-    var thickness = thicknessObj ? thicknessObj.value : null;
-    var thicknessSource = thicknessObj ? thicknessObj.source : null;
-    var conversion = convertBOQQuantity(qty, unit, materialUnit, thickness, mf);
-    var convertedQty = conversion.convertedQty;
-    var blEm = (convertedQty * bl) / 1000;
-
     var boqItemNo = itemNoCol >= 0 ? String(row[itemNoCol] || '').trim() : String(r + 1);
 
-    // Infer lifecycle stage from description context
-    var demoPattern = /\b(demolit|break\s*out|remov(?:al|e|ing)\s+(?:existing|old)|strip(?:ping)?\s+(?:existing|old)|pull\s*down|dismantle)\b/i;
-    var haulPattern = /\b(cart\s*away|haul(?:ing|age)?|transport(?:ing|ation)?\s+(?:waste|rubble|debris|demolition))\b/i;
-    var inferredStage = 'A1-A3';
-    var inferredDemo = false;
-    if (demoPattern.test(desc)) { inferredStage = 'A5'; inferredDemo = true; }
-    else if (haulPattern.test(desc)) { inferredStage = 'A4'; }
+    // ================================================================
+    // ECCS 6-STEP CLASSIFICATION — check BEFORE material matching
+    // ================================================================
+    var exEccsZero = false, exEccsCat = '', exEccsFlag = '', exEccsDemo = false, exEccsMEP = false;
 
-    // Infer confidence from match quality
-    var inferredConf = match.matched ? (match.score >= 30 ? 'high' : 'medium') : 'low';
+    if (isECCS_Demolition(dLower)) {
+      exEccsZero = true; exEccsCat = 'Demolition/Removal'; exEccsDemo = true;
+      exEccsFlag = 'ZERO — Demolition/removal activity, no A1-A3 embodied carbon';
+    } else if (isECCS_ComplexMEP(desc, unit)) {
+      exEccsZero = true; exEccsCat = 'Complex MEP'; exEccsMEP = true;
+      exEccsFlag = 'ZERO — Complex MEP assembly, requires manufacturer EPD';
+    } else if (isECCS_Provisional(dLower)) {
+      skippedRows++; continue; // Skip — non-material
+    } else if (isECCS_LabourOnly(dLower)) {
+      skippedRows++; continue; // Skip — no material
+    } else if (isECCS_Landscaping(dLower)) {
+      exEccsZero = true; exEccsCat = 'Landscaping';
+      exEccsFlag = 'ZERO — Organic/landscaping item, excluded from A1-A3';
+    }
+
+    var match, m, bl, materialUnit, mf, thickness, thicknessSource, convertedQty, conversionNote, conversionType;
+
+    if (exEccsZero) {
+      // Steps 1-5: EF = 0, no material matching
+      match = { matched: false, gwpSource: 'none', category: exEccsCat, typeName: exEccsCat, alternatives: [], assumption: exEccsFlag };
+      m = null; bl = 0; materialUnit = unit || 'nr'; mf = 1;
+      thickness = null; thicknessSource = null;
+      convertedQty = qty; conversionNote = exEccsFlag; conversionType = 'none';
+      unmatchedCount++;
+    } else {
+      // Step 6: Quantifiable material — do matching
+      match = lookupTenderGWP(desc, catHint, unit);
+      if (match.gwpSource === 'A1-A3') a13Count++;
+      else if (match.gwpSource === 'ICE') iceCount++;
+      else unmatchedCount++;
+
+      m = match.mat || MATERIALS[match.category] || ICE_MATERIALS[match.category];
+      bl = (match.belowThreshold ? 0 : match.baseline) || 0;
+      materialUnit = m ? m.unit : (unit || '');
+      mf = m ? m.massFactor : 1;
+
+      var thicknessObj = extractThickness(desc);
+      thickness = thicknessObj ? thicknessObj.value : null;
+      thicknessSource = thicknessObj ? thicknessObj.source : null;
+      var conversion = convertBOQQuantity(qty, unit, materialUnit, thickness, mf);
+      convertedQty = conversion.convertedQty;
+      conversionNote = conversion.conversionNote;
+      conversionType = conversion.conversionType;
+    }
+
+    var blEm = (convertedQty * bl) / 1000;
+
+    // Infer lifecycle stage
+    var inferredStage = exEccsDemo ? 'A5' : 'A1-A3';
+    if (!exEccsZero && /\b(cart\s*away|haul(?:ing|age)?|transport)\b/i.test(desc)) inferredStage = 'A4';
+    var inferredConf = exEccsZero ? 'high' : (match.matched ? (match.score >= 30 ? 'high' : 'medium') : 'low');
 
     _tenderItems.push({
       id: Date.now() + Math.random(),
@@ -1600,17 +1638,19 @@ function autoMatchAndAddBOQ(rows, fileName) {
       thickness: thickness,
       thicknessSource: thicknessSource,
       convertedQty: convertedQty,
-      conversionNote: conversion.conversionNote,
-      conversionType: conversion.conversionType,
-      needsConversion: conversion.conversionType !== 'none',
+      conversionNote: conversionNote,
+      conversionType: conversionType,
+      needsConversion: !exEccsZero && conversionType !== 'none',
       baselineEF: bl,
       targetEF: bl,
       baselineEmission: blEm,
       targetEmission: blEm,
       isCustom: !match.matched,
-      gwpSource: match.gwpSource || (match.matched ? 'ICE' : 'Manual'),
+      gwpSource: exEccsZero ? 'ECCS-Zero' : (match.gwpSource || (match.matched ? 'ICE' : 'Manual')),
       lifecycleStage: inferredStage,
-      isDemolition: inferredDemo,
+      isDemolition: exEccsDemo,
+      isComplexMEP: exEccsMEP,
+      eccsZero: exEccsZero,
       confidence: inferredConf,
       assumption: match.assumption || (!match.matched ? 'No match found in A1-A3 or ICE database. Manual EF entry required.' : ''),
       alternatives: match.alternatives || [],
@@ -1780,10 +1820,69 @@ async function handleTenderPDFFile(file) {
   }
 }
 
+// ===== ECCS CLASSIFICATION HIERARCHY — CLIENT-SIDE VALIDATION =====
+// Applies the 6-step decision tree to EVERY item BEFORE material matching.
+// This is the safety net that catches what the AI might miss.
+
+// Step 1: Is it demolition/removal? → EF = 0
+function isECCS_Demolition(desc) {
+  return /\b(remove|demolish|strip\s*out|break\s*(up|out)|dismantle|pull\s*down|take\s*down|rip\s*out|clear\s*away|disposal\s+of\s+(?:existing|old))\b/i.test(desc);
+}
+
+// Step 2: Is it a Complex MEP assembly? → EF = 0
+function isECCS_ComplexMEP(desc, unit) {
+  var d = desc.toLowerCase();
+  // Key MEP indicator phrases — if these appear, almost always an assembly
+  if (/\bcomplete\s+with\b/i.test(d)) return true;
+  if (/\b(?:including|incl\.?|and)\s+all\s+accessories\b/i.test(d)) return true;
+  if (/\bwith\s+(?:transformer|driver|ballast)\b/i.test(d)) return true;
+  if (/\bsecondary\s+connector\b/i.test(d)) return true;
+  // Electrical assemblies
+  if (/\b(?:light\s*fitting|luminaire|lamp\b(?!.*\bpost\b)|pendant|down[- ]?light|up[- ]?light|spot[- ]?light|flood[- ]?light|strip\s*light|track\s*light|bollard\s*light|exit\s*sign|emergency\s*light)/i.test(d)) return true;
+  if (/\b(?:switchgear|distribution\s*board|panel\s*board|mcb|rcd|isolator)\b/i.test(d)) return true;
+  if (/\b(?:transformer|ups\s*system|inverter)\b/i.test(d) && /\bnr\b|\bset\b|\bno\.\b/i.test(unit)) return true;
+  if (/\b(?:smoke\s*detector|heat\s*detector|fire\s*alarm|sounder|beacon)\b/i.test(d)) return true;
+  if (/\b(?:cctv|camera|access\s*control|card\s*reader|intercom)\b/i.test(d)) return true;
+  if (/\b(?:speaker|display\s*screen|av\s*equipment)\b/i.test(d)) return true;
+  if (/\b(?:bms\s*controller|ddc\s*panel|actuator)\b/i.test(d) && /\bnr\b|\bset\b/i.test(unit)) return true;
+  // Mechanical/HVAC assemblies
+  if (/\b(?:fan\s*coil|fcu|ahu|air\s*handling\s*unit|package\s*unit|split\s*(?:ac|unit)|cassette\s*unit|vrf|vrv)\b/i.test(d)) return true;
+  if (/\b(?:chiller|cooling\s*tower|boiler|heat\s*exchanger)\b/i.test(d)) return true;
+  if (/\b(?:vav\s*box|diffuser\s+with\s+damper|grille\s+with)\b/i.test(d)) return true;
+  if (/\b(?:pump)\b/i.test(d) && /\bnr\b|\bset\b|\bunit\b/i.test(unit) && !/\bpipe\b/i.test(d)) return true;
+  if (/\b(?:expansion\s*vessel|buffer\s*tank|calorifier)\b/i.test(d)) return true;
+  // Plumbing/Fire assemblies
+  if (/\b(?:wc|w\.c\.|water\s*closet|basin|urinal|sink|shower\s*(?:unit|set|assembly))\b/i.test(d) && /\bnr\b|\bset\b/i.test(unit)) return true;
+  if (/\b(?:water\s*heater|instantaneous\s*heater|solar\s*thermal)\b/i.test(d)) return true;
+  if (/\b(?:sprinkler\s*head|deluge|foam\s*system|fire\s*hydrant|hose\s*reel|fire\s*extinguisher)\b/i.test(d)) return true;
+  if (/\b(?:backflow\s*preventer|pressure\s*reducing\s*valve)\b/i.test(d) && /\bnr\b|\bset\b/i.test(unit)) return true;
+  // Lifts & specialist
+  if (/\b(?:elevator|lift|escalator|moving\s*walkway|travelator|dumbwaiter)\b/i.test(d)) return true;
+  if (/\b(?:automated?\s*door|revolving\s*door|security\s*barrier|boom\s*gate|ev\s*charg)\b/i.test(d)) return true;
+  if (/\b(?:baggage\s*handling|conveyor|pv\s*solar\s*panel)\b/i.test(d)) return true;
+  return false;
+}
+
+// Step 3: Is it provisional/lump sum?
+function isECCS_Provisional(desc) {
+  return /\b(provisional\s+sum|lump\s+sum|preliminaries|general\s+requirements|daywork|contingenc|insurance|bonds?|testing\s+allowance|prime\s+cost)\b/i.test(desc);
+}
+
+// Step 4: Is it labour/service only?
+function isECCS_LabourOnly(desc) {
+  return /\b(labour\s+only|labor\s+only|workmanship|installation\s+only|commission(?:ing)?|inspection|survey\b|design\s+fee|attendance)\b/i.test(desc);
+}
+
+// Step 5: Is it landscaping/organic?
+function isECCS_Landscaping(desc) {
+  return /\b(topsoil|planting|(?:tree|shrub|grass|turf|mulch|fertiliz|seed)\b(?!.*pipe))/i.test(desc);
+}
+
 // ===== AI-PARSED BOQ ITEMS → TENDER TABLE =====
-// AI provides item extraction (item numbers, descriptions, quantities, units).
-// Local matching (lookupTenderGWP) is used to match to material database —
-// this is more reliable than AI matching since it uses the exact same database.
+// ECCS Classification Hierarchy:
+// Step 1: Demolition → EF=0 | Step 2: Complex MEP → EF=0
+// Step 3: Provisional → EF=0 | Step 4: Labour → EF=0
+// Step 5: Landscaping → EF=0 | Step 6: Material → classify & assign EF
 function aiAddBOQItems(aiItems, fileName) {
   var a13Count = 0, iceCount = 0, unmatchedCount = 0;
 
@@ -1792,112 +1891,159 @@ function aiAddBOQItems(aiItems, fileName) {
 
     var desc = item.description || '';
     var dLower = desc.toLowerCase();
+    var unitStr = item.unit || '';
 
-    // FILTER: Skip non-material items that AI may have included
-    // Equipment/plant
-    if (/\b(concrete\s+mixer|crane|compactor|generator|scaffolding|formwork\s+(?:removal|strip)|temporary\s+works)\b/i.test(dLower) && item.qty <= 10) return;
-    // VAT, tax, percentages, provisionals
-    if (/\b(add\s+vat|vat\s+of|add\s+\d+%|contingenc|provisional\s+sum|prime\s+cost|day\s*work|prelim(?:inar)|insurance|bond|permit|carried?\s+(?:to|forward)|sub[- ]?total|brought\s+forward)\b/i.test(dLower)) return;
+    // ================================================================
+    // ECCS 6-STEP CLASSIFICATION HIERARCHY — applied BEFORE any matching
+    // ================================================================
+    var eccsZero = false;       // true = EF must be 0
+    var eccsCategory = '';      // override category
+    var eccsFlag = '';          // flag text
+    var eccsDemolition = !!item.isDemolition;
+    var eccsComplexMEP = !!item.isComplexMEP;
 
-    var catHint = item.category || '';
-    var unitHint = item.unit || '';
+    // Step 1: Demolition/Removal → A1-A3 = 0
+    if (item.isDemolition || isECCS_Demolition(dLower)) {
+      eccsZero = true;
+      eccsCategory = 'Demolition/Removal';
+      eccsFlag = 'ZERO — Demolition/removal activity, no A1-A3 embodied carbon';
+      eccsDemolition = true;
+    }
+    // Step 2: Complex MEP Assembly → EF = 0
+    else if (item.isComplexMEP || isECCS_ComplexMEP(desc, unitStr)) {
+      eccsZero = true;
+      eccsCategory = 'Complex MEP';
+      eccsFlag = 'ZERO — Complex MEP assembly, requires manufacturer EPD for accurate assessment';
+      eccsComplexMEP = true;
+    }
+    // Step 3: Provisional/Lump Sum → skip entirely
+    else if (isECCS_Provisional(dLower)) {
+      return; // Skip — non-material item
+    }
+    // Step 4: Labour/Service only → skip entirely
+    else if (isECCS_LabourOnly(dLower)) {
+      return; // Skip — no material content
+    }
+    // Step 5: Landscaping/Organic → EF = 0
+    else if (isECCS_Landscaping(dLower)) {
+      eccsZero = true;
+      eccsCategory = 'Landscaping';
+      eccsFlag = 'ZERO — Organic/landscaping item, excluded from A1-A3 assessment';
+    }
+    // Step 6: Quantifiable material → proceed to matching below
 
-    // LOCAL RE-MATCHING: Use the description to match against our material databases.
-    // This is more reliable than AI matching since it uses the exact same MATERIALS and ICE_MATERIALS.
-    var localMatch = lookupTenderGWP(desc, catHint, unitHint);
-
+    // ================================================================
+    // MATERIAL MATCHING — Only for Step 6 items (eccsZero = false)
+    // ================================================================
     var bl, gwpSource, category, typeName, alternatives, iceRefUrl, matDB, efUnit, massFactor, unit, assumption;
 
-    if (localMatch.matched) {
-      // Local matching succeeded — use local results
-      bl = localMatch.baseline;
-      gwpSource = localMatch.gwpSource;
-      category = localMatch.category;
-      typeName = localMatch.typeName;
-      alternatives = localMatch.alternatives || [];
-      iceRefUrl = localMatch.iceRefUrl || '';
-      assumption = localMatch.assumption || '';
-      matDB = localMatch.mat;
-      efUnit = matDB ? matDB.efUnit : (item.efUnit || '');
-      massFactor = matDB ? matDB.massFactor : 1;
-      unit = matDB ? matDB.unit : (item.materialUnit || item.unit);
-    } else {
-      // Local matching failed — use AI results as fallback
-      bl = item.baselineEF || 0;
-      gwpSource = item.gwpSource || 'none';
-      category = item.category || 'Unmatched';
-      typeName = item.type || desc;
+    if (eccsZero) {
+      // Steps 1-5: Carbon factor = 0, no material matching needed
+      bl = 0;
+      gwpSource = 'none';
+      category = eccsCategory;
+      typeName = eccsCategory;
       alternatives = [];
       iceRefUrl = '';
-      assumption = item.assumption || '';
+      assumption = eccsFlag;
+      matDB = null;
+      efUnit = '';
+      massFactor = 1;
+      unit = item.unit || 'nr';
+    } else {
+      // Step 6: Quantifiable material — do local re-matching
+      var catHint = item.category || '';
+      var unitHint = item.unit || '';
+      var localMatch = lookupTenderGWP(desc, catHint, unitHint);
 
-      // Build alternatives from AI category if it exists in our databases
-      if (gwpSource === 'A1-A3' && MATERIALS[category]) {
-        MATERIALS[category].types.forEach(function(t, idx) {
-          alternatives.push({ name: t.name, baseline: t.baseline, target: t.target, idx: idx });
-        });
-      } else if (gwpSource === 'ICE' && ICE_MATERIALS[category]) {
-        var iceMat = ICE_MATERIALS[category];
-        iceMat.types.forEach(function(t, idx) {
-          var altBelow = iceMat.isMEP && t.coveragePct !== undefined && t.coveragePct < ICE_COVERAGE_THRESHOLD;
-          alternatives.push({ name: t.name, baseline: altBelow ? 0 : t.baseline, target: altBelow ? 0 : t.target, idx: idx });
-        });
-        iceRefUrl = 'https://circularecology.com/embodied-carbon-footprint-database.html';
-      } else if (MATERIALS[category]) {
-        MATERIALS[category].types.forEach(function(t, idx) {
-          alternatives.push({ name: t.name, baseline: t.baseline, target: t.target, idx: idx });
-        });
-      } else if (ICE_MATERIALS[category]) {
-        var iceM = ICE_MATERIALS[category];
-        iceM.types.forEach(function(t, idx) {
-          alternatives.push({ name: t.name, baseline: t.baseline, target: t.target, idx: idx });
-        });
+      if (localMatch.matched) {
+        bl = localMatch.baseline;
+        gwpSource = localMatch.gwpSource;
+        category = localMatch.category;
+        typeName = localMatch.typeName;
+        alternatives = localMatch.alternatives || [];
+        iceRefUrl = localMatch.iceRefUrl || '';
+        assumption = localMatch.assumption || '';
+        matDB = localMatch.mat;
+        efUnit = matDB ? matDB.efUnit : (item.efUnit || '');
+        massFactor = matDB ? matDB.massFactor : 1;
+        unit = matDB ? matDB.unit : (item.materialUnit || item.unit);
+      } else {
+        bl = item.baselineEF || 0;
+        gwpSource = item.gwpSource || 'none';
+        category = item.category || 'Unmatched';
+        typeName = item.type || desc;
+        alternatives = [];
+        iceRefUrl = '';
+        assumption = item.assumption || '';
+
+        if (gwpSource === 'A1-A3' && MATERIALS[category]) {
+          MATERIALS[category].types.forEach(function(t, idx) {
+            alternatives.push({ name: t.name, baseline: t.baseline, target: t.target, idx: idx });
+          });
+        } else if (gwpSource === 'ICE' && ICE_MATERIALS[category]) {
+          var iceMat = ICE_MATERIALS[category];
+          iceMat.types.forEach(function(t, idx) {
+            var altBelow = iceMat.isMEP && t.coveragePct !== undefined && t.coveragePct < ICE_COVERAGE_THRESHOLD;
+            alternatives.push({ name: t.name, baseline: altBelow ? 0 : t.baseline, target: altBelow ? 0 : t.target, idx: idx });
+          });
+          iceRefUrl = 'https://circularecology.com/embodied-carbon-footprint-database.html';
+        } else if (MATERIALS[category]) {
+          MATERIALS[category].types.forEach(function(t, idx) {
+            alternatives.push({ name: t.name, baseline: t.baseline, target: t.target, idx: idx });
+          });
+        } else if (ICE_MATERIALS[category]) {
+          var iceM = ICE_MATERIALS[category];
+          iceM.types.forEach(function(t, idx) {
+            alternatives.push({ name: t.name, baseline: t.baseline, target: t.target, idx: idx });
+          });
+        }
+
+        matDB = MATERIALS[category] || ICE_MATERIALS[category];
+        efUnit = item.efUnit || (matDB ? matDB.efUnit : '');
+        massFactor = matDB ? matDB.massFactor : 1;
+        unit = item.materialUnit || (matDB ? matDB.unit : item.unit);
       }
-
-      matDB = MATERIALS[category] || ICE_MATERIALS[category];
-      efUnit = item.efUnit || (matDB ? matDB.efUnit : '');
-      massFactor = matDB ? matDB.massFactor : 1;
-      unit = item.materialUnit || (matDB ? matDB.unit : item.unit);
     }
 
     // --- Unit Conversion ---
     var boqQty = item.qty;
     var boqUnit = item.unit || '';
-    var materialUnit = unit; // EF's expected unit (from local match or AI)
+    var materialUnit = unit;
 
-    // CRITICAL FIX: If AI returned a garbage unit (e.g., the quantity value "28,894" as unit),
-    // try to extract the real unit from the description text
-    var normalizedBoqUnit = normalizeUnitStr(boqUnit);
-    if (!isRecognizedUnit(normalizedBoqUnit)) {
-      // AI unit is garbage — try extracting from description
-      var descUnit = extractUnitFromDescription(desc);
-      if (descUnit) {
-        boqUnit = descUnit;
-      } else {
-        // Also try from the original AI item fields
-        var aiMatUnit = item.materialUnit || '';
-        if (aiMatUnit && isRecognizedUnit(normalizeUnitStr(aiMatUnit))) {
-          // materialUnit from AI is valid — boqUnit might be same
-          // Don't override, let conversion handle it
+    // For ECCS zero items (MEP, demolition, etc.) — keep qty as-is, no conversion
+    if (eccsZero) {
+      var convertedQty = boqQty;
+      var conversionNote = eccsFlag;
+      var conversionType = 'none';
+      var thickness = null;
+      var thicknessSource = null;
+    } else {
+      // CRITICAL FIX: If AI returned a garbage unit, try extracting from description
+      var normalizedBoqUnit = normalizeUnitStr(boqUnit);
+      if (!isRecognizedUnit(normalizedBoqUnit)) {
+        var descUnit = extractUnitFromDescription(desc);
+        if (descUnit) {
+          boqUnit = descUnit;
         }
       }
-    }
 
-    // Extract thickness: AI may provide thicknessMM, otherwise extract from description
-    var thicknessObj = null;
-    if (item.thicknessMM && item.thicknessMM > 0) {
-      thicknessObj = { value: item.thicknessMM / 1000, raw: item.thicknessMM + 'mm', source: 'ai' };
-    }
-    if (!thicknessObj) {
-      thicknessObj = extractThickness(desc);
-    }
-    var thickness = thicknessObj ? thicknessObj.value : null;
-    var thicknessSource = thicknessObj ? thicknessObj.source : null;
+      // Extract thickness: AI may provide thicknessMM, otherwise extract from description
+      var thicknessObj = null;
+      if (item.thicknessMM && item.thicknessMM > 0) {
+        thicknessObj = { value: item.thicknessMM / 1000, raw: item.thicknessMM + 'mm', source: 'ai' };
+      }
+      if (!thicknessObj) {
+        thicknessObj = extractThickness(desc);
+      }
+      var thickness = thicknessObj ? thicknessObj.value : null;
+      var thicknessSource = thicknessObj ? thicknessObj.source : null;
 
-    var conversion = convertBOQQuantity(boqQty, boqUnit, materialUnit, thickness, massFactor);
-    var convertedQty = conversion.convertedQty;
-    var conversionNote = conversion.conversionNote;
-    var conversionType = conversion.conversionType;
+      var conversion = convertBOQQuantity(boqQty, boqUnit, materialUnit, thickness, massFactor);
+      var convertedQty = conversion.convertedQty;
+      var conversionNote = conversion.conversionNote;
+      var conversionType = conversion.conversionType;
+    }
 
     var blEm = (convertedQty * bl) / 1000;
 
@@ -1905,15 +2051,13 @@ function aiAddBOQItems(aiItems, fileName) {
     else if (gwpSource === 'ICE') iceCount++;
     else unmatchedCount++;
 
-    // Carry through lifecycle stage and confidence from AI
-    var lifecycleStage = item.lifecycleStage || 'A1-A3';
-    var isDemolition = !!item.isDemolition;
+    // Carry through lifecycle stage and confidence
+    var lifecycleStage = eccsDemolition ? 'A5' : (item.lifecycleStage || 'A1-A3');
+    var isDemolition = eccsDemolition;
+    var isComplexMEP = eccsComplexMEP;
     var confidence = item.confidence || 'medium';
-
-    // If demolition item, note it in assumption
-    if (isDemolition && assumption.indexOf('demolition') === -1) {
-      assumption = (assumption ? assumption + '. ' : '') + 'Demolition/removal of existing material (A5 stage)';
-    }
+    // ECCS zero items get high confidence (we're certain they're zero)
+    if (eccsZero) confidence = 'high';
 
     _tenderItems.push({
       id: Date.now() + Math.random(),
@@ -1924,7 +2068,7 @@ function aiAddBOQItems(aiItems, fileName) {
       boqQty: boqQty,
       boqUnit: boqUnit,
       qty: convertedQty,
-      unit: materialUnit,
+      unit: eccsZero ? (item.unit || 'nr') : materialUnit,
       efUnit: efUnit,
       massFactor: massFactor,
       thickness: thickness,
@@ -1932,15 +2076,17 @@ function aiAddBOQItems(aiItems, fileName) {
       convertedQty: convertedQty,
       conversionNote: conversionNote,
       conversionType: conversionType,
-      needsConversion: conversionType !== 'none',
+      needsConversion: !eccsZero && conversionType !== 'none',
       baselineEF: bl,
       targetEF: bl,
       baselineEmission: blEm,
       targetEmission: blEm,
       isCustom: gwpSource === 'none',
-      gwpSource: gwpSource === 'none' ? 'Manual' : gwpSource,
+      gwpSource: eccsZero ? 'ECCS-Zero' : (gwpSource === 'none' ? 'Manual' : gwpSource),
       lifecycleStage: lifecycleStage,
       isDemolition: isDemolition,
+      isComplexMEP: isComplexMEP,
+      eccsZero: eccsZero,
       confidence: confidence,
       assumption: assumption,
       alternatives: alternatives,

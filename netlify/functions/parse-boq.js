@@ -1,7 +1,20 @@
-// ===== AI-POWERED BOQ PARSING =====
-// Uses Claude API to intelligently parse PDF BOQ text and match materials
+// ===== ECCS — Enhanced BOQ Carbon Classification Engine =====
+// AI-powered BOQ parsing with KSIA-grade classification hierarchy
+// Version 3.0 — Parsons Arabia Decarbonization Unit methodology
 // Supports chunked processing for large documents (parts 1-12+)
 const { verifyToken, headers, respond, optionsResponse } = require('./utils/firebase');
+
+// ============================================================
+// ECCS CLASSIFICATION HIERARCHY (6-Step Decision Tree)
+// ============================================================
+// For EVERY BOQ item, apply these checks IN ORDER. Stop at first match:
+// STEP 1 → Demolition/Removal   → carbon_factor = 0
+// STEP 2 → Complex MEP Assembly → carbon_factor = 0
+// STEP 3 → Provisional/Lump Sum → carbon_factor = 0
+// STEP 4 → Labour/Service       → carbon_factor = 0
+// STEP 5 → Landscaping/Organic  → carbon_factor = 0
+// STEP 6 → Quantifiable Material → classify and assign EF
+// ============================================================
 
 // Build the AI prompt for a given text chunk
 function buildPrompt(text, fileName, chunkInfo) {
@@ -9,101 +22,115 @@ function buildPrompt(text, fileName, chunkInfo) {
     ? `\n\nNOTE: This is chunk ${chunkInfo.current} of ${chunkInfo.total} from a large document. Parse ALL items in this chunk.`
     : '';
 
-  return `You are an intelligent carbon classification engine for embodied carbon accounting (EN 15978 / ISO 21930).
+  return `You are an expert Embodied Carbon Engineer classifying Bill of Quantities (BOQ) items for carbon assessment. Your role is to analyze each BOQ line item and assign the correct material classification, carbon factor, lifecycle stage, and unit conversion.
+${chunkNote}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+RULE 0: CLASSIFICATION HIERARCHY — FOLLOW THIS ORDER STRICTLY
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-## ROLE
-Expert construction quantity surveyor and embodied carbon analyst. Your goal is 100% coverage — EVERY BOQ item with a quantity MUST be classified. Do NOT leave items unprocessed.
+For EVERY BOQ item, apply these checks IN ORDER. Stop at the first match:
 
-## TASK
-Parse the following Bill of Quantities (BOQ) text extracted from a PDF.
-For each line item, follow this decision tree:
-1. Identify the PRIMARY WORK ACTIVITY — is it procurement of virgin material, processing/manufacturing, installation, demolition/deconstruction, or transportation of materials/waste?
-2. Extract the material type and quantity unit
-3. Determine the LIFECYCLE STAGE (see below)
-4. Flag any unit mismatches, but intelligently reconcile them using industry-standard conversion factors
-5. Assign a CONFIDENCE level for your classification${chunkNote}
+STEP 1 → Is it a DEMOLITION or REMOVAL item?
+  Keywords: "remove", "demolish", "strip out", "break up", "dismantle", "pull down",
+            "take down", "rip out", "clear away", "disposal", "break out"
+  ACTION → Set baselineEF = 0, lifecycleStage = "A5", isDemolition = true,
+           category = "Demolition/Removal", gwpSource = "none",
+           assumption = "ZERO — Demolition/removal activity, no A1-A3 embodied carbon"
+  Even if material is mentioned (e.g., "Remove steel plate"), A1-A3 = 0.
 
-## LIFECYCLE STAGE CLASSIFICATION (EN 15978)
-Classify each item into the correct stage:
-- "A1-A3" — Raw material supply + transport + manufacturing (virgin material production and delivery to site)
-- "A4" — Transport to site (hauling, delivery, logistics)
-- "A5" — Construction/installation process AND demolition/deconstruction work
-- "D" — Reuse, recovery, recycling potential (benefits beyond system boundary)
+STEP 2 → Is it a COMPLEX MEP ASSEMBLY?
+  A Complex MEP item is any manufactured assembly containing MULTIPLE materials
+  (metals, plastics, electronics, wiring, glass) that CANNOT be decomposed into
+  a single dominant material from a BOQ description alone.
 
-DECISION RULES:
-- Material procurement items (concrete, steel, timber, pipes, etc.) → A1-A3
-- Delivery/hauling of materials TO site → A4
-- Installation, placing, laying, fixing activities → A5 (but the MATERIAL is still A1-A3)
-- Demolition, breaking out, removal of existing structures → A5 (classify the material being demolished)
-- Transport of demolition WASTE away from site → A4
-- Items mentioning "reuse", "recycled", "reclaimed" → note D-stage potential
-- Excavation/earthwork: if moving material = A5 process; if procuring fill = A1-A3
+  ALWAYS classify as Complex MEP (baselineEF = 0) if description contains:
 
-CONTEXTUAL INTELLIGENCE for demolition items:
-- "Demolition of existing asphalt pavement" → The activity is A5 demolition, the material is demolished asphalt (NOT virgin asphalt)
-- "Break out existing concrete slab" → A5 demolition of concrete, NOT new concrete
-- "Cart away demolition rubble" → A4 transport of waste
-- "Reuse of excavated material as fill" → Note D-stage recycling potential, classify as Earthwork
+  ELECTRICAL:
+  - Light fittings/luminaires/lamps (ANY type: inset, surface, pendant, recessed,
+    directional, omni-directional, bi-directional, uni-directional, emergency, LED,
+    flood, spot, down-light, strip, decorative, bollard, pole-mounted)
+  - "complete with transformer" / "complete with driver" / "complete with ballast"
+  - "secondary connector" / "and all accessories" with electrical items
+  - Switchgear, distribution boards, panel boards, MCBs, RCDs, isolators
+  - Transformers, UPS systems, generators, inverters
+  - Fire alarm devices, smoke detectors, heat detectors, sounders
+  - CCTV cameras, access control units, card readers, intercoms
+  - Public address speakers, AV equipment, display screens
+  - BMS controllers, sensors, actuators, DDC panels
+  - Socket outlets with USB, data outlets, floor boxes (as assemblies)
 
-## UNDERSTANDING THE DOCUMENT FORMAT
-This text was extracted from a PDF using PDF.js. The text is reconstructed from coordinates — columns are separated by tabs or multiple spaces. The document is a table with columns like:
-- Item Number (e.g., "C2.97", "4.1.3", "B/1/001", "2.01")
-- Description (the MAIN TEXT — usually the longest column)
-- Quantity (a number)
-- Unit (m², m³, kg, tonnes, nr, m, lin.m, etc.)
-- Rate and Amount columns (ignore these — they are costs)
+  MECHANICAL / HVAC:
+  - Fan coil units, AHUs, package units, split AC, cassette units, VRF/VRV
+  - Chillers, cooling towers, boilers, heat exchangers
+  - VAV boxes, diffusers with dampers, grilles with opposed blade dampers
+  - Pumps (all types), expansion vessels, buffer tanks, calorifiers
+  - Kitchen extract hoods, fume cupboards, heat recovery units
 
-IMPORTANT: The text might be fragmented. Item numbers and descriptions might appear on separate fragments. You MUST reconstruct the full meaning. Short codes like "C2.97" or "B2.15" are ITEM NUMBERS, not descriptions.
+  PLUMBING / FIRE:
+  - Sanitary ware (WCs, basins, urinals, sinks, showers — ceramic+metal+plastic)
+  - Water heaters, solar thermal panels
+  - Fire sprinkler heads, deluge systems, foam systems, fire hydrants, hose reels
+  - Backflow preventers, pressure reducing valves (as assemblies)
 
-## CRITICAL RULES
-1. Read the FULL document. Understand the structure — section headers, item numbers, descriptions, quantities, units.
-2. Extract the EXACT item number (e.g., "C2.97", "4.1.3", "B/1/001").
-3. Extract the COMPLETE description — do NOT summarize or truncate.
-4. NEVER use the item number as the description. If you cannot find a description, write "No description found - [item number]".
-5. Extract the numeric quantity. "Various" or missing = qty 0.
-6. Extract the unit as a CLEAN abbreviation: m², m³, kg, tonnes, nr, m, lin.m. Do NOT include "Provisional" or "Sum" — just the unit.
-7. Match each item to the correct material category and GWP factor.
-8. Skip preamble text, section headers, notes, and non-quantifiable items.
-9. DO NOT make silly mistakes — "grouting" is NOT tin, it is cement/concrete. "GERCC" = General Excavation, Return, Compaction, and Carting = earthwork, NOT metal.
-10. Multi-line descriptions: combine into one complete description.
-11. Use section headers ("STORM WATER DRAINAGE", "EARTHWORKS", "CONCRETE") to understand context.
-12. EXTRACT THICKNESS/DEPTH: If the description mentions thickness, depth, or layer dimension, extract it as "thicknessMM" in mm. CRITICAL for m² → m³ conversion. Do NOT confuse rebar diameter or pipe diameter with layer thickness.
-13. SKIP NON-MATERIAL ITEMS:
-    - Equipment/plant (Crane, Compactor, Generator, Scaffolding)
-    - VAT, tax, percentage lines ("Add VAT", "Add 15% contingency")
-    - Provisional sums, prime cost sums, day works
-    - Preliminaries, insurance, bonds, permits
-    - Subtotals, totals, carried forward amounts
-    - Labour-only items with no material content
-    - Temporary works (unless they involve permanent materials)
-14. POLYMER MODIFIED BINDER (PMB): If asphalt mentions PMB, polymer modified, or modified binder, note this in assumption — it has higher EF than standard binder.
-15. SET CONFIDENCE: Rate your match confidence as "high", "medium", or "low":
-    - "high" = clear material identification, exact grade/type match, unambiguous unit
-    - "medium" = reasonable match but some inference required (e.g., no explicit concrete grade, assumed from context)
-    - "low" = ambiguous item, multiple possible matches, or unusual description — NEEDS HUMAN REVIEW
+  LIFTS & SPECIALIST:
+  - Elevators/lifts, escalators, moving walkways, dumbwaiters
+  - Automated doors, revolving doors, security barriers, boom gates
+  - Baggage handling systems, conveyor systems, PV solar panels, EV charging
 
-## CONCRETE GRADE MATCHING
-- F-value strength: F5.2 N/mm² ≈ C30-40, F10 ≈ C40-50, F3.5 ≈ C20-30
-- "lean mix", "blinding", "mass concrete" ≈ C15-20
-- "general structural", "foundations", "RC slabs" ≈ C30-40
-- "high strength", "post-tensioned", "precast" ≈ C40-50 or C50-60
-- PCC (Portland Cement Concrete) without grade ≈ C30-40
+  KEY INDICATORS: "complete with", "including all accessories", "with transformer",
+    "with driver", "secondary connector", "low voltage system", unit = "nr"/"set" + MEP
 
-## MATERIAL MATCHING — A1-A3 CATEGORIES (Priority 1)
-Match to these first. These are consultant-defined baseline emission factors:
+  ACTION → Set baselineEF = 0, category = "Complex MEP", gwpSource = "none",
+           confidence = "high", assumption = "ZERO — Complex MEP assembly, requires manufacturer EPD"
+
+  DO NOT classify simple MEP MATERIALS as Complex MEP:
+  - Plain copper pipe (by meter) → Copper
+  - Plain steel conduit (by meter) → Steel
+  - PVC/HDPE pipe (by meter) → Plastics
+  - Cable (by meter, single type) → estimate by copper/aluminum content
+  - Ductwork (by kg or m²) → galvanized steel or aluminum
+  The test: if you can identify a SINGLE DOMINANT material AND the BOQ gives weight or
+  dimension → classify it. If it's a manufactured ASSEMBLY of multiple materials → 0.
+
+STEP 3 → Is it PROVISIONAL/LUMP SUM/PRELIMINARIES?
+  Keywords: "provisional sum", "lump sum", "preliminaries", "general requirements",
+            "daywork", "contingency", "insurance", "bonds", "testing allowance"
+  ACTION → Set baselineEF = 0, category = "Non-material", gwpSource = "none"
+
+STEP 4 → Is it LABOUR-ONLY or SERVICE?
+  Keywords: "labour", "labor", "workmanship", "installation only", "commission",
+            "testing", "inspection", "survey", "design fee", "attendance"
+  ACTION → Set baselineEF = 0, category = "Service/Labour", gwpSource = "none"
+
+STEP 5 → Is it LANDSCAPING/ORGANIC?
+  Keywords: "topsoil", "planting", "tree", "shrub", "grass", "turf", "mulch",
+            "fertilizer", "seeds" (note: irrigation PIPES are separate materials)
+  ACTION → Set baselineEF = 0, category = "Landscaping", gwpSource = "none"
+
+STEP 6 → QUANTIFIABLE CONSTRUCTION MATERIAL
+  Only if Steps 1-5 did NOT match → proceed to material classification below.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+MATERIAL MATCHING (Step 6 items ONLY)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+### A1-A3 CATEGORIES (Priority 1) — Consultant-defined baseline EFs:
 
 Concrete [unit: m³, efUnit: kgCO₂e/m³]:
   C15-20 (323), C20-30 (354), C30-40 (431), C40-50 (430), C50-60 (483), C60-70 (522)
+  Grade matching: F5.2→C30-40, F10→C40-50, F3.5→C20-30
+  "lean mix"/"blinding" → C15-20, "structural"/"foundation" → C30-40, "high strength" → C40-50+
 
 Steel [unit: kg, efUnit: kgCO₂e/kg]:
   Structural I-sections (2.46), Rebar (2.26), Hollow sections (2.52), Hot Dip Galvanized (2.74)
 
 Asphalt [unit: tons, efUnit: kgCO₂e/ton]:
   3% Binder (50.1), 4% (52.2), 5% (54.2), 6% (56.3), 7% (58.4)
-  Note: For PMB asphalt, use 5% Binder as minimum baseline
+  PMB/polymer modified → use 5% minimum
 
 Aluminum [unit: kg, efUnit: kgCO₂e/kg]:
   Profile Without Coating (10.8), With Coating (10.8), Sheets (13.5)
+  WARNING: "Aluminum" in light fittings ≠ Aluminum material. Check Step 2 first!
 
 Glass [unit: kg, efUnit: kgCO₂e/kg]:
   Annealed (1.28), Coated (1.61), Laminated (1.77), IGU (4.12)
@@ -115,62 +142,96 @@ Subgrade [unit: kg, efUnit: kgCO₂e/kg]:
   Coarse & Fine Aggregate Recycled (0.0006), Coarse Aggregate (0.0103), Sand (0.0052)
 
 Pipes [unit: m, efUnit: kgCO₂e/m]:
-  600mm (179.9), 700mm (241.3), 800mm (307.2), 900mm (394.7), 1000mm (436.2), 1200mm (543.8), 1500mm (814.1), 1800mm (1138.3)
+  600mm (179.9), 700mm (241.3), 800mm (307.2), 900mm (394.7), 1000mm (436.2),
+  1200mm (543.8), 1500mm (814.1), 1800mm (1138.3)
 
-## ICE DATABASE CATEGORIES (Priority 2 — only if no A1-A3 match)
-Concrete (ICE): C8-10 to C70-85, Precast, Lightweight, Fibre Reinforced, Blocks
-Steel (ICE): I/H Sections, Rebar, Tubes, Galvanized, Coil, Plate, Stainless, Mesh, Piles
-Timber: Softwood, Hardwood, Glulam, CLT, Plywood
-Masonry: Brick, Mortar, Natural Stone
-Ceramics: Floor/Wall tiles, Porcelain, Roof tiles
-Cement: CEM I (0.91), CEM II (0.63-0.76), GGBS (0.07), Lime (0.76)
-  Matching: cement, grouting, grout, injection, cementitious
-Insulation: EPS, XPS, PIR, Mineral Wool, Glass Wool
-Plastics: PVC, HDPE, PP, Polycarbonate
-Waterproofing: Bitumen, EPDM, PVC membrane, TPO
-Paints & Coatings: Water-based, Solvent-based, Primer, Intumescent
-Plaster: Gypsum, Plasterboard, Render
-Earthwork (ICE): Excavation (3.50/ton), Aggregates (5.20/ton), Sand (4.80/ton), Gravel (4.00/ton), Sub-base (4.40/ton)
-Pipes (ICE): Ductile Iron, HDPE, PVC-U, GRP, Steel (various diameters)
-MEP - HVAC: Ductwork, AHU, Chiller, Boiler, Heat Pump, FCU
-MEP - Electrical: Cable, Cable Tray, Transformer, Switchgear, LED
-MEP - Plumbing: Copper/PPR/CPVC/PEX pipe, Pumps, Tanks
-MEP - Fire Protection: Sprinkler pipe, Fire pump, Dampers
+### ICE DATABASE (Priority 2 — only if no A1-A3 match):
+Concrete: C8-10 to C70-85, Precast, Lightweight, Fibre Reinforced, Blocks
+Steel: I/H Sections, Rebar, Tubes, Galvanized, Coil, Plate, Stainless, Mesh, Piles
+Timber: Softwood (0.31/kg), Hardwood (0.39/kg), Glulam (0.51/kg), CLT (0.44/kg), Plywood (0.68/kg)
+Masonry: Brick (0.24/kg), Mortar (0.163/kg), Natural Stone (0.079/kg)
+Ceramics: Ceramic tile (0.59/kg), Porcelain (0.70/kg)
+Cement: CEM I (0.91/kg), CEM II (0.63-0.76/kg), GGBS (0.07/kg), Lime (0.76/kg)
+Insulation: EPS (3.29/kg), XPS (3.45/kg), PIR (4.26/kg), Mineral Wool (1.28/kg)
+Plastics: PVC (3.10/kg), HDPE (1.93/kg), PP (3.43/kg)
+Waterproofing: Bituminous membrane (0.45/kg), EPDM (3.65/kg)
+Paints: Water-based (2.42/kg), Primer, Intumescent
+Plaster: Gypsum, Plasterboard (0.39/kg), Render
+Copper: General (3.81/kg), Pipe (3.81/kg)
+Earthwork: Excavation (3.50/ton), Aggregates (5.20/ton), Sand (4.80/ton)
+Pipes: Ductile Iron, HDPE, PVC-U, GRP, Steel (various diameters)
+MEP - HVAC: Ductwork, AHU, Chiller (simple materials by kg/m only)
+MEP - Electrical: Cable, Cable Tray (simple materials by kg/m only)
+MEP - Plumbing: Copper/PPR/CPVC/PEX pipe (simple materials by m only)
 
-## UNIT HANDLING — CRITICAL
-- ALWAYS extract thickness/depth from description if present. Set "thicknessMM" in mm.
-- If BOQ is m² but factor is per m³ → You MUST set thicknessMM
-- If BOQ is m³ and factor is per m³ → use directly, thicknessMM: null
-- If BOQ gives weight (kg/tonnes) → auto-convert, thicknessMM: null
-- Thickness examples:
-  - "depth 450mm" → thicknessMM: 450
-  - "200mm thick slab" → thicknessMM: 200
-  - "150mm blinding layer" → thicknessMM: 150
-  - "Rebar 16mm dia" → thicknessMM: null (bar diameter)
-  - "200mm dia pipe" → thicknessMM: null (pipe diameter)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+UNIT & DIMENSION PARSING
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+- Extract thickness/depth from description → set thicknessMM (in mm)
+- m² + thickness → system will auto-convert to m³
+- kg/tonnes → direct
+- "nr" for material items → estimate mass from dimensions if possible
+- "nr" for MEP assemblies → DO NOT estimate mass, carbon = 0
+- Do NOT confuse rebar diameter or pipe diameter with layer thickness
+- Standard densities: concrete=2400, steel=7850, aluminum=2700, asphalt=2350
 
-## OUTPUT FORMAT
-Return ONLY a valid JSON array, no other text. Each element:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FEW-SHOT EXAMPLES (Learn from these)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ITEM: "Remove existing blanking plate" | 1,384 nr
+CORRECT: { "category": "Demolition/Removal", "baselineEF": 0, "lifecycleStage": "A5", "isDemolition": true, "gwpSource": "none", "confidence": "high" }
+WRONG: { "category": "Steel", "baselineEF": 2.44 } ← WRONG: this is removal, not new material
+
+ITEM: "Bi-Directional Inset light fitting, complete with transformer, secondary connector and all accessories" | 523 nr
+CORRECT: { "category": "Complex MEP", "baselineEF": 0, "gwpSource": "none", "confidence": "high", "assumption": "ZERO — Complex MEP assembly (light fitting with transformer, connector, accessories), requires manufacturer EPD" }
+WRONG: { "category": "Aluminum", "baselineEF": 10.80 } ← WRONG: multi-material assembly, not pure aluminum
+
+ITEM: "150mm thick C40 concrete slab" | 2,500 m²
+CORRECT: { "category": "Concrete", "type": "C40-50", "baselineEF": 430, "efUnit": "kgCO₂e/m³", "thicknessMM": 150, "unit": "m²", "materialUnit": "m³", "gwpSource": "A1-A3", "confidence": "high" }
+
+ITEM: "Steel reinforcement bar, high yield, B500B" | 450,000 kg
+CORRECT: { "category": "Steel", "type": "Rebar", "baselineEF": 2.26, "efUnit": "kgCO₂e/kg", "unit": "kg", "gwpSource": "A1-A3", "confidence": "high" }
+
+ITEM: "Provisional sum for testing" | 1 sum
+CORRECT: { "category": "Non-material", "baselineEF": 0, "gwpSource": "none", "confidence": "high" }
+
+ITEM: "25mm diameter copper pipe to BS EN 1057" | 1,200 m
+CORRECT: { "category": "Copper", "baselineEF": 3.81, "efUnit": "kgCO₂e/kg", "gwpSource": "ICE", "confidence": "high" }
+WRONG: { "category": "Complex MEP", "baselineEF": 0 } ← WRONG: plain pipe by the meter IS a simple material
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+CRITICAL WARNINGS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+- NEVER assume material from one word. "Aluminum" in light fittings = Complex MEP = 0
+- NEVER assign A1-A3 carbon to demolition/removal items
+- NEVER guess mass for MEP items counted in "nr". If assembly → 0
+- ALWAYS check unit against description context
+- ALWAYS flag uncertainty: confidence "low" + review reason if < 80% confident
+- "complete with" → almost always indicates an assembly → Step 2 → 0
+- Process EVERY item. Never skip. 100% coverage.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+OUTPUT FORMAT
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Return ONLY a valid JSON array. Each element:
 {
   "itemNo": "exact BOQ number",
-  "description": "THE FULL WORK DESCRIPTION (NOT the item number). MUST be 10+ characters.",
+  "description": "FULL work description (NOT item number). 10+ characters.",
   "qty": number,
-  "unit": "clean unit abbreviation only",
+  "unit": "clean abbreviation (m², m³, kg, tonnes, nr, m, lin.m)",
   "thicknessMM": number or null,
   "lifecycleStage": "A1-A3" or "A4" or "A5" or "D",
-  "isDemolition": true/false (is this demolishing/removing existing material?),
-  "category": "material category name from lists above",
-  "type": "specific type name from lists above",
+  "isDemolition": true/false,
+  "isComplexMEP": true/false,
+  "category": "from lists above or Demolition/Removal or Complex MEP or Non-material or Service/Labour or Landscaping",
+  "type": "specific type (e.g., C30-40, Rebar, Profile With Coating)",
   "gwpSource": "A1-A3" or "ICE" or "none",
-  "baselineEF": number,
-  "efUnit": "unit of EF",
-  "materialUnit": "the unit the EF expects",
+  "baselineEF": number (0 for Steps 1-5 items),
+  "efUnit": "kgCO₂e/kg or kgCO₂e/m³ etc.",
+  "materialUnit": "unit the EF expects",
   "confidence": "high" or "medium" or "low",
-  "assumption": "explain classification reasoning — include lifecycle stage reasoning, any unit conversion needed, and flag queries for human review if confidence is low"
+  "assumption": "classification reasoning — which Step matched and why"
 }
-
-CRITICAL: "description" must be the ACTUAL work description, NOT the item number.
-CRITICAL: Every item with a quantity MUST be classified. 100% coverage. If ambiguous, set confidence to "low" with explanation.
 
 ## DOCUMENT TEXT (from: ${fileName || 'uploaded PDF'})
 ---
@@ -211,9 +272,12 @@ function cleanItems(items) {
       }
     }
 
-    // Normalize lifecycle stage
+    // Normalize lifecycle stage (handle "A5/D", "A5 D", "C1-C4" etc.)
     let stage = String(item.lifecycleStage || 'A1-A3').toUpperCase().replace(/\s+/g, '');
-    if (!['A1-A3', 'A4', 'A5', 'D'].includes(stage)) stage = 'A1-A3';
+    if (stage.indexOf('A5') !== -1 || stage.indexOf('C1') !== -1) stage = 'A5';
+    else if (stage === 'D') stage = 'D';
+    else if (stage === 'A4') stage = 'A4';
+    else if (!['A1-A3', 'A4', 'A5', 'D'].includes(stage)) stage = 'A1-A3';
 
     // Normalize confidence
     let confidence = String(item.confidence || 'medium').toLowerCase();
@@ -227,6 +291,7 @@ function cleanItems(items) {
       thicknessMM: (item.thicknessMM != null && !isNaN(item.thicknessMM) && Number(item.thicknessMM) > 0) ? Number(item.thicknessMM) : null,
       lifecycleStage: stage,
       isDemolition: !!item.isDemolition,
+      isComplexMEP: !!item.isComplexMEP,
       confidence: confidence,
       category: String(item.category || 'Unmatched'),
       type: String(item.type || desc || ''),
