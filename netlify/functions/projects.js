@@ -18,10 +18,14 @@ async function handleCreateProject(body, decoded) {
   if (!name || !name.trim()) return respond(400, { error: 'Project name is required.' });
 
   const profile = await getUserProfile(decoded.uid);
-  if (!profile) return respond(403, { error: 'Profile not found.' });
+  if (!profile) {
+    console.error('[PROJECT] Profile not found for uid:', decoded.uid);
+    return respond(403, { error: 'User profile not found in the database. This can happen if the account was created but the profile was not saved. Please contact an administrator.' });
+  }
 
   if (!['client', 'consultant'].includes(profile.role)) {
-    return respond(403, { error: 'Only clients and consultants can create projects.' });
+    console.warn('[PROJECT] Role check failed:', profile.role, 'for uid:', decoded.uid);
+    return respond(403, { error: 'Only clients and consultants can create projects. Your role is: ' + profile.role });
   }
 
   const db = getDb();
@@ -417,11 +421,12 @@ exports.handler = async (event) => {
   if (event.httpMethod !== 'POST') return respond(405, { error: 'Method not allowed' });
 
   const decoded = await verifyToken(event);
-  if (!decoded) return respond(401, { error: 'Authentication required.' });
+  if (!decoded) return respond(401, { error: 'Authentication required. Please sign in again.' });
 
   try {
     const body = JSON.parse(event.body || '{}');
     const { action } = body;
+    console.log('[PROJECT] Action:', action, 'User:', decoded.uid);
 
     switch (action) {
       // Project CRUD
@@ -447,7 +452,15 @@ exports.handler = async (event) => {
       default: return respond(400, { error: 'Invalid action.' });
     }
   } catch (e) {
-    console.error('[PROJECT] Server error:', e);
-    return respond(500, { error: 'Server error: ' + (e.message || 'Unknown') });
+    console.error('[PROJECT] Server error:', e.message || e, e.stack || '');
+    // Provide helpful error messages for common Firebase issues
+    const msg = e.message || 'Unknown';
+    if (msg.includes('permission') || msg.includes('PERMISSION_DENIED')) {
+      return respond(500, { error: 'Firebase permission denied. Check your Firebase Realtime Database rules allow read/write access.' });
+    }
+    if (msg.includes('credential') || msg.includes('INVALID_ARGUMENT')) {
+      return respond(500, { error: 'Firebase configuration error. Check your FIREBASE_SERVICE_ACCOUNT environment variable.' });
+    }
+    return respond(500, { error: 'Server error: ' + msg });
   }
 };

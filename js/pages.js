@@ -1080,11 +1080,14 @@ async function renderProjects(el) {
       </div>
     </div>
     <div class="btn-row">
-      <button class="btn btn-primary" onclick="createProject()">+ Create Project</button>
+      <button class="btn btn-primary" id="projCreateBtn" onclick="createProject()">+ Create Project</button>
     </div>
     <div class="login-error" id="projError" style="margin-top:12px"></div>
     <div class="login-error" id="projSuccess" style="margin-top:12px"></div>
   </div>` : ''}
+
+  <!-- Data loading warning banner (shown if API calls fail) -->
+  <div id="projDataWarning" style="display:none;padding:12px 16px;background:rgba(248,113,113,0.08);border:1px solid rgba(248,113,113,0.2);border-radius:10px;font-size:12px;color:var(--red);margin-bottom:12px;line-height:1.6"></div>
 
   <!-- Projects List -->
   <div class="card">
@@ -1144,12 +1147,15 @@ async function renderProjects(el) {
 
 async function loadProjectData() {
   // Fetch each independently so one slow call can't block the others
+  // Track errors so we can show a warning banner if something goes wrong
+  const errors = [];
+
   const [projects, users, orgs, projAssignments, projOrgLinks] = await Promise.all([
-    DB.getProjects().catch(() => state.projects || []),
-    DB.getUsers().catch(() => state.users || []),
-    DB.getOrganizations().catch(() => state.organizations || []),
-    DB.getProjectAssignments().catch(() => state.projectAssignments || []),
-    DB.getProjectOrgLinks().catch(() => state.projectOrgLinks || [])
+    DB.getProjects().catch(e => { errors.push('Projects: ' + (e.message || 'failed')); return state.projects || []; }),
+    DB.getUsers().catch(e => { errors.push('Users: ' + (e.message || 'failed')); return state.users || []; }),
+    DB.getOrganizations().catch(e => { errors.push('Organizations: ' + (e.message || 'failed')); return state.organizations || []; }),
+    DB.getProjectAssignments().catch(e => { errors.push('Assignments: ' + (e.message || 'failed')); return state.projectAssignments || []; }),
+    DB.getProjectOrgLinks().catch(e => { errors.push('Org links: ' + (e.message || 'failed')); return state.projectOrgLinks || []; })
   ]);
 
   state.projects = projects;
@@ -1162,6 +1168,19 @@ async function loadProjectData() {
   renderProjectOrgLinks(projOrgLinks);
   renderProjectUserAssignments(projAssignments);
   populateProjectDropdowns(projects, users, orgs);
+
+  // Show warning banner if any API calls failed
+  const bannerEl = $('projDataWarning');
+  if (errors.length > 0) {
+    console.error('[PROJECTS] Data loading errors:', errors);
+    if (bannerEl) {
+      bannerEl.style.display = 'block';
+      bannerEl.innerHTML = '<strong>Warning:</strong> Some data could not be loaded. ' + errors.join('; ') +
+        '<br><button class="btn btn-sm" onclick="this.parentElement.style.display=\'none\';loadProjectData();" style="margin-top:6px">Retry</button>';
+    }
+  } else if (bannerEl) {
+    bannerEl.style.display = 'none';
+  }
 }
 
 function renderProjectList(projects) {
@@ -1274,21 +1293,27 @@ function populateProjectDropdowns(projects, users, orgs) {
 async function createProject() {
   const errEl = $('projError');
   const sucEl = $('projSuccess');
-  errEl.style.display = 'none';
-  sucEl.style.display = 'none';
+  const btn = $('projCreateBtn');
+  if (errEl) errEl.style.display = 'none';
+  if (sucEl) sucEl.style.display = 'none';
 
-  const name = $('projName').value.trim();
-  const code = $('projCode').value.trim();
-  const desc = $('projDesc').value.trim();
+  const name = ($('projName') && $('projName').value || '').trim();
+  const code = ($('projCode') && $('projCode').value || '').trim();
+  const desc = ($('projDesc') && $('projDesc').value || '').trim();
 
   if (!name) { showError('projError', 'Please enter a project name.'); return; }
 
+  // Disable button and show loading state
+  if (btn) { btn.disabled = true; btn.textContent = 'Creating...'; }
+  console.log('[PROJECT] Creating project:', name, code, desc);
+
   try {
     const result = await DB.createProject(name, desc, code);
-    showSuccess('projSuccess', 'Project "' + name + '" created.');
-    $('projName').value = '';
-    $('projCode').value = '';
-    $('projDesc').value = '';
+    console.log('[PROJECT] Create result:', result);
+    showSuccess('projSuccess', 'Project "' + name + '" created successfully.');
+    if ($('projName')) $('projName').value = '';
+    if ($('projCode')) $('projCode').value = '';
+    if ($('projDesc')) $('projDesc').value = '';
 
     // Immediately add to state and refresh UI — don't wait for a full server round-trip
     if (result && result.project) {
@@ -1298,9 +1323,13 @@ async function createProject() {
     }
 
     // Background full-sync to pick up any other changes
-    loadProjectData();
+    loadProjectData().catch(e => console.warn('[PROJECT] Background sync error:', e));
   } catch (e) {
-    showError('projError', e.message || 'Failed to create project.');
+    console.error('[PROJECT] Create failed:', e);
+    showError('projError', e.message || 'Failed to create project. Check the browser console for details.');
+  } finally {
+    // Always re-enable the button
+    if (btn) { btn.disabled = false; btn.textContent = '+ Create Project'; }
   }
 }
 
@@ -1310,16 +1339,17 @@ async function deleteProject(projectId) {
     await DB.deleteProject(projectId);
     await loadProjectData();
   } catch (e) {
+    console.error('[PROJECT] Delete failed:', e);
     alert(e.message || 'Failed to delete project.');
   }
 }
 
 async function linkOrgToProject() {
   const errEl = $('projOrgError');
-  errEl.style.display = 'none';
+  if (errEl) errEl.style.display = 'none';
 
-  const projectId = $('projOrgProject').value;
-  const orgId = $('projOrgOrg').value;
+  const projectId = $('projOrgProject') && $('projOrgProject').value;
+  const orgId = $('projOrgOrg') && $('projOrgOrg').value;
 
   if (!projectId || !orgId) { showError('projOrgError', 'Select both a project and an organization.'); return; }
 
@@ -1327,6 +1357,7 @@ async function linkOrgToProject() {
     await DB.linkOrgToProject(orgId, projectId);
     await loadProjectData();
   } catch (e) {
+    console.error('[PROJECT] Link org failed:', e);
     showError('projOrgError', e.message || 'Failed to link organization to project.');
   }
 }
@@ -1337,16 +1368,17 @@ async function unlinkOrgFromProject(linkId) {
     await DB.unlinkOrgFromProject(linkId);
     await loadProjectData();
   } catch (e) {
+    console.error('[PROJECT] Unlink org failed:', e);
     alert(e.message || 'Failed to unlink organization from project.');
   }
 }
 
 async function assignUserToProject() {
   const errEl = $('projUserError');
-  errEl.style.display = 'none';
+  if (errEl) errEl.style.display = 'none';
 
-  const projectId = $('projUserProject').value;
-  const userId = $('projUserUser').value;
+  const projectId = $('projUserProject') && $('projUserProject').value;
+  const userId = $('projUserUser') && $('projUserUser').value;
 
   if (!projectId || !userId) { showError('projUserError', 'Select both a project and a user.'); return; }
 
@@ -1355,6 +1387,7 @@ async function assignUserToProject() {
     showSuccess('projUserError', 'User assigned to project.');
     await loadProjectData();
   } catch (e) {
+    console.error('[PROJECT] Assign user failed:', e);
     showError('projUserError', e.message || 'Failed to assign user to project.');
   }
 }
@@ -1365,6 +1398,7 @@ async function removeUserFromProject(assignmentId) {
     await DB.removeUserFromProject(assignmentId);
     await loadProjectData();
   } catch (e) {
+    console.error('[PROJECT] Remove user failed:', e);
     alert(e.message || 'Failed to remove user from project.');
   }
 }
