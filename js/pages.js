@@ -1143,27 +1143,25 @@ async function renderProjects(el) {
 }
 
 async function loadProjectData() {
-  try {
-    const [projects, users, orgs, projAssignments, projOrgLinks] = await Promise.all([
-      DB.getProjects(),
-      DB.getUsers(),
-      DB.getOrganizations(),
-      DB.getProjectAssignments(),
-      DB.getProjectOrgLinks()
-    ]);
-    state.projects = projects;
-    state.users = users;
-    state.organizations = orgs;
-    state.projectAssignments = projAssignments;
-    state.projectOrgLinks = projOrgLinks;
+  // Fetch each independently so one slow call can't block the others
+  const [projects, users, orgs, projAssignments, projOrgLinks] = await Promise.all([
+    DB.getProjects().catch(() => state.projects || []),
+    DB.getUsers().catch(() => state.users || []),
+    DB.getOrganizations().catch(() => state.organizations || []),
+    DB.getProjectAssignments().catch(() => state.projectAssignments || []),
+    DB.getProjectOrgLinks().catch(() => state.projectOrgLinks || [])
+  ]);
 
-    renderProjectList(projects);
-    renderProjectOrgLinks(projOrgLinks);
-    renderProjectUserAssignments(projAssignments);
-    populateProjectDropdowns(projects, users, orgs);
-  } catch (e) {
-    console.warn('Failed to load project data:', e);
-  }
+  state.projects = projects;
+  state.users = users;
+  state.organizations = orgs;
+  state.projectAssignments = projAssignments;
+  state.projectOrgLinks = projOrgLinks;
+
+  renderProjectList(projects);
+  renderProjectOrgLinks(projOrgLinks);
+  renderProjectUserAssignments(projAssignments);
+  populateProjectDropdowns(projects, users, orgs);
 }
 
 function renderProjectList(projects) {
@@ -1286,12 +1284,21 @@ async function createProject() {
   if (!name) { showError('projError', 'Please enter a project name.'); return; }
 
   try {
-    await DB.createProject(name, desc, code);
+    const result = await DB.createProject(name, desc, code);
     showSuccess('projSuccess', 'Project "' + name + '" created.');
     $('projName').value = '';
     $('projCode').value = '';
     $('projDesc').value = '';
-    await loadProjectData();
+
+    // Immediately add to state and refresh UI — don't wait for a full server round-trip
+    if (result && result.project) {
+      state.projects = [...(state.projects || []), result.project];
+      renderProjectList(state.projects);
+      populateProjectDropdowns(state.projects, state.users || [], state.organizations || []);
+    }
+
+    // Background full-sync to pick up any other changes
+    loadProjectData();
   } catch (e) {
     showError('projError', e.message || 'Failed to create project.');
   }
