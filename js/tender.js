@@ -823,7 +823,8 @@ function renderBOQResultSummary(r) {
     '<div class="stat-card orange"><div class="sc-label">Unmatched</div><div class="sc-value">' + r.unmatchedCount + '</div></div>' +
     '<div class="stat-card cyan"><div class="sc-label">Total Baseline</div><div class="sc-value">' + fmt(r.totalBL) + '</div><div class="sc-sub">tCO\u2082eq</div></div>' +
     '</div>' +
-    '<div style="font-size:12px;color:var(--slate4)">' + r.totalItems + ' line items added. See the <strong>BOQ Line Items</strong> table and <strong>80% Material Identification</strong> bar below.</div>' +
+    (r.aiParsed ? '<div style="font-size:11px;color:var(--green);margin-bottom:4px;font-weight:600">\ud83e\udde0 Parsed by AI (Claude) \u2014 intelligent document understanding</div>' : '') +
+    '<div style="font-size:12px;color:var(--slate4)">' + r.totalItems + ' line items added. See the <strong>BOQ Line Items</strong> table and <strong>80% Material Identification</strong> bar below.' + (r.aiParsed ? ' Use the <strong>Category</strong> and <strong>Type</strong> dropdowns to correct any mismatches.' : '') + '</div>' +
     '<div class="btn-row" style="margin-top:10px"><button class="btn btn-secondary btn-sm" onclick="clearBOQResult()">Dismiss</button>' +
     '<button class="btn btn-primary btn-sm" onclick="clearBOQResult();openTenderFileInput()">Upload Another File</button></div>' +
     '</div>';
@@ -1063,7 +1064,7 @@ function autoMatchAndAddBOQ(rows, fileName) {
   }, 100);
 }
 
-// ===== PDF TENDER DOCUMENT PARSING =====
+// ===== PDF TENDER DOCUMENT PARSING (AI-POWERED) =====
 async function handleTenderPDFFile(file) {
   if (typeof pdfjsLib === 'undefined') {
     _tenderBOQProcessing = false;
@@ -1072,7 +1073,7 @@ async function handleTenderPDFFile(file) {
   }
 
   try {
-    showBOQStatus('<strong>Step 1/4:</strong> Reading PDF... Extracting text from pages...', 'info');
+    showBOQStatus('<strong>Step 1/3:</strong> Reading PDF... Extracting text from pages...', 'info');
 
     var arrayBuffer = await file.arrayBuffer();
     var pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
@@ -1081,7 +1082,7 @@ async function handleTenderPDFFile(file) {
     var allText = '';
     var allLines = [];
     for (var p = 1; p <= totalPages; p++) {
-      showBOQStatus('<strong>Step 1/4:</strong> Reading PDF page ' + p + ' of ' + totalPages + '...', 'info');
+      showBOQStatus('<strong>Step 1/3:</strong> Reading PDF page ' + p + ' of ' + totalPages + '...', 'info');
       var page = await pdf.getPage(p);
       var textContent = await page.getTextContent();
       var pageLines = extractLinesFromTextContent(textContent);
@@ -1089,23 +1090,164 @@ async function handleTenderPDFFile(file) {
       allText += pageLines.join('\n') + '\n';
     }
 
-    showBOQStatus('<strong>Step 2/4:</strong> Extracted ' + allLines.length + ' lines from ' + totalPages + ' pages. Parsing BOQ structure...', 'info');
-
-    var parsedRows = parsePDFTextToBOQ(allLines, allText);
-
-    if (parsedRows.length < 2) {
+    if (allText.trim().length < 20) {
       _tenderBOQProcessing = false;
-      showBOQStatus('<strong>Error:</strong> Could not extract a BOQ table from this PDF. The document may not contain a structured Bill of Quantities. Try uploading an Excel/CSV version instead.', 'red');
+      showBOQStatus('<strong>Error:</strong> Could not extract text from this PDF. It may be scanned/image-based. Try uploading an Excel/CSV version.', 'red');
       return;
     }
 
-    // Auto-match and add to tender
-    autoMatchAndAddBOQ(parsedRows, file.name);
+    // Try AI parsing first — falls back to regex if AI is unavailable
+    showBOQStatus('<strong>Step 2/3:</strong> AI is analyzing the BOQ document (' + allLines.length + ' lines from ' + totalPages + ' pages)...', 'info');
+
+    var aiSuccess = false;
+    try {
+      var res = await apiCall('/parse-boq', {
+        method: 'POST',
+        body: JSON.stringify({ text: allText, fileName: file.name })
+      });
+      var data = await res.json();
+
+      if (res.ok && data.success && data.items && data.items.length > 0) {
+        showBOQStatus('<strong>Step 3/3:</strong> AI identified ' + data.items.length + ' BOQ items. Building carbon analysis...', 'info');
+        aiAddBOQItems(data.items, file.name);
+        aiSuccess = true;
+      } else if (data.fallback) {
+        // AI unavailable or returned error — fall back to regex
+        showBOQStatus('<strong>Step 2/3:</strong> AI unavailable (' + (data.error || 'unknown') + '). Using pattern matching...', 'info');
+      } else if (data.error) {
+        showBOQStatus('<strong>Step 2/3:</strong> AI: ' + data.error + '. Using pattern matching fallback...', 'info');
+      }
+    } catch (aiErr) {
+      showBOQStatus('<strong>Step 2/3:</strong> AI service unreachable. Using pattern matching fallback...', 'info');
+    }
+
+    // Fallback to regex-based parsing if AI didn't work
+    if (!aiSuccess) {
+      showBOQStatus('<strong>Step 2/3:</strong> Parsing with pattern matching...', 'info');
+      var parsedRows = parsePDFTextToBOQ(allLines, allText);
+
+      if (parsedRows.length < 2) {
+        _tenderBOQProcessing = false;
+        showBOQStatus('<strong>Error:</strong> Could not extract BOQ items from this PDF. Try uploading an Excel/CSV version, or configure AI parsing (ANTHROPIC_API_KEY) for better results.', 'red');
+        return;
+      }
+
+      autoMatchAndAddBOQ(parsedRows, file.name);
+    }
 
   } catch (err) {
     _tenderBOQProcessing = false;
     showBOQStatus('<strong>Error:</strong> Failed to parse PDF: ' + err.message, 'red');
   }
+}
+
+// ===== AI-PARSED BOQ ITEMS → TENDER TABLE =====
+function aiAddBOQItems(aiItems, fileName) {
+  var a13Count = 0, iceCount = 0, unmatchedCount = 0;
+
+  aiItems.forEach(function(item) {
+    if (item.qty <= 0 && item.gwpSource !== 'none') return; // Skip zero-qty unless unmatched
+
+    var bl = item.baselineEF || 0;
+    var blEm = (item.qty * bl) / 1000;
+    var gwpSource = item.gwpSource || 'none';
+
+    // Build alternatives from the matched category
+    var alternatives = [];
+    var iceRefUrl = '';
+    if (gwpSource === 'A1-A3' && MATERIALS[item.category]) {
+      MATERIALS[item.category].types.forEach(function(t, idx) {
+        alternatives.push({ name: t.name, baseline: t.baseline, target: t.target, idx: idx });
+      });
+    } else if (gwpSource === 'ICE' && ICE_MATERIALS[item.category]) {
+      var iceMat = ICE_MATERIALS[item.category];
+      iceMat.types.forEach(function(t, idx) {
+        var altBelow = iceMat.isMEP && t.coveragePct !== undefined && t.coveragePct < ICE_COVERAGE_THRESHOLD;
+        alternatives.push({ name: t.name, baseline: altBelow ? 0 : t.baseline, target: altBelow ? 0 : t.target, idx: idx });
+      });
+      iceRefUrl = 'https://circularecology.com/embodied-carbon-footprint-database.html';
+    } else if (gwpSource === 'none') {
+      // Try to find category in both databases for alternatives
+      if (MATERIALS[item.category]) {
+        MATERIALS[item.category].types.forEach(function(t, idx) {
+          alternatives.push({ name: t.name, baseline: t.baseline, target: t.target, idx: idx });
+        });
+      } else if (ICE_MATERIALS[item.category]) {
+        var iceM = ICE_MATERIALS[item.category];
+        iceM.types.forEach(function(t, idx) {
+          alternatives.push({ name: t.name, baseline: t.baseline, target: t.target, idx: idx });
+        });
+      }
+    }
+
+    // Get unit and EF unit from the database if available
+    var matDB = MATERIALS[item.category] || ICE_MATERIALS[item.category];
+    var unit = item.materialUnit || (matDB ? matDB.unit : item.unit);
+    var efUnit = item.efUnit || (matDB ? matDB.efUnit : '');
+    var massFactor = matDB ? matDB.massFactor : 1;
+
+    if (gwpSource === 'A1-A3') a13Count++;
+    else if (gwpSource === 'ICE') iceCount++;
+    else unmatchedCount++;
+
+    _tenderItems.push({
+      id: Date.now() + Math.random(),
+      boqItemNo: item.itemNo || '',
+      originalDesc: item.description || '',
+      category: item.category || 'Unmatched',
+      type: item.type || item.description || '',
+      qty: item.qty,
+      unit: unit,
+      efUnit: efUnit,
+      massFactor: massFactor,
+      baselineEF: bl,
+      targetEF: bl,
+      baselineEmission: blEm,
+      targetEmission: blEm,
+      isCustom: gwpSource === 'none',
+      gwpSource: gwpSource === 'none' ? 'Manual' : gwpSource,
+      assumption: item.assumption || '',
+      alternatives: alternatives,
+      iceRefUrl: iceRefUrl,
+      notes: ''
+    });
+  });
+
+  // Recalculate 80% material identification
+  recalcTender80Pct();
+
+  // Auto-fill description
+  var descInput = $('tsDesc');
+  if (descInput && !descInput.value.trim()) {
+    descInput.value = 'AI-parsed from BOQ: ' + fileName;
+  }
+
+  // Store result summary
+  var totalItems = _tenderItems.length;
+  var totalBL = 0;
+  _tenderItems.forEach(function(it) { totalBL += it.baselineEmission || 0; });
+
+  _tenderBOQMode = true;
+  _tenderBOQMatched = [];
+  _tenderBOQParsed = [];
+  _tenderBOQWorkbook = null;
+  _tenderBOQProcessing = false;
+  _tenderBOQLastResult = {
+    fileName: fileName,
+    totalItems: totalItems,
+    a13Count: a13Count,
+    iceCount: iceCount,
+    unmatchedCount: unmatchedCount,
+    totalBL: totalBL,
+    aiParsed: true
+  };
+
+  navigate('tender_entry');
+
+  setTimeout(function() {
+    var boqCard = $('tenderBOQCard');
+    if (boqCard) boqCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, 100);
 }
 
 // Extract lines from PDF.js text content, reconstructing rows by Y-position
