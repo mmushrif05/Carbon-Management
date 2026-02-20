@@ -11,12 +11,33 @@ let _tenderItems = [];    // line items for current scenario
 function extractThickness(description) {
   if (!description) return null;
   var d = description.toLowerCase();
-  // Skip rebar/pipe diameter patterns — these are NOT layer thickness
-  // "16mm dia", "200mm diameter", "DN200" etc.
+
+  // First, check if this is a rebar/pipe item (skip diameter patterns)
+  if (/\b(dia(?:meter)?|dn|rebar|reinforc|bar|mesh|fabric|pipe|hdpe|pvc|upvc|ductile)\b/i.test(d)) {
+    // Still allow explicit thickness keywords even in pipe/rebar descriptions
+    // e.g., "200mm dia pipe with 150mm thick concrete surround"
+    var explicitThk = d.match(/(?:thick(?:ness)?|thk|depth|dp|layer)[:\s=]*(\d+(?:\.\d+)?)\s*(mm|cm|m)\b/i);
+    if (explicitThk) {
+      var vE = parseFloat(explicitThk[1]);
+      var uE = explicitThk[2].toLowerCase();
+      if (uE === 'mm') vE = vE / 1000;
+      else if (uE === 'cm') vE = vE / 100;
+      if (vE > 0.001 && vE < 5) return { value: vE, raw: explicitThk[0].trim(), source: 'desc' };
+    }
+    return null;
+  }
+
   var patterns = [
+    // "depth 450mm", "thickness 150mm", "thk 100mm", "dp 200mm"
     /(?:depth|thick(?:ness)?|thk|dp)[:\s=]*(\d+(?:\.\d+)?)\s*(mm|cm|m)\b/i,
+    // "450mm thick", "150mm deep", "200mm depth"
     /(\d+(?:\.\d+)?)\s*(mm|cm|m)\s*(?:thick(?:ness)?|thk|deep|depth)/i,
-    /t\s*=\s*(\d+(?:\.\d+)?)\s*(mm|cm|m)\b/i
+    // "t = 150mm"
+    /t\s*=\s*(\d+(?:\.\d+)?)\s*(mm|cm|m)\b/i,
+    // "150mm layer", "200mm blinding", "100mm slab" — number + mm + material keyword (NOT before "dia")
+    /(\d+(?:\.\d+)?)\s*(mm|cm|m)\s*(?:layer|blinding|slab|base|course|concrete|screed|topping|overlay|wearing|binder|asphalt|sub-?base|fill|compacted)/i,
+    // "layer thickness 100mm"
+    /layer\s+(?:thick(?:ness)?)\s+(\d+(?:\.\d+)?)\s*(mm|cm|m)\b/i
   ];
   for (var i = 0; i < patterns.length; i++) {
     var match = d.match(patterns[i]);
@@ -1312,7 +1333,8 @@ function autoMatchAndAddBOQ(rows, fileName) {
     a13Count: a13Count,
     iceCount: iceCount,
     unmatchedCount: unmatchedCount,
-    totalBL: totalBL
+    totalBL: totalBL,
+    aiParsed: true
   };
 
   // Re-render the form with results, then scroll to show them
@@ -1358,25 +1380,67 @@ async function handleTenderPDFFile(file) {
     }
 
     // Try AI parsing first — falls back to regex if AI is unavailable
-    showBOQStatus('<strong>Step 2/3:</strong> AI is analyzing the BOQ document (' + allLines.length + ' lines from ' + totalPages + ' pages)...', 'info');
-
+    // Split large documents into chunks for complete coverage (parts 1-12+)
+    var CHUNK_SIZE = 50000; // chars per chunk — keeps each API call within limits
     var aiSuccess = false;
-    try {
-      var res = await apiCall('/parse-boq', {
-        method: 'POST',
-        body: JSON.stringify({ text: allText, fileName: file.name })
-      });
-      var data = await res.json();
 
-      if (res.ok && data.success && data.items && data.items.length > 0) {
-        showBOQStatus('<strong>Step 3/3:</strong> AI identified ' + data.items.length + ' BOQ items. Building carbon analysis...', 'info');
-        aiAddBOQItems(data.items, file.name);
+    try {
+      var allAIItems = [];
+      var chunks = [];
+
+      if (allText.length <= CHUNK_SIZE) {
+        chunks = [allText];
+      } else {
+        // Split at line boundaries
+        var textLines = allText.split('\n');
+        var currentChunk = '';
+        for (var ci = 0; ci < textLines.length; ci++) {
+          if (currentChunk.length + textLines[ci].length + 1 > CHUNK_SIZE && currentChunk.length > 0) {
+            chunks.push(currentChunk);
+            currentChunk = textLines[ci];
+          } else {
+            currentChunk += (currentChunk ? '\n' : '') + textLines[ci];
+          }
+        }
+        if (currentChunk) chunks.push(currentChunk);
+      }
+
+      var totalChunks = chunks.length;
+      showBOQStatus('<strong>Step 2/3:</strong> AI is analyzing the BOQ document (' + allLines.length + ' lines, ' + totalPages + ' pages' + (totalChunks > 1 ? ', ' + totalChunks + ' chunks' : '') + ')...', 'info');
+
+      for (var chunkIdx = 0; chunkIdx < totalChunks; chunkIdx++) {
+        if (totalChunks > 1) {
+          showBOQStatus('<strong>Step 2/3:</strong> AI analyzing chunk ' + (chunkIdx + 1) + ' of ' + totalChunks + ' (' + allAIItems.length + ' items found so far)...', 'info');
+        }
+
+        var res = await apiCall('/parse-boq', {
+          method: 'POST',
+          body: JSON.stringify({
+            text: chunks[chunkIdx],
+            fileName: file.name,
+            chunkIndex: chunkIdx,
+            totalChunks: totalChunks
+          })
+        });
+        var data = await res.json();
+
+        if (res.ok && data.success && data.items && data.items.length > 0) {
+          allAIItems = allAIItems.concat(data.items);
+        } else if (data.fallback && totalChunks === 1) {
+          // AI unavailable — fall back to regex (only for single-chunk docs)
+          showBOQStatus('<strong>Step 2/3:</strong> AI unavailable (' + (data.error || 'unknown') + '). Using pattern matching...', 'info');
+          break;
+        } else if (data.error && totalChunks === 1) {
+          showBOQStatus('<strong>Step 2/3:</strong> AI: ' + data.error + '. Using pattern matching fallback...', 'info');
+          break;
+        }
+        // For multi-chunk: continue even if one chunk fails
+      }
+
+      if (allAIItems.length > 0) {
+        showBOQStatus('<strong>Step 3/3:</strong> AI identified ' + allAIItems.length + ' BOQ items from ' + totalChunks + ' chunk(s). Building carbon analysis...', 'info');
+        aiAddBOQItems(allAIItems, file.name);
         aiSuccess = true;
-      } else if (data.fallback) {
-        // AI unavailable or returned error — fall back to regex
-        showBOQStatus('<strong>Step 2/3:</strong> AI unavailable (' + (data.error || 'unknown') + '). Using pattern matching...', 'info');
-      } else if (data.error) {
-        showBOQStatus('<strong>Step 2/3:</strong> AI: ' + data.error + '. Using pattern matching fallback...', 'info');
       }
     } catch (aiErr) {
       showBOQStatus('<strong>Step 2/3:</strong> AI service unreachable. Using pattern matching fallback...', 'info');
