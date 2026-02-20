@@ -1,5 +1,111 @@
 // ===== DASHBOARD =====
 function renderDashboard(el) {
+  const projects = state.projects || [];
+
+  // If user has projects, show portfolio view first
+  if (projects.length > 0) {
+    renderPortfolioDashboard(el, projects);
+  } else {
+    renderClassicDashboard(el);
+  }
+}
+
+// Portfolio Dashboard — shows all projects as cards
+function renderPortfolioDashboard(el, projects) {
+  const r = state.role;
+  const d = state.entries;
+  const projAssignments = state.projectAssignments || [];
+
+  // Overall totals
+  let tB=0,tA=0,tA4=0; d.forEach(e=>{tB+=e.a13B||0;tA+=e.a13A||0;tA4+=e.a4||0});
+  let a5T=0; state.a5entries.forEach(e=>{a5T+=e.emission||0});
+  const rP=tB>0?((tB-tA)/tB)*100:0;
+
+  // Build project cards
+  const projectCards = projects.map(p => {
+    const pAssign = projAssignments.filter(a => a.projectId === p.id);
+    const consultants = pAssign.filter(a => a.userRole === 'consultant');
+    const contractors = pAssign.filter(a => a.userRole === 'contractor');
+    const statusClass = p.status === 'active' ? 'approved' : p.status === 'completed' ? 'review' : 'pending';
+
+    return `<div class="card" style="cursor:pointer;transition:transform 0.15s;border:1px solid rgba(96,165,250,0.15)" onmouseover="this.style.transform='translateY(-2px)';this.style.borderColor='rgba(96,165,250,0.4)'" onmouseout="this.style.transform='';this.style.borderColor='rgba(96,165,250,0.15)'">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px">
+        <div>
+          <div style="font-size:16px;font-weight:700;color:var(--slate2)">${p.name}</div>
+          ${p.code ? `<div style="font-size:11px;color:var(--blue);font-family:monospace;margin-top:2px">${p.code}</div>` : ''}
+        </div>
+        <span class="badge ${statusClass}" style="text-transform:capitalize">${p.status || 'active'}</span>
+      </div>
+      ${p.description ? `<div style="font-size:12px;color:var(--slate5);margin-bottom:10px;line-height:1.5">${p.description}</div>` : ''}
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;text-align:center;padding:10px 0;border-top:1px solid var(--bg3)">
+        <div>
+          <div style="font-size:18px;font-weight:800;color:var(--green)">${consultants.length}</div>
+          <div style="font-size:10px;color:var(--slate5)">Consultants</div>
+        </div>
+        <div>
+          <div style="font-size:18px;font-weight:800;color:var(--blue)">${contractors.length}</div>
+          <div style="font-size:10px;color:var(--slate5)">Contractors</div>
+        </div>
+        <div>
+          <div style="font-size:18px;font-weight:800;color:var(--purple)">${pAssign.length}</div>
+          <div style="font-size:10px;color:var(--slate5)">Total Users</div>
+        </div>
+      </div>
+      <div style="font-size:10px;color:var(--slate5);margin-top:6px">Created ${new Date(p.createdAt).toLocaleDateString()} by ${p.createdByName || '--'}</div>
+    </div>`;
+  }).join('');
+
+  el.innerHTML = `
+  <!-- Portfolio Summary -->
+  <div class="card" style="background:linear-gradient(135deg,rgba(96,165,250,0.08),rgba(167,139,250,0.06));border:1px solid rgba(96,165,250,0.15)">
+    <div class="card-title" style="color:var(--blue)">Project Portfolio</div>
+    <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:8px">
+      <div style="font-size:13px;color:var(--slate4)">
+        <strong style="color:var(--blue);font-size:28px">${projects.length}</strong>
+        <span style="margin-left:4px">Project${projects.length !== 1 ? 's' : ''}</span>
+      </div>
+      <div style="width:1px;height:30px;background:var(--bg3)"></div>
+      <div style="font-size:13px;color:var(--slate4)">
+        Logged in as <strong style="color:${r === 'client' ? 'var(--purple)' : r === 'consultant' ? 'var(--green)' : 'var(--blue)'}">${state.name}</strong>
+        <span class="badge ${r === 'client' ? 'pending' : r === 'consultant' ? 'approved' : 'review'}" style="text-transform:capitalize;margin-left:6px">${r}</span>
+      </div>
+    </div>
+    <div style="font-size:12px;color:var(--slate5);line-height:1.6">
+      ${r === 'client'
+        ? 'You have access to all projects. Below is your complete project portfolio with carbon performance metrics.'
+        : 'Showing projects assigned to you. Each project has its own team of consultants and contractors.'}
+    </div>
+  </div>
+
+  <!-- Overall Summary Stats -->
+  <div class="stats-row">
+    <div class="stat-card slate"><div class="sc-label">A1-A3 Baseline</div><div class="sc-value">${fmt(tB)}</div><div class="sc-sub">ton CO\u2082eq</div></div>
+    <div class="stat-card blue"><div class="sc-label">A1-A3 Actual</div><div class="sc-value">${fmt(tA)}</div><div class="sc-sub">ton CO\u2082eq</div></div>
+    <div class="stat-card orange"><div class="sc-label">A4 Transport</div><div class="sc-value">${fmt(tA4)}</div><div class="sc-sub">ton CO\u2082eq</div></div>
+    <div class="stat-card cyan"><div class="sc-label">A5 Site</div><div class="sc-value">${fmt(a5T)}</div><div class="sc-sub">ton CO\u2082eq</div></div>
+    <div class="stat-card green"><div class="sc-label">A1-A5 Total</div><div class="sc-value">${fmt(tA+tA4+a5T)}</div><div class="sc-sub">ton CO\u2082eq</div></div>
+    <div class="stat-card ${rP>20?'green':rP>=10?'orange':'purple'}"><div class="sc-label">Reduction</div><div class="sc-value">${fmt(rP)}%</div><div class="sc-sub">${fmt(tB-tA)} saved</div></div>
+  </div>
+
+  <!-- Project Cards Grid -->
+  <div class="card">
+    <div class="card-title">Your Projects</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:16px">
+      ${projectCards || '<div class="empty"><div class="empty-icon">📋</div>No projects found.</div>'}
+    </div>
+  </div>
+
+  <!-- Approvals Summary -->
+  <div class="card"><div class="card-title">Approvals</div><div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;text-align:center">
+    <div><div style="font-size:24px;font-weight:800;color:var(--yellow)">${d.filter(e=>e.status==='pending').length}</div><div style="font-size:10px;color:var(--slate5)">Pending</div></div>
+    <div><div style="font-size:24px;font-weight:800;color:var(--blue)">${d.filter(e=>e.status==='review').length}</div><div style="font-size:10px;color:var(--slate5)">Review</div></div>
+    <div><div style="font-size:24px;font-weight:800;color:var(--green)">${d.filter(e=>e.status==='approved').length}</div><div style="font-size:10px;color:var(--slate5)">Approved</div></div>
+    <div><div style="font-size:24px;font-weight:800;color:var(--red)">${d.filter(e=>e.status==='rejected').length}</div><div style="font-size:10px;color:var(--slate5)">Rejected</div></div>
+  </div></div>`;
+}
+
+// Classic Dashboard — original view for when no projects are defined
+function renderClassicDashboard(el) {
   const d=state.entries; let tB=0,tA=0,tA4=0;
   d.forEach(e=>{tB+=e.a13B||0;tA+=e.a13A||0;tA4+=e.a4||0});
   let a5T=0; state.a5entries.forEach(e=>{a5T+=e.emission||0});
@@ -593,9 +699,9 @@ async function renderOrganizations(el) {
   <div class="card">
     <div class="card-title">Link Consultant Firm to Contractor Company</div>
     <div style="padding:10px 14px;background:rgba(52,211,153,0.06);border:1px solid rgba(52,211,153,0.15);border-radius:10px;margin-bottom:14px;font-size:13px;color:var(--green)">
-      Define which consultant firm oversees which contractor company.
+      Define which consultant firm oversees which contractor company. Optionally scope to a specific project.
     </div>
-    <div class="form-row c3">
+    <div class="form-row c4">
       <div class="fg">
         <label>Consultant Firm</label>
         <select id="linkConsultantOrg"><option value="">Select...</option></select>
@@ -603,6 +709,10 @@ async function renderOrganizations(el) {
       <div class="fg">
         <label>Contractor Company</label>
         <select id="linkContractorOrg"><option value="">Select...</option></select>
+      </div>
+      <div class="fg">
+        <label>Project (optional)</label>
+        <select id="linkProject"><option value="">All projects</option></select>
       </div>
       <div class="fg" style="display:flex;align-items:flex-end">
         <button class="btn btn-primary" onclick="linkOrganizations()">Link</button>
@@ -616,9 +726,9 @@ async function renderOrganizations(el) {
   <div class="card">
     <div class="card-title">Assign Consultant to Contractor</div>
     <div style="padding:10px 14px;background:rgba(251,191,36,0.06);border:1px solid rgba(251,191,36,0.15);border-radius:10px;margin-bottom:14px;font-size:13px;color:var(--yellow)">
-      Assign a specific consultant to review a specific contractor's submissions. This controls who sees what in the approval workflow.
+      Assign a specific consultant to review a specific contractor's submissions. Optionally scope to a specific project.
     </div>
-    <div class="form-row c3">
+    <div class="form-row c4">
       <div class="fg">
         <label>Consultant</label>
         <select id="assignConsultant"><option value="">Select consultant...</option></select>
@@ -626,6 +736,10 @@ async function renderOrganizations(el) {
       <div class="fg">
         <label>Contractor</label>
         <select id="assignContractor"><option value="">Select contractor...</option></select>
+      </div>
+      <div class="fg">
+        <label>Project (optional)</label>
+        <select id="assignProject"><option value="">All projects</option></select>
       </div>
       <div class="fg" style="display:flex;align-items:flex-end">
         <button class="btn btn-primary" onclick="createUserAssignment()">Assign</button>
@@ -639,9 +753,9 @@ async function renderOrganizations(el) {
   <div class="card">
     <div class="card-title">Assign User to Organization</div>
     <div style="padding:10px 14px;background:rgba(167,139,250,0.06);border:1px solid rgba(167,139,250,0.15);border-radius:10px;margin-bottom:14px;font-size:13px;color:var(--purple)">
-      Assign team members to their organization (firm or company).
+      Assign team members to their organization (firm or company). Optionally specify the project.
     </div>
-    <div class="form-row c3">
+    <div class="form-row c4">
       <div class="fg">
         <label>User</label>
         <select id="userToAssign"><option value="">Select user...</option></select>
@@ -649,6 +763,10 @@ async function renderOrganizations(el) {
       <div class="fg">
         <label>Organization</label>
         <select id="orgToAssignTo"><option value="">Select organization...</option></select>
+      </div>
+      <div class="fg">
+        <label>Project (optional)</label>
+        <select id="userOrgProject"><option value="">All projects</option></select>
       </div>
       <div class="fg" style="display:flex;align-items:flex-end">
         <button class="btn btn-primary" onclick="assignUserToOrganization()">Assign</button>
@@ -731,11 +849,12 @@ function renderLinkList(links) {
   }
 
   el.innerHTML = `<div class="tbl-wrap"><table>
-    <thead><tr><th>Consultant Firm</th><th></th><th>Contractor Company</th><th>Actions</th></tr></thead>
+    <thead><tr><th>Consultant Firm</th><th></th><th>Contractor Company</th><th>Project</th><th>Actions</th></tr></thead>
     <tbody>${links.map(l => `<tr>
       <td style="font-weight:600;color:var(--green)">${l.consultantOrgName}</td>
       <td style="color:var(--slate5);text-align:center">→</td>
       <td style="font-weight:600;color:var(--blue)">${l.contractorOrgName}</td>
+      <td style="font-size:12px;color:var(--purple)">${l.projectName || 'All projects'}</td>
       <td><button class="btn btn-danger btn-sm" onclick="unlinkOrganizations('${l.id}')">Unlink</button></td>
     </tr>`).join('')}</tbody>
   </table></div>`;
@@ -751,13 +870,14 @@ function renderAssignmentList(assignments) {
   }
 
   el.innerHTML = `<div class="tbl-wrap"><table>
-    <thead><tr><th>Consultant</th><th>Org</th><th></th><th>Contractor</th><th>Org</th><th>Created</th><th>Actions</th></tr></thead>
+    <thead><tr><th>Consultant</th><th>Org</th><th></th><th>Contractor</th><th>Org</th><th>Project</th><th>Created</th><th>Actions</th></tr></thead>
     <tbody>${assignments.map(a => `<tr>
       <td style="font-weight:600;color:var(--green)">${a.consultantName}</td>
       <td style="font-size:11px;color:var(--slate5)">${a.consultantOrgName || '—'}</td>
       <td style="color:var(--slate5);text-align:center">→</td>
       <td style="font-weight:600;color:var(--blue)">${a.contractorName}</td>
       <td style="font-size:11px;color:var(--slate5)">${a.contractorOrgName || '—'}</td>
+      <td style="font-size:12px;color:var(--purple)">${a.projectName || 'All projects'}</td>
       <td style="font-size:11px;color:var(--slate5)">${new Date(a.createdAt).toLocaleDateString()}</td>
       <td><button class="btn btn-danger btn-sm" onclick="deleteUserAssignment('${a.id}')">Remove</button></td>
     </tr>`).join('')}</tbody>
@@ -789,24 +909,32 @@ function populateOrgDropdowns(orgs, users) {
   const companies = orgs.filter(o => o.type === 'contractor_company');
   const consultants = users.filter(u => u.role === 'consultant');
   const contractors = users.filter(u => u.role === 'contractor');
+  const projects = state.projects || [];
+  const projectOptions = projects.map(p => `<option value="${p.id}">${p.name}${p.code ? ' (' + p.code + ')' : ''}</option>`).join('');
 
   // Link dropdowns
   const lcEl = $('linkConsultantOrg');
   const lrEl = $('linkContractorOrg');
   if (lcEl) lcEl.innerHTML = '<option value="">Select consultant firm...</option>' + firms.map(o => `<option value="${o.id}">${o.name}</option>`).join('');
   if (lrEl) lrEl.innerHTML = '<option value="">Select contractor company...</option>' + companies.map(o => `<option value="${o.id}">${o.name}</option>`).join('');
+  const lpEl = $('linkProject');
+  if (lpEl) lpEl.innerHTML = '<option value="">All projects</option>' + projectOptions;
 
   // Assignment dropdowns
   const acEl = $('assignConsultant');
   const arEl = $('assignContractor');
   if (acEl) acEl.innerHTML = '<option value="">Select consultant...</option>' + consultants.map(u => `<option value="${u.uid}">${u.name} (${u.email})${u.organizationName ? ' — ' + u.organizationName : ''}</option>`).join('');
   if (arEl) arEl.innerHTML = '<option value="">Select contractor...</option>' + contractors.map(u => `<option value="${u.uid}">${u.name} (${u.email})${u.organizationName ? ' — ' + u.organizationName : ''}</option>`).join('');
+  const apEl = $('assignProject');
+  if (apEl) apEl.innerHTML = '<option value="">All projects</option>' + projectOptions;
 
   // User-to-org dropdowns
   const uEl = $('userToAssign');
   const oEl = $('orgToAssignTo');
   if (uEl) uEl.innerHTML = '<option value="">Select user...</option>' + users.filter(u => u.role !== 'client').map(u => `<option value="${u.uid}">${u.name} (${u.role})${u.organizationName ? ' — ' + u.organizationName : ''}</option>`).join('');
   if (oEl) oEl.innerHTML = '<option value="">Select organization...</option>' + orgs.map(o => `<option value="${o.id}">${o.name} (${o.type.replace('_', ' ')})</option>`).join('');
+  const uopEl = $('userOrgProject');
+  if (uopEl) uopEl.innerHTML = '<option value="">All projects</option>' + projectOptions;
 }
 
 async function createOrg() {
@@ -846,11 +974,12 @@ async function linkOrganizations() {
 
   const consultantOrgId = $('linkConsultantOrg').value;
   const contractorOrgId = $('linkContractorOrg').value;
+  const projectId = $('linkProject') ? $('linkProject').value : '';
 
   if (!consultantOrgId || !contractorOrgId) { showError('linkError', 'Select both a consultant firm and a contractor company.'); return; }
 
   try {
-    await DB.linkOrgs(consultantOrgId, contractorOrgId);
+    await DB.linkOrgs(consultantOrgId, contractorOrgId, projectId);
     await loadOrgData();
   } catch (e) {
     showError('linkError', e.message || 'Failed to link organizations.');
@@ -873,11 +1002,12 @@ async function createUserAssignment() {
 
   const consultantUid = $('assignConsultant').value;
   const contractorUid = $('assignContractor').value;
+  const projectId = $('assignProject') ? $('assignProject').value : '';
 
   if (!consultantUid || !contractorUid) { showError('assignError', 'Select both a consultant and a contractor.'); return; }
 
   try {
-    await DB.createAssignment(consultantUid, contractorUid);
+    await DB.createAssignment(consultantUid, contractorUid, projectId);
     showSuccess('assignError', 'Assignment created.');
     await loadOrgData();
   } catch (e) {
@@ -901,15 +1031,334 @@ async function assignUserToOrganization() {
 
   const userId = $('userToAssign').value;
   const orgId = $('orgToAssignTo').value;
+  const projectId = $('userOrgProject') ? $('userOrgProject').value : '';
 
   if (!userId || !orgId) { showError('userOrgError', 'Select both a user and an organization.'); return; }
 
   try {
-    await DB.assignUserToOrg(userId, orgId);
+    await DB.assignUserToOrg(userId, orgId, projectId);
     showSuccess('userOrgError', 'User assigned to organization.');
     await loadOrgData();
   } catch (e) {
     showError('userOrgError', e.message || 'Failed to assign user.');
+  }
+}
+
+// ===== PROJECTS MANAGEMENT =====
+async function renderProjects(el) {
+  const r = state.role;
+  const canManage = r === 'client' || r === 'consultant';
+
+  el.innerHTML = `
+  <!-- Project Overview -->
+  <div class="card">
+    <div class="card-title">Project Portfolio</div>
+    <div style="padding:12px 16px;background:rgba(96,165,250,0.06);border:1px solid rgba(96,165,250,0.15);border-radius:10px;font-size:13px;color:var(--slate4);line-height:1.7">
+      <strong style="color:var(--blue)">How it works:</strong> Each project represents a distinct construction/infrastructure initiative.
+      Consultant firms and contractor companies are assigned per project. Users (consultants, contractors) are also assigned
+      to specific projects they work on. One consultant or contractor can be linked to many projects.<br>
+      <span style="color:var(--slate5)">Client (all projects) | Consultant (assigned projects) | Contractor (assigned projects)</span>
+    </div>
+  </div>
+
+  ${canManage ? `
+  <!-- Create Project -->
+  <div class="card">
+    <div class="card-title">Create New Project</div>
+    <div class="form-row c3">
+      <div class="fg">
+        <label>Project Name</label>
+        <input id="projName" placeholder="e.g. PA Apron Phase 1, Terminal 2 Expansion" />
+      </div>
+      <div class="fg">
+        <label>Project Code (optional)</label>
+        <input id="projCode" placeholder="e.g. PA-PH1, T2-EXP" />
+      </div>
+      <div class="fg">
+        <label>Description (optional)</label>
+        <input id="projDesc" placeholder="Brief description of the project" />
+      </div>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-primary" onclick="createProject()">+ Create Project</button>
+    </div>
+    <div class="login-error" id="projError" style="margin-top:12px"></div>
+    <div class="login-error" id="projSuccess" style="margin-top:12px"></div>
+  </div>` : ''}
+
+  <!-- Projects List -->
+  <div class="card">
+    <div class="card-title">Projects</div>
+    <div id="projList"><div class="empty"><div class="empty-icon">...</div>Loading projects...</div></div>
+  </div>
+
+  ${canManage ? `
+  <!-- Assign Organization to Project -->
+  <div class="card">
+    <div class="card-title">Link Organization to Project</div>
+    <div style="padding:10px 14px;background:rgba(52,211,153,0.06);border:1px solid rgba(52,211,153,0.15);border-radius:10px;margin-bottom:14px;font-size:13px;color:var(--green)">
+      Associate a consultant firm or contractor company with a specific project.
+    </div>
+    <div class="form-row c3">
+      <div class="fg">
+        <label>Project</label>
+        <select id="projOrgProject"><option value="">Select project...</option></select>
+      </div>
+      <div class="fg">
+        <label>Organization</label>
+        <select id="projOrgOrg"><option value="">Select organization...</option></select>
+      </div>
+      <div class="fg" style="display:flex;align-items:flex-end">
+        <button class="btn btn-primary" onclick="linkOrgToProject()">Link</button>
+      </div>
+    </div>
+    <div class="login-error" id="projOrgError" style="margin-top:12px"></div>
+    <div id="projOrgList" style="margin-top:12px"></div>
+  </div>
+
+  <!-- Assign User to Project -->
+  <div class="card">
+    <div class="card-title">Assign User to Project</div>
+    <div style="padding:10px 14px;background:rgba(251,191,36,0.06);border:1px solid rgba(251,191,36,0.15);border-radius:10px;margin-bottom:14px;font-size:13px;color:var(--yellow)">
+      Assign a consultant or contractor to a specific project. One person can be assigned to many projects.
+    </div>
+    <div class="form-row c3">
+      <div class="fg">
+        <label>Project</label>
+        <select id="projUserProject"><option value="">Select project...</option></select>
+      </div>
+      <div class="fg">
+        <label>User</label>
+        <select id="projUserUser"><option value="">Select user...</option></select>
+      </div>
+      <div class="fg" style="display:flex;align-items:flex-end">
+        <button class="btn btn-primary" onclick="assignUserToProject()">Assign</button>
+      </div>
+    </div>
+    <div class="login-error" id="projUserError" style="margin-top:12px"></div>
+    <div id="projUserList" style="margin-top:12px"></div>
+  </div>` : ''}`;
+
+  await loadProjectData();
+}
+
+async function loadProjectData() {
+  try {
+    const [projects, users, orgs, projAssignments, projOrgLinks] = await Promise.all([
+      DB.getProjects(),
+      DB.getUsers(),
+      DB.getOrganizations(),
+      DB.getProjectAssignments(),
+      DB.getProjectOrgLinks()
+    ]);
+    state.projects = projects;
+    state.users = users;
+    state.organizations = orgs;
+    state.projectAssignments = projAssignments;
+    state.projectOrgLinks = projOrgLinks;
+
+    renderProjectList(projects);
+    renderProjectOrgLinks(projOrgLinks);
+    renderProjectUserAssignments(projAssignments);
+    populateProjectDropdowns(projects, users, orgs);
+  } catch (e) {
+    console.warn('Failed to load project data:', e);
+  }
+}
+
+function renderProjectList(projects) {
+  const el = $('projList');
+  if (!el) return;
+
+  if (!projects.length) {
+    el.innerHTML = '<div class="empty"><div class="empty-icon">📋</div>No projects yet. Create one above.</div>';
+    return;
+  }
+
+  const canManage = state.role === 'client';
+
+  // Build project cards with summary info
+  const projAssignments = state.projectAssignments || [];
+  const projOrgLinks = state.projectOrgLinks || [];
+
+  el.innerHTML = `<div class="tbl-wrap"><table>
+    <thead><tr><th>Project</th><th>Code</th><th>Description</th><th>Consultants</th><th>Contractors</th><th>Orgs</th><th>Status</th><th>Created</th>${canManage ? '<th>Actions</th>' : ''}</tr></thead>
+    <tbody>${projects.map(p => {
+      const pAssign = projAssignments.filter(a => a.projectId === p.id);
+      const pOrgs = projOrgLinks.filter(l => l.projectId === p.id);
+      const consultantCount = pAssign.filter(a => a.userRole === 'consultant').length;
+      const contractorCount = pAssign.filter(a => a.userRole === 'contractor').length;
+      const statusClass = p.status === 'active' ? 'approved' : p.status === 'completed' ? 'review' : 'pending';
+      return `<tr>
+        <td style="font-weight:600">${p.name}</td>
+        <td style="color:var(--blue);font-family:monospace;font-size:12px">${p.code || '--'}</td>
+        <td style="color:var(--slate5);font-size:12px;max-width:200px;overflow:hidden;text-overflow:ellipsis">${p.description || '--'}</td>
+        <td class="r"><span style="color:var(--green);font-weight:700">${consultantCount}</span></td>
+        <td class="r"><span style="color:var(--blue);font-weight:700">${contractorCount}</span></td>
+        <td class="r"><span style="color:var(--purple);font-weight:700">${pOrgs.length}</span></td>
+        <td><span class="badge ${statusClass}" style="text-transform:capitalize">${p.status || 'active'}</span></td>
+        <td style="color:var(--slate5);font-size:11px">${new Date(p.createdAt).toLocaleDateString()}</td>
+        ${canManage ? `<td><button class="btn btn-danger btn-sm" onclick="deleteProject('${p.id}')">Delete</button></td>` : ''}
+      </tr>`;
+    }).join('')}</tbody>
+  </table></div>`;
+}
+
+function renderProjectOrgLinks(links) {
+  const el = $('projOrgList');
+  if (!el) return;
+
+  if (!links.length) {
+    el.innerHTML = '<div style="font-size:12px;color:var(--slate5);text-align:center;padding:8px">No organizations linked to projects yet.</div>';
+    return;
+  }
+
+  el.innerHTML = `<div class="tbl-wrap"><table>
+    <thead><tr><th>Project</th><th>Organization</th><th>Type</th><th>Actions</th></tr></thead>
+    <tbody>${links.map(l => `<tr>
+      <td style="font-weight:600;color:var(--blue)">${l.projectName}</td>
+      <td style="font-weight:600">${l.orgName}</td>
+      <td><span class="badge ${l.orgType === 'consultant_firm' ? 'approved' : 'review'}" style="text-transform:capitalize">${(l.orgType || '').replace('_', ' ')}</span></td>
+      <td><button class="btn btn-danger btn-sm" onclick="unlinkOrgFromProject('${l.id}')">Unlink</button></td>
+    </tr>`).join('')}</tbody>
+  </table></div>`;
+}
+
+function renderProjectUserAssignments(assignments) {
+  const el = $('projUserList');
+  if (!el) return;
+
+  if (!assignments.length) {
+    el.innerHTML = '<div style="font-size:12px;color:var(--slate5);text-align:center;padding:8px">No users assigned to projects yet.</div>';
+    return;
+  }
+
+  // Group by project for clarity
+  const byProject = {};
+  assignments.forEach(a => {
+    if (!byProject[a.projectId]) byProject[a.projectId] = { name: a.projectName, items: [] };
+    byProject[a.projectId].items.push(a);
+  });
+
+  let html = '';
+  Object.values(byProject).forEach(group => {
+    html += `<div style="margin-bottom:12px">
+      <div style="font-size:11px;font-weight:700;color:var(--blue);text-transform:uppercase;letter-spacing:1px;padding:6px 0">${group.name}</div>
+      <div class="tbl-wrap"><table>
+        <thead><tr><th>User</th><th>Role</th><th>Organization</th><th>Actions</th></tr></thead>
+        <tbody>${group.items.map(a => `<tr>
+          <td style="font-weight:600">${a.userName}</td>
+          <td><span class="badge ${a.userRole === 'consultant' ? 'approved' : a.userRole === 'contractor' ? 'review' : 'pending'}" style="text-transform:capitalize">${a.userRole}</span></td>
+          <td style="color:var(--slate5);font-size:12px">${a.userOrgName || '--'}</td>
+          <td><button class="btn btn-danger btn-sm" onclick="removeUserFromProject('${a.id}')">Remove</button></td>
+        </tr>`).join('')}</tbody>
+      </table></div>
+    </div>`;
+  });
+
+  el.innerHTML = html;
+}
+
+function populateProjectDropdowns(projects, users, orgs) {
+  // Org-to-project dropdowns
+  const ppEl = $('projOrgProject');
+  const poEl = $('projOrgOrg');
+  if (ppEl) ppEl.innerHTML = '<option value="">Select project...</option>' + projects.map(p => `<option value="${p.id}">${p.name}${p.code ? ' (' + p.code + ')' : ''}</option>`).join('');
+  if (poEl) poEl.innerHTML = '<option value="">Select organization...</option>' + orgs.map(o => `<option value="${o.id}">${o.name} (${o.type.replace('_', ' ')})</option>`).join('');
+
+  // User-to-project dropdowns
+  const upEl = $('projUserProject');
+  const uuEl = $('projUserUser');
+  if (upEl) upEl.innerHTML = '<option value="">Select project...</option>' + projects.map(p => `<option value="${p.id}">${p.name}${p.code ? ' (' + p.code + ')' : ''}</option>`).join('');
+  if (uuEl) uuEl.innerHTML = '<option value="">Select user...</option>' + users.filter(u => u.role !== 'client').map(u => `<option value="${u.uid}">${u.name} (${u.role})${u.organizationName ? ' - ' + u.organizationName : ''}</option>`).join('');
+}
+
+async function createProject() {
+  const errEl = $('projError');
+  const sucEl = $('projSuccess');
+  errEl.style.display = 'none';
+  sucEl.style.display = 'none';
+
+  const name = $('projName').value.trim();
+  const code = $('projCode').value.trim();
+  const desc = $('projDesc').value.trim();
+
+  if (!name) { showError('projError', 'Please enter a project name.'); return; }
+
+  try {
+    await DB.createProject(name, desc, code);
+    showSuccess('projSuccess', 'Project "' + name + '" created.');
+    $('projName').value = '';
+    $('projCode').value = '';
+    $('projDesc').value = '';
+    await loadProjectData();
+  } catch (e) {
+    showError('projError', e.message || 'Failed to create project.');
+  }
+}
+
+async function deleteProject(projectId) {
+  if (!confirm('Delete this project? All assignments and org links for this project will also be removed.')) return;
+  try {
+    await DB.deleteProject(projectId);
+    await loadProjectData();
+  } catch (e) {
+    alert(e.message || 'Failed to delete project.');
+  }
+}
+
+async function linkOrgToProject() {
+  const errEl = $('projOrgError');
+  errEl.style.display = 'none';
+
+  const projectId = $('projOrgProject').value;
+  const orgId = $('projOrgOrg').value;
+
+  if (!projectId || !orgId) { showError('projOrgError', 'Select both a project and an organization.'); return; }
+
+  try {
+    await DB.linkOrgToProject(orgId, projectId);
+    await loadProjectData();
+  } catch (e) {
+    showError('projOrgError', e.message || 'Failed to link organization to project.');
+  }
+}
+
+async function unlinkOrgFromProject(linkId) {
+  if (!confirm('Remove this organization from the project?')) return;
+  try {
+    await DB.unlinkOrgFromProject(linkId);
+    await loadProjectData();
+  } catch (e) {
+    alert(e.message || 'Failed to unlink organization from project.');
+  }
+}
+
+async function assignUserToProject() {
+  const errEl = $('projUserError');
+  errEl.style.display = 'none';
+
+  const projectId = $('projUserProject').value;
+  const userId = $('projUserUser').value;
+
+  if (!projectId || !userId) { showError('projUserError', 'Select both a project and a user.'); return; }
+
+  try {
+    await DB.assignUserToProject(userId, projectId);
+    showSuccess('projUserError', 'User assigned to project.');
+    await loadProjectData();
+  } catch (e) {
+    showError('projUserError', e.message || 'Failed to assign user to project.');
+  }
+}
+
+async function removeUserFromProject(assignmentId) {
+  if (!confirm('Remove this user from the project?')) return;
+  try {
+    await DB.removeUserFromProject(assignmentId);
+    await loadProjectData();
+  } catch (e) {
+    alert(e.message || 'Failed to remove user from project.');
   }
 }
 

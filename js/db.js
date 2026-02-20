@@ -376,11 +376,13 @@ const DB = {
     return data;
   },
 
-  async assignUserToOrg(userId, orgId) {
+  async assignUserToOrg(userId, orgId, projectId) {
     if (!dbConnected) throw new Error('Server connection required.');
+    const payload = { action: 'assign-user-to-org', userId, orgId };
+    if (projectId) payload.projectId = projectId;
     const res = await apiCall('/organizations', {
       method: 'POST',
-      body: JSON.stringify({ action: 'assign-user-to-org', userId, orgId })
+      body: JSON.stringify(payload)
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Failed to assign user.');
@@ -403,11 +405,13 @@ const DB = {
     return [];
   },
 
-  async linkOrgs(consultantOrgId, contractorOrgId) {
+  async linkOrgs(consultantOrgId, contractorOrgId, projectId) {
     if (!dbConnected) throw new Error('Server connection required.');
+    const payload = { action: 'link-orgs', consultantOrgId, contractorOrgId };
+    if (projectId) payload.projectId = projectId;
     const res = await apiCall('/organizations', {
       method: 'POST',
-      body: JSON.stringify({ action: 'link-orgs', consultantOrgId, contractorOrgId })
+      body: JSON.stringify(payload)
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Failed to link organizations.');
@@ -441,11 +445,13 @@ const DB = {
     return [];
   },
 
-  async createAssignment(consultantUid, contractorUid) {
+  async createAssignment(consultantUid, contractorUid, projectId) {
     if (!dbConnected) throw new Error('Server connection required.');
+    const payload = { action: 'create-assignment', consultantUid, contractorUid };
+    if (projectId) payload.projectId = projectId;
     const res = await apiCall('/organizations', {
       method: 'POST',
-      body: JSON.stringify({ action: 'create-assignment', consultantUid, contractorUid })
+      body: JSON.stringify(payload)
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Failed to create assignment.');
@@ -477,5 +483,146 @@ const DB = {
       }
     } catch (e) { console.warn('API error (getUsers):', e); }
     return [];
+  },
+
+  // === PROJECTS ===
+  async getProjects() {
+    if (!dbConnected) return [];
+    try {
+      const res = await apiCall('/projects', {
+        method: 'POST',
+        body: JSON.stringify({ action: 'list' })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        return data.projects || [];
+      }
+    } catch (e) { console.warn('API error (getProjects):', e); }
+    return [];
+  },
+
+  async createProject(name, description, code) {
+    if (!dbConnected) throw new Error('Server connection required.');
+    const res = await apiCall('/projects', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'create', name, description, code })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to create project.');
+    return data;
+  },
+
+  async updateProject(projectId, updates) {
+    if (!dbConnected) throw new Error('Server connection required.');
+    const res = await apiCall('/projects', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'update', projectId, ...updates })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to update project.');
+    return data;
+  },
+
+  async deleteProject(projectId) {
+    if (!dbConnected) throw new Error('Server connection required.');
+    const res = await apiCall('/projects', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'delete', projectId })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to delete project.');
+    return data;
+  },
+
+  async assignUserToProject(userId, projectId) {
+    if (!dbConnected) throw new Error('Server connection required.');
+    const res = await apiCall('/projects', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'assign-user', userId, projectId })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to assign user to project.');
+    return data;
+  },
+
+  async removeUserFromProject(assignmentId) {
+    if (!dbConnected) throw new Error('Server connection required.');
+    const res = await apiCall('/projects', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'remove-user', assignmentId })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to remove user from project.');
+    return data;
+  },
+
+  async getProjectAssignments(projectId) {
+    if (!dbConnected) return [];
+    try {
+      const payload = { action: 'list-assignments' };
+      if (projectId) payload.projectId = projectId;
+      const res = await apiCall('/projects', {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      });
+      if (res.ok) {
+        const data = await res.json();
+        return data.assignments || [];
+      }
+    } catch (e) { console.warn('API error (getProjectAssignments):', e); }
+    return [];
+  },
+
+  async linkOrgToProject(orgId, projectId) {
+    if (!dbConnected) throw new Error('Server connection required.');
+    const res = await apiCall('/projects', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'link-org', orgId, projectId })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to link organization to project.');
+    return data;
+  },
+
+  async unlinkOrgFromProject(linkId) {
+    if (!dbConnected) throw new Error('Server connection required.');
+    const res = await apiCall('/projects', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'unlink-org', linkId })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to unlink organization from project.');
+    return data;
+  },
+
+  async getProjectOrgLinks(projectId) {
+    if (!dbConnected) return [];
+    try {
+      const payload = { action: 'list-org-links' };
+      if (projectId) payload.projectId = projectId;
+      const res = await apiCall('/projects', {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      });
+      if (res.ok) {
+        const data = await res.json();
+        return data.links || [];
+      }
+    } catch (e) { console.warn('API error (getProjectOrgLinks):', e); }
+    return [];
+  },
+
+  async getProjectSummary(projectId) {
+    if (!dbConnected) return null;
+    try {
+      const res = await apiCall('/projects', {
+        method: 'POST',
+        body: JSON.stringify({ action: 'summary', projectId })
+      });
+      if (res.ok) {
+        return await res.json();
+      }
+    } catch (e) { console.warn('API error (getProjectSummary):', e); }
+    return null;
   }
 };

@@ -1,5 +1,5 @@
 // ===== APPLICATION STATE & UTILITIES =====
-let state = { role:null, name:'', uid:null, organizationId:null, organizationName:null, page:'dashboard', entries:[], a5entries:[], invitations:[], tenderScenarios:[], organizations:[], orgLinks:[], assignments:[], users:[] };
+let state = { role:null, name:'', uid:null, organizationId:null, organizationName:null, page:'dashboard', entries:[], a5entries:[], invitations:[], tenderScenarios:[], organizations:[], orgLinks:[], assignments:[], users:[], projects:[], projectAssignments:[], projectOrgLinks:[], selectedProjectId:null };
 
 const fmt=v=>(v==null||isNaN(v))?"\u2014":v.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});
 const fmtI=v=>(v==null||isNaN(v))?"\u2014":Math.round(v).toLocaleString();
@@ -22,6 +22,18 @@ async function loadAllData() {
     state.assignments = await DB.getAssignments();
   } catch (e) {
     state.assignments = [];
+  }
+
+  // Load projects and project assignments
+  try {
+    state.projects = await DB.getProjects();
+  } catch (e) {
+    state.projects = [];
+  }
+  try {
+    state.projectAssignments = await DB.getProjectAssignments();
+  } catch (e) {
+    state.projectAssignments = [];
   }
 
   // Setup real-time listeners

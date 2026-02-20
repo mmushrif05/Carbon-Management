@@ -142,7 +142,7 @@ async function handleDeleteOrg(body, decoded) {
 
 // === ASSIGN USER TO ORGANIZATION ===
 async function handleAssignUserToOrg(body, decoded) {
-  const { userId, orgId } = body;
+  const { userId, orgId, projectId } = body;
   if (!userId || !orgId) return respond(400, { error: 'User ID and Organization ID are required.' });
 
   const profile = await getUserProfile(decoded.uid);
@@ -172,20 +172,39 @@ async function handleAssignUserToOrg(body, decoded) {
     return respond(400, { error: 'Contractors can only be assigned to contractor companies.' });
   }
 
+  // Optionally verify project exists
+  let projectName = null;
+  if (projectId) {
+    const projSnap = await db.ref('projects/' + projectId).once('value');
+    const proj = projSnap.val();
+    if (!proj) return respond(404, { error: 'Project not found.' });
+    projectName = proj.name;
+  }
+
   // Update user profile with organization
-  await db.ref('users/' + userId).update({
+  const updates = {
     organizationId: orgId,
     organizationName: org.name
-  });
+  };
+  if (projectId) {
+    // Add project to user's project list (stored as comma-separated or array)
+    const userSnap2 = await db.ref('users/' + userId).once('value');
+    const currentUser = userSnap2.val() || {};
+    const existingProjects = currentUser.projectIds || [];
+    if (!existingProjects.includes(projectId)) {
+      updates.projectIds = [...existingProjects, projectId];
+    }
+  }
+  await db.ref('users/' + userId).update(updates);
 
-  console.log('[ORG] User', userId, 'assigned to org:', orgId, org.name);
+  console.log('[ORG] User', userId, 'assigned to org:', orgId, org.name, projectId ? '(project: ' + projectName + ')' : '');
   return respond(200, { success: true });
 }
 
 // === LINK CONTRACTOR COMPANY TO CONSULTANT FIRM ===
 // This creates the relationship: which consultant firm oversees which contractor company
 async function handleLinkOrgs(body, decoded) {
-  const { consultantOrgId, contractorOrgId } = body;
+  const { consultantOrgId, contractorOrgId, projectId } = body;
   if (!consultantOrgId || !contractorOrgId) {
     return respond(400, { error: 'Both consultant firm ID and contractor company ID are required.' });
   }
@@ -218,14 +237,23 @@ async function handleLinkOrgs(body, decoded) {
     return respond(400, { error: 'Second organization must be a contractor company.' });
   }
 
-  // Check if link already exists
+  // Optionally verify project exists
+  let projectName = null;
+  if (projectId) {
+    const projSnap = await db.ref('projects/' + projectId).once('value');
+    const proj = projSnap.val();
+    if (!proj) return respond(404, { error: 'Project not found.' });
+    projectName = proj.name;
+  }
+
+  // Check if link already exists (same orgs + same project)
   const existingSnap = await db.ref('org_links').once('value');
   const existingLinks = existingSnap.val() || {};
   const alreadyLinked = Object.values(existingLinks).find(
-    l => l.consultantOrgId === consultantOrgId && l.contractorOrgId === contractorOrgId
+    l => l.consultantOrgId === consultantOrgId && l.contractorOrgId === contractorOrgId && (l.projectId || null) === (projectId || null)
   );
   if (alreadyLinked) {
-    return respond(400, { error: 'These organizations are already linked.' });
+    return respond(400, { error: 'These organizations are already linked' + (projectId ? ' for this project.' : '.') });
   }
 
   const linkId = Date.now().toString();
@@ -235,6 +263,8 @@ async function handleLinkOrgs(body, decoded) {
     consultantOrgName: consultantOrg.name,
     contractorOrgId,
     contractorOrgName: contractorOrg.name,
+    projectId: projectId || null,
+    projectName: projectName,
     project: profile.project || 'ksia',
     createdBy: decoded.uid,
     createdAt: new Date().toISOString()
@@ -291,7 +321,7 @@ async function handleListLinks(decoded) {
 // === ASSIGN CONSULTANT TO CONTRACTOR (user-level assignment) ===
 // A specific consultant user is assigned to review a specific contractor user's submissions
 async function handleCreateAssignment(body, decoded) {
-  const { consultantUid, contractorUid } = body;
+  const { consultantUid, contractorUid, projectId } = body;
   if (!consultantUid || !contractorUid) {
     return respond(400, { error: 'Both consultant and contractor user IDs are required.' });
   }
@@ -324,14 +354,24 @@ async function handleCreateAssignment(body, decoded) {
     return respond(400, { error: 'The second user must be a contractor.' });
   }
 
-  // Check for existing assignment
+  // Optionally verify project exists
+  let projectName = null;
+  if (projectId) {
+    const db2 = getDb();
+    const projSnap = await db2.ref('projects/' + projectId).once('value');
+    const proj = projSnap.val();
+    if (!proj) return respond(404, { error: 'Project not found.' });
+    projectName = proj.name;
+  }
+
+  // Check for existing assignment (same users + same project)
   const existingSnap = await db.ref('assignments').once('value');
   const existing = existingSnap.val() || {};
   const alreadyAssigned = Object.values(existing).find(
-    a => a.consultantUid === consultantUid && a.contractorUid === contractorUid
+    a => a.consultantUid === consultantUid && a.contractorUid === contractorUid && (a.projectId || null) === (projectId || null)
   );
   if (alreadyAssigned) {
-    return respond(400, { error: 'This assignment already exists.' });
+    return respond(400, { error: 'This assignment already exists' + (projectId ? ' for this project.' : '.') });
   }
 
   const assignmentId = Date.now().toString();
@@ -345,6 +385,8 @@ async function handleCreateAssignment(body, decoded) {
     contractorName: contractor.name || contractor.email,
     contractorOrgId: contractor.organizationId || null,
     contractorOrgName: contractor.organizationName || null,
+    projectId: projectId || null,
+    projectName: projectName,
     project: profile.project || 'ksia',
     createdBy: decoded.uid,
     createdByName: profile.name || profile.email,
