@@ -35,15 +35,29 @@ function extractThickness(description) {
 }
 
 // Normalize a unit string for comparison
+// Handles AI returning messy units like "Provisional m²", "(Provisional Sum) m²", "28,894", etc.
 function normalizeUnitStr(u) {
   if (!u) return '';
+  u = String(u).trim();
+
+  // First, try to extract a known unit pattern from within the string
+  // This handles "Provisional m²", "(Provisional Sum) m²", "m² (provisional)", etc.
+  var unitMatch = u.match(/(m[²³]|m2|m3|sqm|sq\.?\s*m|cum|cu\.?\s*m|cbm|kg|tonnes?|tons?|mt|lm|lin\.?\s*m|rm|nr|nos?|each|ea|pcs?|ls|set|lot|tkm)\b/i);
+  if (unitMatch) {
+    u = unitMatch[1];
+  } else {
+    // Check for bare "m" (meters) but NOT inside longer words like "mm"
+    var bareM = u.match(/\bm\b/i);
+    if (bareM) u = 'm';
+  }
+
   u = u.toLowerCase().trim()
     .replace(/²/g, '2').replace(/³/g, '3').replace(/\s+/g, '');
   // Common aliases
-  if (u === 'sqm' || u === 'sq.m' || u === 'sqm.' || u === 'sq m') return 'm2';
-  if (u === 'cum' || u === 'cu.m' || u === 'cbm' || u === 'cu m') return 'm3';
+  if (u === 'sqm' || u === 'sq.m' || u === 'sqm.' || u === 'sqm') return 'm2';
+  if (u === 'cum' || u === 'cu.m' || u === 'cbm' || u === 'cum') return 'm3';
   if (u === 'tonne' || u === 'tonnes' || u === 'ton' || u === 'mt' || u === 't') return 'tons';
-  if (u === 'lm' || u === 'lin.m' || u === 'rm' || u === 'linm' || u === 'lin m') return 'm';
+  if (u === 'lm' || u === 'lin.m' || u === 'rm' || u === 'linm') return 'm';
   if (u === 'nr' || u === 'nos' || u === 'no' || u === 'each' || u === 'ea' || u === 'pcs') return 'nr';
   return u;
 }
@@ -145,6 +159,24 @@ function updateItemThickness(idx, thicknessMM) {
   item.conversionType = conversion.conversionType;
   item.needsConversion = conversion.conversionType !== 'none';
   item.baselineEmission = (item.qty * item.baselineEF) / 1000;
+  item.targetEmission = item.baselineEmission;
+
+  recalcTender80Pct();
+  navigate('tender_entry');
+}
+
+// User manually edits the calculated quantity directly
+function updateCalcQty(idx, newValue) {
+  var item = _tenderItems[idx];
+  if (!item) return;
+  var val = parseFloat(String(newValue).replace(/,/g, ''));
+  if (isNaN(val) || val < 0) return;
+  item.qty = val;
+  item.convertedQty = val;
+  item.conversionNote = 'Manually entered: ' + fmt(val) + ' ' + (item.unit || '');
+  item.conversionType = 'manual';
+  item.needsConversion = true;
+  item.baselineEmission = (val * item.baselineEF) / 1000;
   item.targetEmission = item.baselineEmission;
 
   recalcTender80Pct();
@@ -462,13 +494,21 @@ function renderTenderForm(el) {
         }
         // Build remarks with conversion note, assumption, and ICE reference
         let remarks = '';
-        // Show conversion note first (most important for audit)
+        // Determine if units differ (BOQ unit vs EF unit)
+        var boqU = normalizeUnitStr(it.boqUnit || '');
+        var efU = normalizeUnitStr(it.unit || '');
+        var unitsDiffer = boqU && efU && boqU !== efU;
+        var isSuccessConversion = it.conversionType && it.conversionType !== 'none' && it.conversionType !== 'manual' && it.conversionType.indexOf('missing') === -1 && it.conversionType.indexOf('unknown') === -1;
+        var needsManualInput = unitsDiffer && !isSuccessConversion && it.conversionType !== 'manual';
+
+        // Show conversion note
         if (it.conversionNote) {
-          var isWarning = it.conversionType && it.conversionType.indexOf('missing') !== -1;
+          var isWarning = it.conversionType && (it.conversionType.indexOf('missing') !== -1 || it.conversionType.indexOf('unknown') !== -1);
           remarks += '<span style="color:' + (isWarning ? 'var(--red)' : 'var(--cyan)') + ';font-size:9px;font-weight:600">' + esc(it.conversionNote) + '</span>';
-          if (isWarning) {
-            remarks += '<br><label style="font-size:8px;color:var(--slate5)">Thickness: </label><input type="number" placeholder="mm" style="width:48px;font-size:9px;padding:1px 3px;background:var(--bg3);color:var(--text);border:1px solid var(--border);border-radius:3px" onchange="updateItemThickness(' + idx + ',this.value)"><span style="font-size:8px;color:var(--slate5)"> mm</span>';
-          }
+        }
+        // Show thickness input when area→volume conversion needs thickness
+        if (it.conversionType && it.conversionType.indexOf('area_to_volume_missing') !== -1) {
+          remarks += '<br><label style="font-size:8px;color:var(--slate5)">Thickness: </label><input type="number" placeholder="mm" style="width:48px;font-size:9px;padding:1px 3px;background:var(--bg3);color:var(--text);border:1px solid var(--border);border-radius:3px" onchange="updateItemThickness(' + idx + ',this.value)"><span style="font-size:8px;color:var(--slate5)"> mm</span>';
         }
         if (it.assumption) {
           remarks += (remarks ? '<br>' : '') + '<span style="font-size:9px">' + esc(it.assumption) + '</span>';
@@ -479,13 +519,24 @@ function renderTenderForm(el) {
         if (it.notes) {
           remarks += (remarks ? '<br>' : '') + '<span style="color:var(--slate5)">' + esc(it.notes) + '</span>';
         }
-        // Calc Qty cell: show converted qty + unit if conversion happened, else "same"
-        const hasConversion = it.needsConversion && it.conversionType !== 'none' && it.conversionType && it.conversionType.indexOf('missing') === -1;
-        const calcQtyCell = hasConversion
-          ? '<span style="color:var(--blue);font-weight:600">' + fmt(it.qty) + '</span> <span style="font-size:8px;color:var(--slate5)">' + esc(it.unit || '') + '</span>'
-          : (it.conversionType && it.conversionType.indexOf('missing') !== -1
-            ? '<span style="color:var(--red);font-size:9px">\u26a0 needs thickness</span>'
-            : '<span style="color:var(--slate5);font-size:9px">\u2014</span>');
+        // Calc Qty cell:
+        // - Successful conversion: show converted value (editable) in blue
+        // - Units differ but no auto-conversion: show editable input with warning
+        // - Same units: show "—"
+        let calcQtyCell;
+        if (isSuccessConversion || it.conversionType === 'manual') {
+          // Show converted value as editable input
+          calcQtyCell = '<input type="text" value="' + fmt(it.qty) + '" style="width:70px;font-size:10px;padding:2px 4px;background:var(--bg3);color:var(--blue);border:1px solid var(--border);border-radius:3px;text-align:right;font-weight:600;font-family:monospace" onchange="updateCalcQty(' + idx + ',this.value)"> <span style="font-size:8px;color:var(--slate5)">' + esc(it.unit || '') + '</span>';
+        } else if (needsManualInput) {
+          // Units differ but no conversion possible — show editable input with warning style
+          calcQtyCell = '<input type="text" value="' + fmt(it.qty) + '" placeholder="Enter qty" style="width:70px;font-size:10px;padding:2px 4px;background:rgba(239,68,68,0.08);color:var(--red);border:1px solid var(--red);border-radius:3px;text-align:right;font-family:monospace" onchange="updateCalcQty(' + idx + ',this.value)"> <span style="font-size:8px;color:var(--slate5)">' + esc(it.unit || '') + '</span>';
+        } else if (unitsDiffer) {
+          // Already manually set or partial match
+          calcQtyCell = '<input type="text" value="' + fmt(it.qty) + '" style="width:70px;font-size:10px;padding:2px 4px;background:var(--bg3);color:var(--text);border:1px solid var(--border);border-radius:3px;text-align:right;font-family:monospace" onchange="updateCalcQty(' + idx + ',this.value)"> <span style="font-size:8px;color:var(--slate5)">' + esc(it.unit || '') + '</span>';
+        } else {
+          // Same units — no conversion needed
+          calcQtyCell = '<span style="color:var(--slate5);font-size:9px">\u2014</span>';
+        }
         return `<tr${in80 ? ' style="background:rgba(52,211,153,0.04)"' : ''}>
           <td style="font-weight:600;color:var(--slate4);font-size:11px;white-space:nowrap">${esc(it.boqItemNo || '')}</td>
           <td style="font-size:11px;color:var(--text)">${esc(it.originalDesc || it.type)}</td>
