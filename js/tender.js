@@ -258,7 +258,7 @@ function renderTenderForm(el) {
       ${_tenderItems.length ? '<div><button class="btn btn-secondary btn-sm" onclick="exportTenderExcel()" style="margin-right:6px">\ud83d\udcc4 Excel</button><button class="btn btn-secondary btn-sm" onclick="exportTenderPDF()">\ud83d\udcc4 PDF</button></div>' : ''}
     </div>
     <div class="tbl-wrap"><table>
-      <thead><tr><th>BOQ #</th><th>BOQ Description</th><th>Matched As</th><th class="r">Qty</th><th>Unit</th><th class="r">Baseline EF</th><th class="r">tCO\u2082</th><th>Source</th><th>80%</th><th>Remarks</th><th></th></tr></thead>
+      <thead><tr><th style="min-width:50px">BOQ #</th><th>BOQ Description</th><th>Category</th><th>Type</th><th class="r">Qty</th><th>Unit</th><th class="r">EF</th><th class="r">tCO\u2082</th><th>Source</th><th>80%</th><th>Remarks</th><th></th></tr></thead>
       <tbody id="tenderItemsTbl">${_tenderItems.length ? _tenderItems.map((it, idx) => {
         const in80 = it._in80Pct;
         const srcBadge = it.gwpSource === 'A1-A3'
@@ -266,14 +266,33 @@ function renderTenderForm(el) {
           : it.gwpSource === 'ICE'
           ? '<span style="display:inline-block;background:rgba(96,165,250,0.1);color:var(--blue);font-size:9px;padding:2px 6px;border-radius:4px;font-weight:600">ICE</span>'
           : '<span style="display:inline-block;background:rgba(251,191,36,0.1);color:var(--yellow);font-size:9px;padding:2px 6px;border-radius:4px;font-weight:600">Manual</span>';
-        // Build alternatives dropdown if alternatives exist
-        const altDropdown = it.alternatives && it.alternatives.length > 1
-          ? '<select onchange="changeTenderItemGWP(' + idx + ',this.value)" style="font-size:10px;padding:2px 4px;background:var(--bg3);color:var(--text);border:1px solid var(--border);border-radius:4px;max-width:160px">'
-            + it.alternatives.map(function(alt) {
-                return '<option value="' + alt.idx + '"' + (alt.name === it.type ? ' selected' : '') + '>' + alt.name + ' (' + alt.baseline + ')</option>';
-              }).join('')
-            + '</select>'
-          : esc(it.type);
+        // Build category dropdown — A1-A3 categories first, then ICE
+        const catDropdownId = 'tiCatDd_' + idx;
+        let catDropdown = '<select id="' + catDropdownId + '" onchange="changeTenderItemCategory(' + idx + ',this.value)" style="font-size:10px;padding:2px 4px;background:var(--bg3);color:var(--text);border:1px solid var(--border);border-radius:4px;max-width:130px">';
+        catDropdown += '<optgroup label="\u2500\u2500 A1-A3 (Consultant) \u2500\u2500">';
+        Object.keys(MATERIALS).forEach(function(cat) {
+          catDropdown += '<option value="A1-A3:' + cat + '"' + (it.gwpSource === 'A1-A3' && it.category === cat ? ' selected' : '') + '>' + cat + '</option>';
+        });
+        catDropdown += '</optgroup><optgroup label="\u2500\u2500 ICE Database \u2500\u2500">';
+        Object.keys(ICE_MATERIALS).forEach(function(cat) {
+          catDropdown += '<option value="ICE:' + cat + '"' + (it.gwpSource === 'ICE' && it.category === cat ? ' selected' : '') + '>' + cat + '</option>';
+        });
+        catDropdown += '</optgroup>';
+        if (it.gwpSource === 'Manual' || it.isCustom) {
+          catDropdown += '<optgroup label="\u2500\u2500 Other \u2500\u2500"><option value="Manual:Unmatched" selected>Unmatched (Manual)</option></optgroup>';
+        }
+        catDropdown += '</select>';
+        // Build type dropdown from current alternatives
+        let typeDropdown = '';
+        if (it.alternatives && it.alternatives.length > 0) {
+          typeDropdown = '<select onchange="changeTenderItemType(' + idx + ',this.value)" style="font-size:10px;padding:2px 4px;background:var(--bg3);color:var(--text);border:1px solid var(--border);border-radius:4px;max-width:160px">';
+          typeDropdown += it.alternatives.map(function(alt) {
+            return '<option value="' + alt.idx + '"' + (alt.name === it.type ? ' selected' : '') + '>' + alt.name + ' (' + alt.baseline + ')</option>';
+          }).join('');
+          typeDropdown += '</select>';
+        } else {
+          typeDropdown = '<span style="font-size:10px;color:var(--yellow)">' + esc(it.type) + '</span>';
+        }
         // Build remarks with assumption and ICE reference
         let remarks = it.assumption || '';
         if (it.iceRefUrl && it.gwpSource === 'ICE') {
@@ -284,20 +303,21 @@ function renderTenderForm(el) {
         }
         return `<tr${in80 ? ' style="background:rgba(52,211,153,0.04)"' : ''}>
           <td style="font-weight:600;color:var(--slate4);font-size:11px;white-space:nowrap">${esc(it.boqItemNo || '')}</td>
-          <td style="font-size:10px;color:var(--slate4);max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(it.originalDesc || '')}">${esc(it.originalDesc || it.type)}</td>
-          <td style="font-size:10px">${altDropdown}</td>
+          <td style="font-size:11px;color:var(--text)">${esc(it.originalDesc || it.type)}</td>
+          <td style="font-size:10px">${catDropdown}</td>
+          <td style="font-size:10px">${typeDropdown}</td>
           <td class="r mono">${fmtI(it.qty)}</td>
           <td>${it.unit}</td>
           <td class="r mono">${fmt(it.baselineEF)}</td>
           <td class="r mono">${fmt(it.baselineEmission)}</td>
           <td>${srcBadge}</td>
           <td>${in80 ? '<span style="color:var(--green);font-weight:700;font-size:11px">\u2713</span>' : ''}</td>
-          <td style="font-size:9px;max-width:200px;line-height:1.4">${remarks}</td>
+          <td style="font-size:9px;max-width:220px;line-height:1.4">${remarks}</td>
           <td><button class="btn btn-danger btn-sm" onclick="removeTenderItem(${idx})">✕</button></td>
         </tr>`;
-      }).join('') : '<tr><td colspan="11" class="empty">No line items yet. Use the form above to add materials.</td></tr>'}
+      }).join('') : '<tr><td colspan="12" class="empty">No line items yet. Use the form above to add materials.</td></tr>'}
       ${_tenderItems.length > 1 ? `<tr class="total-row">
-        <td colspan="6">Total</td>
+        <td colspan="7">Total</td>
         <td class="r mono">${fmt(totals.baseline)}</td>
         <td colspan="4"></td>
       </tr>` : ''}
@@ -759,7 +779,7 @@ function renderScenarioDetail(s) {
   return `<div class="card">
     <div class="card-title">${esc(s.name)} \u2014 Line Items (${items.length})</div>
     <div class="tbl-wrap"><table>
-      <thead><tr><th>BOQ #</th><th>BOQ Description</th><th>Matched As</th><th class="r">Qty</th><th>Unit</th><th class="r">EF</th><th class="r">tCO\u2082</th><th>Source</th><th>Remarks</th></tr></thead>
+      <thead><tr><th>BOQ #</th><th>BOQ Description</th><th>Category</th><th>Type</th><th class="r">Qty</th><th>Unit</th><th class="r">EF</th><th class="r">tCO\u2082</th><th>Source</th><th>Remarks</th></tr></thead>
       <tbody>${items.map(it => {
         const srcBadge = it.gwpSource === 'A1-A3'
           ? '<span style="display:inline-block;background:rgba(52,211,153,0.1);color:var(--green);font-size:9px;padding:2px 6px;border-radius:4px;font-weight:600">A1-A3</span>'
@@ -772,18 +792,19 @@ function renderScenarioDetail(s) {
         }
         return `<tr>
           <td style="font-size:11px;color:var(--slate4)">${esc(it.boqItemNo || '')}</td>
-          <td style="font-size:10px;color:var(--slate4);max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(it.originalDesc || '')}">${esc(it.originalDesc || it.type)}</td>
-          <td style="font-size:10px">${esc(it.type)}${it.isCustom ? ' <span style="color:var(--orange);font-size:9px">CUSTOM</span>' : ''}</td>
+          <td style="font-size:11px;color:var(--text)">${esc(it.originalDesc || it.type)}</td>
+          <td style="font-size:10px;color:var(--slate4)">${esc(it.category)}${it.isCustom ? ' <span style="color:var(--orange);font-size:9px">CUSTOM</span>' : ''}</td>
+          <td style="font-size:10px">${esc(it.type)}</td>
           <td class="r mono">${fmtI(it.qty)}</td>
           <td>${it.unit}</td>
           <td class="r mono">${fmt(it.baselineEF)}</td>
           <td class="r mono">${fmt(it.baselineEmission)}</td>
           <td>${srcBadge}</td>
-          <td style="font-size:9px;max-width:180px;line-height:1.3">${remarkText}</td>
+          <td style="font-size:9px;line-height:1.3">${remarkText}</td>
         </tr>`;
       }).join('')}
       ${items.length > 1 ? `<tr class="total-row">
-        <td colspan="6">Total</td>
+        <td colspan="7">Total</td>
         <td class="r mono">${fmt(s.totalBaseline || 0)}</td>
         <td colspan="2"></td>
       </tr>` : ''}
@@ -1188,24 +1209,83 @@ function parsePDFTextToBOQ(lines, fullText) {
   return [];
 }
 
-// ===== CHANGE GWP FACTOR VIA ALTERNATIVES DROPDOWN =====
-function changeTenderItemGWP(idx, newTypeIdx) {
+// ===== CHANGE CATEGORY — switch to a completely different material category =====
+function changeTenderItemCategory(idx, val) {
+  var item = _tenderItems[idx];
+  if (!item) return;
+
+  // Parse "A1-A3:Concrete" or "ICE:Steel" or "Manual:Unmatched"
+  var parts = val.split(':');
+  var source = parts[0];
+  var catName = parts.slice(1).join(':');
+
+  if (source === 'Manual') {
+    item.category = 'Unmatched';
+    item.type = item.originalDesc || 'Custom';
+    item.gwpSource = 'Manual';
+    item.baselineEF = 0;
+    item.targetEF = 0;
+    item.baselineEmission = 0;
+    item.targetEmission = 0;
+    item.isCustom = true;
+    item.alternatives = [];
+    item.iceRefUrl = '';
+    item.assumption = 'User set as Unmatched \u2014 manual EF entry required';
+    recalcTender80Pct();
+    navigate('tender_entry');
+    return;
+  }
+
+  // Look up the new category from the correct database
+  var matDB = source === 'A1-A3' ? MATERIALS : ICE_MATERIALS;
+  var mat = matDB[catName];
+  if (!mat) return;
+
+  // Build new alternatives list
+  var alternatives = [];
+  mat.types.forEach(function(t, i) {
+    var bl = t.baseline;
+    if (source === 'ICE' && mat.isMEP && t.coveragePct !== undefined && t.coveragePct < ICE_COVERAGE_THRESHOLD) bl = 0;
+    alternatives.push({ name: t.name, baseline: bl, target: bl, idx: i });
+  });
+
+  // Default to first type in the new category
+  var firstType = mat.types[0];
+  var firstBL = alternatives[0].baseline;
+
+  item.category = catName;
+  item.type = firstType.name;
+  item.gwpSource = source;
+  item.unit = mat.unit;
+  item.efUnit = mat.efUnit;
+  item.massFactor = mat.massFactor;
+  item.baselineEF = firstBL;
+  item.targetEF = firstBL;
+  item.baselineEmission = (item.qty * firstBL) / 1000;
+  item.targetEmission = item.baselineEmission;
+  item.isCustom = false;
+  item.alternatives = alternatives;
+  item.iceRefUrl = source === 'ICE' ? 'https://circularecology.com/embodied-carbon-footprint-database.html' : '';
+  item.assumption = 'User corrected to ' + source + ': "' + catName + '" \u2192 "' + firstType.name + '"';
+
+  recalcTender80Pct();
+  navigate('tender_entry');
+}
+
+// ===== CHANGE TYPE within the current category =====
+function changeTenderItemType(idx, newTypeIdx) {
   var item = _tenderItems[idx];
   if (!item || !item.alternatives || !item.alternatives.length) return;
   var alt = item.alternatives[parseInt(newTypeIdx)];
   if (!alt) return;
 
-  // Update the item with new GWP factor
   item.type = alt.name;
   item.baselineEF = alt.baseline;
-  item.targetEF = alt.baseline; // Tender = baseline only
+  item.targetEF = alt.baseline;
   item.baselineEmission = (item.qty * alt.baseline) / 1000;
   item.targetEmission = item.baselineEmission;
-  item.assumption = (item.gwpSource === 'A1-A3'
-    ? 'User selected A1-A3: "' + item.category + '" \u2192 "' + alt.name + '"'
-    : 'User selected ICE: "' + item.category + '" \u2192 "' + alt.name + '"');
+  item.assumption = 'User selected ' + item.gwpSource + ': "' + item.category + '" \u2192 "' + alt.name + '"';
 
-  // Recalculate 80% material identification
   recalcTender80Pct();
   navigate('tender_entry');
 }
