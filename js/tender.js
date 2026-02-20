@@ -30,9 +30,9 @@ function renderTenderEntry(el) {
           <td style="color:var(--slate4);font-size:11px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(s.description || '')}</td>
           <td class="r mono">${nItems}</td>
           <td class="r mono">${fmt(tB)}</td>
-          <td><span class="badge ${s.status === 'submitted' ? 'review' : s.status === 'approved' ? 'approved' : 'pending'}">${s.status || 'draft'}</span></td>
-          <td style="font-size:11px;color:var(--slate5)">${esc(s.createdBy || '')}</td>
-          <td>
+          <td><span class="badge ${s.status === 'submitted' ? 'review' : s.status === 'under_review' ? 'review' : s.status === 'approved' ? 'approved' : s.status === 'rejected' ? 'rejected' : 'pending'}" style="${s.status === 'rejected' ? 'background:rgba(239,68,68,0.1);color:var(--red);border:1px solid rgba(239,68,68,0.2)' : ''}">${s.status || 'draft'}</span></td>
+          <td style="font-size:11px;color:var(--slate5)">${esc(s.createdBy || '')}${s.submittedAt ? '<br><span style="font-size:9px;color:var(--slate5)">Submitted: ' + new Date(s.submittedAt).toLocaleDateString() + '</span>' : ''}</td>
+          <td style="white-space:nowrap">
             <button class="btn btn-secondary btn-sm" onclick="editTenderScenario('${s.id}')">Edit</button>
             <button class="btn btn-secondary btn-sm" onclick="dupTenderScenario('${s.id}')" title="Duplicate">Clone</button>
             <button class="btn btn-danger btn-sm" onclick="delTenderScenario('${s.id}')">Del</button>
@@ -167,7 +167,9 @@ function renderTenderForm(el) {
       <div class="fg"><label>Status</label><select id="tsStatus">
         <option value="draft" ${s.status === 'draft' ? 'selected' : ''}>Draft</option>
         <option value="submitted" ${s.status === 'submitted' ? 'selected' : ''}>Submitted</option>
+        <option value="under_review" ${s.status === 'under_review' ? 'selected' : ''}>Under Review</option>
         <option value="approved" ${s.status === 'approved' ? 'selected' : ''}>Approved</option>
+        <option value="rejected" ${s.status === 'rejected' ? 'selected' : ''}>Rejected</option>
       </select></div>
     </div>
   </div>
@@ -251,9 +253,12 @@ function renderTenderForm(el) {
 
   <!-- Line Items Table -->
   <div class="card">
-    <div class="card-title">BOQ Line Items (${_tenderItems.length})</div>
+    <div class="card-title" style="display:flex;align-items:center;justify-content:space-between">
+      <span>BOQ Line Items (${_tenderItems.length})</span>
+      ${_tenderItems.length ? '<div><button class="btn btn-secondary btn-sm" onclick="exportTenderExcel()" style="margin-right:6px">\ud83d\udcc4 Excel</button><button class="btn btn-secondary btn-sm" onclick="exportTenderPDF()">\ud83d\udcc4 PDF</button></div>' : ''}
+    </div>
     <div class="tbl-wrap"><table>
-      <thead><tr><th>Category</th><th>Type</th><th class="r">Qty</th><th>Unit</th><th class="r">Baseline EF</th><th class="r">Baseline (tCO\u2082)</th><th>GWP Source</th><th>80%</th><th>Notes</th><th></th></tr></thead>
+      <thead><tr><th>BOQ #</th><th>BOQ Description</th><th>Matched As</th><th class="r">Qty</th><th>Unit</th><th class="r">Baseline EF</th><th class="r">tCO\u2082</th><th>Source</th><th>80%</th><th>Remarks</th><th></th></tr></thead>
       <tbody id="tenderItemsTbl">${_tenderItems.length ? _tenderItems.map((it, idx) => {
         const in80 = it._in80Pct;
         const srcBadge = it.gwpSource === 'A1-A3'
@@ -261,21 +266,38 @@ function renderTenderForm(el) {
           : it.gwpSource === 'ICE'
           ? '<span style="display:inline-block;background:rgba(96,165,250,0.1);color:var(--blue);font-size:9px;padding:2px 6px;border-radius:4px;font-weight:600">ICE</span>'
           : '<span style="display:inline-block;background:rgba(251,191,36,0.1);color:var(--yellow);font-size:9px;padding:2px 6px;border-radius:4px;font-weight:600">Manual</span>';
+        // Build alternatives dropdown if alternatives exist
+        const altDropdown = it.alternatives && it.alternatives.length > 1
+          ? '<select onchange="changeTenderItemGWP(' + idx + ',this.value)" style="font-size:10px;padding:2px 4px;background:var(--bg3);color:var(--text);border:1px solid var(--border);border-radius:4px;max-width:160px">'
+            + it.alternatives.map(function(alt) {
+                return '<option value="' + alt.idx + '"' + (alt.name === it.type ? ' selected' : '') + '>' + alt.name + ' (' + alt.baseline + ')</option>';
+              }).join('')
+            + '</select>'
+          : esc(it.type);
+        // Build remarks with assumption and ICE reference
+        let remarks = it.assumption || '';
+        if (it.iceRefUrl && it.gwpSource === 'ICE') {
+          remarks += (remarks ? ' ' : '') + '<a href="' + it.iceRefUrl + '" target="_blank" rel="noopener" style="color:var(--blue);font-size:9px;text-decoration:underline">\ud83d\udd17 ICE DB Ref</a>';
+        }
+        if (it.notes) {
+          remarks += (remarks ? '<br>' : '') + '<span style="color:var(--slate5)">' + esc(it.notes) + '</span>';
+        }
         return `<tr${in80 ? ' style="background:rgba(52,211,153,0.04)"' : ''}>
-          <td>${esc(it.category)}${it.isCustom ? ' <span style="color:var(--orange);font-size:9px">CUSTOM</span>' : ''}</td>
-          <td>${esc(it.type)}</td>
+          <td style="font-weight:600;color:var(--slate4);font-size:11px;white-space:nowrap">${esc(it.boqItemNo || '')}</td>
+          <td style="font-size:10px;color:var(--slate4);max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(it.originalDesc || '')}">${esc(it.originalDesc || it.type)}</td>
+          <td style="font-size:10px">${altDropdown}</td>
           <td class="r mono">${fmtI(it.qty)}</td>
           <td>${it.unit}</td>
           <td class="r mono">${fmt(it.baselineEF)}</td>
           <td class="r mono">${fmt(it.baselineEmission)}</td>
           <td>${srcBadge}</td>
           <td>${in80 ? '<span style="color:var(--green);font-weight:700;font-size:11px">\u2713</span>' : ''}</td>
-          <td style="font-size:10px;color:var(--slate5);max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(it.notes || '')}</td>
+          <td style="font-size:9px;max-width:200px;line-height:1.4">${remarks}</td>
           <td><button class="btn btn-danger btn-sm" onclick="removeTenderItem(${idx})">✕</button></td>
         </tr>`;
-      }).join('') : '<tr><td colspan="10" class="empty">No line items yet. Use the form above to add materials.</td></tr>'}
+      }).join('') : '<tr><td colspan="11" class="empty">No line items yet. Use the form above to add materials.</td></tr>'}
       ${_tenderItems.length > 1 ? `<tr class="total-row">
-        <td colspan="5">Total</td>
+        <td colspan="6">Total</td>
         <td class="r mono">${fmt(totals.baseline)}</td>
         <td colspan="4"></td>
       </tr>` : ''}
@@ -286,10 +308,37 @@ function renderTenderForm(el) {
   <!-- Material Breakdown Chart -->
   ${_tenderItems.length ? renderTenderBreakdownChart() : ''}
 
+  <!-- Submission Tracking -->
+  ${s.submittedAt ? `<div class="card" style="padding:14px 18px">
+    <div class="card-title">Submission Tracking</div>
+    <div class="flow-steps" style="margin-bottom:12px">
+      <div class="flow-step"><div class="flow-dot done">\ud83d\udcc4</div><div class="flow-label">Draft</div></div>
+      <div class="flow-line ${s.status !== 'draft' ? 'done' : ''}"></div>
+      <div class="flow-step"><div class="flow-dot ${s.status === 'submitted' ? 'current' : s.status === 'under_review' || s.status === 'approved' || s.status === 'rejected' ? 'done' : ''}">\ud83d\ude80</div><div class="flow-label">Submitted</div></div>
+      <div class="flow-line ${s.status === 'under_review' || s.status === 'approved' || s.status === 'rejected' ? 'done' : ''}"></div>
+      <div class="flow-step"><div class="flow-dot ${s.status === 'under_review' ? 'current' : s.status === 'approved' || s.status === 'rejected' ? 'done' : ''}">\ud83d\udccb</div><div class="flow-label">Review</div></div>
+      <div class="flow-line ${s.status === 'approved' || s.status === 'rejected' ? 'done' : ''}"></div>
+      <div class="flow-step"><div class="flow-dot ${s.status === 'approved' ? 'current' : s.status === 'rejected' ? '' : ''}" style="${s.status === 'rejected' ? 'border-color:var(--red)' : ''}">${s.status === 'rejected' ? '\u274c' : '\u2705'}</div><div class="flow-label">${s.status === 'rejected' ? 'Rejected' : 'Approved'}</div></div>
+    </div>
+    <div class="tbl-wrap"><table>
+      <thead><tr><th>Action</th><th>By</th><th>Date</th></tr></thead>
+      <tbody>
+        ${s.submittedAt ? '<tr><td><span class="badge review">Submitted</span></td><td>' + esc(s.submittedBy || s.createdBy || '') + '</td><td style="font-size:11px;color:var(--slate5)">' + new Date(s.submittedAt).toLocaleString() + '</td></tr>' : ''}
+        ${s.reviewedAt ? '<tr><td><span class="badge pending">Reviewed</span></td><td>' + esc(s.reviewedBy || '') + '</td><td style="font-size:11px;color:var(--slate5)">' + new Date(s.reviewedAt).toLocaleString() + '</td></tr>' : ''}
+        ${s.approvedAt ? '<tr><td><span class="badge approved">Approved</span></td><td>' + esc(s.approvedBy || '') + '</td><td style="font-size:11px;color:var(--slate5)">' + new Date(s.approvedAt).toLocaleString() + '</td></tr>' : ''}
+        ${s.rejectedAt ? '<tr><td><span class="badge rejected" style="background:rgba(239,68,68,0.1);color:var(--red);border:1px solid rgba(239,68,68,0.2)">Rejected</span></td><td>' + esc(s.rejectedBy || '') + '</td><td style="font-size:11px;color:var(--slate5)">' + new Date(s.rejectedAt).toLocaleString() + '</td></tr>' : ''}
+      </tbody>
+    </table></div>
+    ${s.rejectionReason ? '<div style="margin-top:8px;padding:8px 12px;background:rgba(239,68,68,0.06);border:1px solid rgba(239,68,68,0.15);border-radius:8px;font-size:12px;color:var(--red)"><strong>Rejection Reason:</strong> ' + esc(s.rejectionReason) + '</div>' : ''}
+  </div>` : ''}
+
   <!-- Action Buttons -->
   <div class="card">
-    <div class="btn-row">
+    <div class="btn-row" style="flex-wrap:wrap;gap:8px">
       <button class="btn btn-primary" onclick="saveTenderScenario()">\ud83d\udcbe Save Scenario</button>
+      ${s.status === 'draft' && _tenderItems.length > 0 ? '<button class="btn btn-approve" onclick="submitTenderToConsultant()" style="background:rgba(52,211,153,0.1);color:var(--green);border:1px solid rgba(52,211,153,0.3)">\ud83d\ude80 Submit to Consultant</button>' : ''}
+      ${(state.role === 'consultant' || state.role === 'client') && s.status === 'submitted' ? '<button class="btn btn-approve" onclick="reviewTenderAction(\'approved\')" style="background:rgba(52,211,153,0.1);color:var(--green);border:1px solid rgba(52,211,153,0.3)">\u2705 Approve</button><button class="btn btn-danger" onclick="reviewTenderAction(\'rejected\')">\u274c Reject</button>' : ''}
+      ${(state.role === 'consultant' || state.role === 'client') && s.status === 'under_review' ? '<button class="btn btn-approve" onclick="reviewTenderAction(\'approved\')" style="background:rgba(52,211,153,0.1);color:var(--green);border:1px solid rgba(52,211,153,0.3)">\u2705 Approve</button><button class="btn btn-danger" onclick="reviewTenderAction(\'rejected\')">\u274c Reject</button>' : ''}
       <button class="btn btn-secondary" onclick="cancelTenderEdit()">Cancel</button>
     </div>
     <div id="tsSaveMsg" style="margin-top:12px"></div>
@@ -439,8 +488,23 @@ function addTenderItem() {
 
   const baselineEmission = (qty * baselineEF) / 1000;
 
+  // Build alternatives for manual entries
+  var manualAlternatives = [];
+  if (!isCustom) {
+    var a13MatSource = MATERIALS[cat];
+    var iceMatSource = ICE_MATERIALS[cat];
+    var matSource = a13MatSource || iceMatSource;
+    if (matSource) {
+      matSource.types.forEach(function(t, idx) {
+        manualAlternatives.push({ name: t.name, baseline: t.baseline, target: t.target, idx: idx });
+      });
+    }
+  }
+
   _tenderItems.push({
     id: Date.now(),
+    boqItemNo: String(_tenderItems.length + 1),
+    originalDesc: isCustom ? category : type,
     category,
     type,
     qty,
@@ -453,6 +517,9 @@ function addTenderItem() {
     targetEmission: baselineEmission, // Tender = baseline only
     isCustom,
     gwpSource: _tenderCurrentGWPSource || 'Manual',
+    assumption: isCustom ? 'Manually entered custom material' : ('Manually selected ' + (_tenderCurrentGWPSource || 'Manual') + ': "' + category + '" \u2192 "' + type + '"'),
+    alternatives: manualAlternatives,
+    iceRefUrl: (!isCustom && !MATERIALS[cat] && ICE_MATERIALS[cat]) ? 'https://circularecology.com/embodied-carbon-footprint-database.html' : '',
     notes: $('tiNotes').value.trim()
   });
 
@@ -629,7 +696,7 @@ function renderTenderCompare(el) {
         const isLowest = s.id === lowest.id;
         return `<tr${isLowest ? ' style="background:rgba(52,211,153,0.04)"' : ''}>
           <td style="font-weight:700;color:var(--text)">${esc(s.name)}${isLowest ? ' <span style="color:var(--green);font-size:9px;font-weight:700">\u2605 LOWEST</span>' : ''}</td>
-          <td><span class="badge ${s.status === 'submitted' ? 'review' : s.status === 'approved' ? 'approved' : 'pending'}">${s.status || 'draft'}</span></td>
+          <td><span class="badge ${s.status === 'submitted' || s.status === 'under_review' ? 'review' : s.status === 'approved' ? 'approved' : s.status === 'rejected' ? 'rejected' : 'pending'}" style="${s.status === 'rejected' ? 'background:rgba(239,68,68,0.1);color:var(--red);border:1px solid rgba(239,68,68,0.2)' : ''}">${s.status || 'draft'}</span></td>
           <td class="r mono">${items.length}</td>
           <td class="r mono">${fmt(s.totalBaseline || 0)}</td>
           <td class="r mono" style="color:var(--green)">${a13c}</td>
@@ -692,27 +759,33 @@ function renderScenarioDetail(s) {
   return `<div class="card">
     <div class="card-title">${esc(s.name)} \u2014 Line Items (${items.length})</div>
     <div class="tbl-wrap"><table>
-      <thead><tr><th>Category</th><th>Type</th><th class="r">Qty</th><th>Unit</th><th class="r">Baseline EF</th><th class="r">Baseline (tCO\u2082)</th><th>GWP Source</th></tr></thead>
+      <thead><tr><th>BOQ #</th><th>BOQ Description</th><th>Matched As</th><th class="r">Qty</th><th>Unit</th><th class="r">EF</th><th class="r">tCO\u2082</th><th>Source</th><th>Remarks</th></tr></thead>
       <tbody>${items.map(it => {
         const srcBadge = it.gwpSource === 'A1-A3'
           ? '<span style="display:inline-block;background:rgba(52,211,153,0.1);color:var(--green);font-size:9px;padding:2px 6px;border-radius:4px;font-weight:600">A1-A3</span>'
           : it.gwpSource === 'ICE'
           ? '<span style="display:inline-block;background:rgba(96,165,250,0.1);color:var(--blue);font-size:9px;padding:2px 6px;border-radius:4px;font-weight:600">ICE</span>'
           : '<span style="display:inline-block;background:rgba(251,191,36,0.1);color:var(--yellow);font-size:9px;padding:2px 6px;border-radius:4px;font-weight:600">Manual</span>';
+        let remarkText = it.assumption || '';
+        if (it.gwpSource === 'ICE' && it.iceRefUrl) {
+          remarkText += (remarkText ? ' ' : '') + '<a href="' + it.iceRefUrl + '" target="_blank" rel="noopener" style="color:var(--blue);font-size:9px;text-decoration:underline">\ud83d\udd17 ICE Ref</a>';
+        }
         return `<tr>
-          <td>${esc(it.category)}${it.isCustom ? ' <span style="color:var(--orange);font-size:9px">CUSTOM</span>' : ''}</td>
-          <td>${esc(it.type)}</td>
+          <td style="font-size:11px;color:var(--slate4)">${esc(it.boqItemNo || '')}</td>
+          <td style="font-size:10px;color:var(--slate4);max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(it.originalDesc || '')}">${esc(it.originalDesc || it.type)}</td>
+          <td style="font-size:10px">${esc(it.type)}${it.isCustom ? ' <span style="color:var(--orange);font-size:9px">CUSTOM</span>' : ''}</td>
           <td class="r mono">${fmtI(it.qty)}</td>
           <td>${it.unit}</td>
           <td class="r mono">${fmt(it.baselineEF)}</td>
           <td class="r mono">${fmt(it.baselineEmission)}</td>
           <td>${srcBadge}</td>
+          <td style="font-size:9px;max-width:180px;line-height:1.3">${remarkText}</td>
         </tr>`;
       }).join('')}
       ${items.length > 1 ? `<tr class="total-row">
-        <td colspan="5">Total</td>
+        <td colspan="6">Total</td>
         <td class="r mono">${fmt(s.totalBaseline || 0)}</td>
-        <td></td>
+        <td colspan="2"></td>
       </tr>` : ''}
       </tbody>
     </table></div>
@@ -868,6 +941,7 @@ function autoMatchAndAddBOQ(rows, fileName) {
   var catCol = findColumn(headers, ['category', 'cat', 'material category', 'group', 'material group', 'type', 'material type', 'class']);
   var efCol = findColumn(headers, ['ef', 'emission factor', 'carbon factor', 'gwp', 'co2', 'kgco2', 'embodied carbon', 'a1-a3', 'a1a3', 'epd']);
   var notesCol = findColumn(headers, ['notes', 'remarks', 'comment', 'comments', 'reference', 'ref', 'epd ref', 'source']);
+  var itemNoCol = findColumn(headers, ['item no', 'item number', 'sl no', 'sl.no', 'boq ref', 'bill no', 'bill item', 'clause', 'ref no', 'item ref', 'sn']);
 
   if (descCol < 0 || qtyCol < 0) {
     _tenderBOQProcessing = false;
@@ -904,8 +978,12 @@ function autoMatchAndAddBOQ(rows, fileName) {
     var bl = (match.belowThreshold ? 0 : match.baseline) || 0;
     var blEm = (qty * bl) / 1000;
 
+    var boqItemNo = itemNoCol >= 0 ? String(row[itemNoCol] || '').trim() : String(r + 1);
+
     _tenderItems.push({
       id: Date.now() + r,
+      boqItemNo: boqItemNo,
+      originalDesc: desc,
       category: match.category || 'Unmatched',
       type: match.typeName || desc,
       qty: qty,
@@ -918,7 +996,10 @@ function autoMatchAndAddBOQ(rows, fileName) {
       targetEmission: blEm,
       isCustom: !match.matched,
       gwpSource: match.gwpSource || (match.matched ? 'ICE' : 'Manual'),
-      notes: desc + (notes ? ' | ' + notes : '') + (match.belowThreshold ? ' [MEP <80% Coverage]' : '') + (match.gwpSource ? ' [' + match.gwpSource + ']' : '')
+      assumption: match.assumption || (!match.matched ? 'No match found in A1-A3 or ICE database. Manual EF entry required.' : ''),
+      alternatives: match.alternatives || [],
+      iceRefUrl: match.iceRefUrl || '',
+      notes: notes || ''
     });
   }
 
@@ -1105,6 +1186,277 @@ function parsePDFTextToBOQ(lines, fullText) {
     return patternRows;
   }
   return [];
+}
+
+// ===== CHANGE GWP FACTOR VIA ALTERNATIVES DROPDOWN =====
+function changeTenderItemGWP(idx, newTypeIdx) {
+  var item = _tenderItems[idx];
+  if (!item || !item.alternatives || !item.alternatives.length) return;
+  var alt = item.alternatives[parseInt(newTypeIdx)];
+  if (!alt) return;
+
+  // Update the item with new GWP factor
+  item.type = alt.name;
+  item.baselineEF = alt.baseline;
+  item.targetEF = alt.baseline; // Tender = baseline only
+  item.baselineEmission = (item.qty * alt.baseline) / 1000;
+  item.targetEmission = item.baselineEmission;
+  item.assumption = (item.gwpSource === 'A1-A3'
+    ? 'User selected A1-A3: "' + item.category + '" \u2192 "' + alt.name + '"'
+    : 'User selected ICE: "' + item.category + '" \u2192 "' + alt.name + '"');
+
+  // Recalculate 80% material identification
+  recalcTender80Pct();
+  navigate('tender_entry');
+}
+
+// ===== EXPORT TENDER AS PDF =====
+function exportTenderPDF() {
+  if (!_tenderEdit || !_tenderItems.length) return;
+  var s = _tenderEdit;
+  var totals = calcTenderTotals();
+
+  var html = '<!DOCTYPE html><html><head><meta charset="utf-8"><title>Tender BOQ - ' + esc(s.name) + '</title>';
+  html += '<style>';
+  html += 'body{font-family:Arial,Helvetica,sans-serif;font-size:11px;color:#222;margin:20px;line-height:1.4}';
+  html += 'h1{font-size:18px;margin:0 0 4px;color:#1a1a2e}h2{font-size:14px;margin:16px 0 8px;color:#333;border-bottom:1px solid #ddd;padding-bottom:4px}';
+  html += 'table{width:100%;border-collapse:collapse;margin:8px 0}th,td{padding:4px 6px;border:1px solid #ccc;text-align:left;font-size:10px}';
+  html += 'th{background:#f0f0f0;font-weight:700;font-size:9px;text-transform:uppercase;color:#555}';
+  html += '.r{text-align:right}.mono{font-family:monospace}';
+  html += '.kpi{display:inline-block;background:#f8f8f8;border:1px solid #ddd;border-radius:6px;padding:8px 14px;margin:4px 8px 4px 0;text-align:center}';
+  html += '.kpi-label{font-size:9px;color:#777;text-transform:uppercase}.kpi-value{font-size:16px;font-weight:700;color:#333}';
+  html += '.badge-a13{background:#e6f7ef;color:#059669;padding:1px 5px;border-radius:3px;font-size:8px;font-weight:600}';
+  html += '.badge-ice{background:#e8f0fe;color:#2563eb;padding:1px 5px;border-radius:3px;font-size:8px;font-weight:600}';
+  html += '.badge-manual{background:#fef3c7;color:#d97706;padding:1px 5px;border-radius:3px;font-size:8px;font-weight:600}';
+  html += '.total-row td{font-weight:700;background:#f5f5f5;border-top:2px solid #999}';
+  html += '.remark{font-size:8px;color:#666;line-height:1.3}';
+  html += '@media print{body{margin:10px}@page{size:landscape;margin:10mm}}';
+  html += '</style></head><body>';
+
+  html += '<h1>Tender BOQ Analysis \u2014 ' + esc(s.name) + '</h1>';
+  html += '<div style="font-size:10px;color:#666;margin-bottom:12px">';
+  html += 'Generated: ' + new Date().toLocaleString() + ' | Status: ' + (s.status || 'draft').toUpperCase();
+  if (s.description) html += ' | ' + esc(s.description);
+  html += '</div>';
+
+  // KPIs
+  html += '<div style="margin-bottom:12px">';
+  html += '<div class="kpi"><div class="kpi-label">Total Baseline</div><div class="kpi-value">' + fmt(totals.baseline) + ' tCO\u2082eq</div></div>';
+  html += '<div class="kpi"><div class="kpi-label">Line Items</div><div class="kpi-value">' + _tenderItems.length + '</div></div>';
+  html += '<div class="kpi"><div class="kpi-label">A1-A3 Items</div><div class="kpi-value">' + totals.a13Count + '</div></div>';
+  html += '<div class="kpi"><div class="kpi-label">ICE Items</div><div class="kpi-value">' + totals.iceCount + '</div></div>';
+  html += '<div class="kpi"><div class="kpi-label">80% Identification</div><div class="kpi-value">' + totals.in80Count + ' of ' + _tenderItems.length + ' items</div></div>';
+  html += '</div>';
+
+  // BOQ Items Table
+  html += '<h2>Bill of Quantities \u2014 Embodied Carbon Analysis</h2>';
+  html += '<table><thead><tr><th>BOQ #</th><th>BOQ Description</th><th>Matched As</th><th class="r">Qty</th><th>Unit</th><th class="r">Baseline EF</th><th class="r">tCO\u2082eq</th><th>GWP Source</th><th>80%</th><th>Remarks</th></tr></thead><tbody>';
+
+  _tenderItems.forEach(function(it) {
+    var srcClass = it.gwpSource === 'A1-A3' ? 'badge-a13' : it.gwpSource === 'ICE' ? 'badge-ice' : 'badge-manual';
+    var remarkText = it.assumption || '';
+    if (it.gwpSource === 'ICE' && it.iceRefUrl) {
+      remarkText += (remarkText ? ' | ' : '') + 'Ref: ICE Database v3.0 (circularecology.com)';
+    }
+    if (it.notes) remarkText += (remarkText ? ' | ' : '') + it.notes;
+
+    html += '<tr>';
+    html += '<td>' + esc(it.boqItemNo || '') + '</td>';
+    html += '<td>' + esc(it.originalDesc || it.type) + '</td>';
+    html += '<td>' + esc(it.type) + '</td>';
+    html += '<td class="r mono">' + fmtI(it.qty) + '</td>';
+    html += '<td>' + (it.unit || '') + '</td>';
+    html += '<td class="r mono">' + fmt(it.baselineEF) + '</td>';
+    html += '<td class="r mono">' + fmt(it.baselineEmission) + '</td>';
+    html += '<td><span class="' + srcClass + '">' + (it.gwpSource || 'Manual') + '</span></td>';
+    html += '<td>' + (it._in80Pct ? '\u2713' : '') + '</td>';
+    html += '<td class="remark">' + esc(remarkText) + '</td>';
+    html += '</tr>';
+  });
+
+  if (_tenderItems.length > 1) {
+    html += '<tr class="total-row"><td colspan="6">Total</td><td class="r mono">' + fmt(totals.baseline) + '</td><td colspan="3"></td></tr>';
+  }
+
+  html += '</tbody></table>';
+
+  // GWP Source Legend
+  html += '<h2>GWP Source Reference</h2>';
+  html += '<table><thead><tr><th>Source</th><th>Description</th><th>Reference</th></tr></thead><tbody>';
+  html += '<tr><td><span class="badge-a13">A1-A3</span></td><td>Consultant-defined baseline emission factors</td><td>Project-specific A1-A3 material baseline factors</td></tr>';
+  html += '<tr><td><span class="badge-ice">ICE</span></td><td>ICE Database v3.0 (Inventory of Carbon & Energy)</td><td><a href="https://circularecology.com/embodied-carbon-footprint-database.html">circularecology.com/embodied-carbon-footprint-database</a></td></tr>';
+  html += '<tr><td><span class="badge-manual">Manual</span></td><td>User-entered emission factor</td><td>As specified in remarks</td></tr>';
+  html += '</tbody></table>';
+
+  html += '<div style="margin-top:16px;padding-top:8px;border-top:1px solid #ddd;font-size:9px;color:#999">';
+  html += 'CarbonTrack Pro \u2014 Embodied Carbon Management | Generated ' + new Date().toISOString();
+  html += '</div></body></html>';
+
+  var w = window.open('', '_blank');
+  if (w) {
+    w.document.write(html);
+    w.document.close();
+    setTimeout(function() { w.print(); }, 500);
+  }
+}
+
+// ===== EXPORT TENDER AS EXCEL =====
+function exportTenderExcel() {
+  if (!_tenderEdit || !_tenderItems.length) return;
+  if (typeof XLSX === 'undefined') { alert('SheetJS library not loaded. Please refresh the page.'); return; }
+
+  var s = _tenderEdit;
+  var totals = calcTenderTotals();
+
+  // Build data array for the worksheet
+  var data = [];
+
+  // Header info rows
+  data.push(['Tender BOQ Analysis - ' + (s.name || 'Untitled')]);
+  data.push(['Generated: ' + new Date().toLocaleString(), '', 'Status: ' + (s.status || 'draft').toUpperCase()]);
+  data.push(['Total Baseline: ' + fmt(totals.baseline) + ' tCO\u2082eq', '', 'A1-A3 Items: ' + totals.a13Count, '', 'ICE Items: ' + totals.iceCount]);
+  data.push([]);
+
+  // Column headers
+  data.push(['BOQ #', 'BOQ Description', 'Category', 'Matched Type', 'Qty', 'Unit', 'EF Unit', 'Baseline EF', 'Baseline tCO\u2082eq', 'GWP Source', 'In 80%', 'Assumption / Remarks', 'Reference']);
+
+  // Data rows
+  _tenderItems.forEach(function(it) {
+    var remarkText = it.assumption || '';
+    if (it.notes) remarkText += (remarkText ? ' | ' : '') + it.notes;
+    var refLink = '';
+    if (it.gwpSource === 'ICE' && it.iceRefUrl) {
+      refLink = it.iceRefUrl;
+    }
+
+    data.push([
+      it.boqItemNo || '',
+      it.originalDesc || it.type,
+      it.category,
+      it.type,
+      it.qty,
+      it.unit || '',
+      it.efUnit || '',
+      it.baselineEF,
+      it.baselineEmission,
+      it.gwpSource || 'Manual',
+      it._in80Pct ? 'Yes' : 'No',
+      remarkText,
+      refLink
+    ]);
+  });
+
+  // Totals row
+  data.push([]);
+  data.push(['', '', '', 'TOTAL', '', '', '', '', totals.baseline, '', '', '', '']);
+
+  // Create workbook and worksheet
+  var ws = XLSX.utils.aoa_to_sheet(data);
+
+  // Set column widths
+  ws['!cols'] = [
+    { wch: 8 },   // BOQ #
+    { wch: 35 },  // Description
+    { wch: 14 },  // Category
+    { wch: 25 },  // Matched Type
+    { wch: 12 },  // Qty
+    { wch: 8 },   // Unit
+    { wch: 14 },  // EF Unit
+    { wch: 12 },  // Baseline EF
+    { wch: 14 },  // tCO2
+    { wch: 10 },  // Source
+    { wch: 8 },   // 80%
+    { wch: 45 },  // Remarks
+    { wch: 50 }   // Reference
+  ];
+
+  var wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'BOQ Analysis');
+
+  // Download
+  var fileName = (s.name || 'Tender_BOQ').replace(/[^a-zA-Z0-9_\-]/g, '_') + '_' + new Date().toISOString().slice(0, 10) + '.xlsx';
+  XLSX.writeFile(wb, fileName);
+}
+
+// ===== SUBMIT TENDER TO CONSULTANT =====
+async function submitTenderToConsultant() {
+  if (!_tenderEdit || !_tenderItems.length) return;
+  if (!confirm('Submit this tender scenario to the consultant for review?\n\nThe scenario will be saved and marked as "Submitted".')) return;
+
+  // Save first
+  var name = $('tsName') ? $('tsName').value.trim() : _tenderEdit.name;
+  if (!name) { alert('Enter a scenario name before submitting'); return; }
+
+  var totals = calcTenderTotals();
+  _tenderEdit.name = name;
+  _tenderEdit.description = $('tsDesc') ? $('tsDesc').value.trim() : _tenderEdit.description;
+  _tenderEdit.status = 'submitted';
+  _tenderEdit.items = _tenderItems;
+  _tenderEdit.totalBaseline = totals.baseline;
+  _tenderEdit.totalTarget = totals.target;
+  _tenderEdit.reductionPct = totals.rPct;
+  _tenderEdit.submittedBy = state.name;
+  _tenderEdit.submittedByUid = state.uid;
+  _tenderEdit.submittedAt = new Date().toISOString();
+  _tenderEdit.updatedAt = new Date().toISOString();
+
+  try {
+    await DB.saveTenderScenario(_tenderEdit);
+
+    var idx = state.tenderScenarios.findIndex(function(sc) { return sc.id === _tenderEdit.id; });
+    if (idx !== -1) state.tenderScenarios[idx] = JSON.parse(JSON.stringify(_tenderEdit));
+    else state.tenderScenarios.push(JSON.parse(JSON.stringify(_tenderEdit)));
+
+    var msg = $('tsSaveMsg');
+    if (msg) msg.innerHTML = '<div style="padding:12px;background:rgba(52,211,153,0.1);border-radius:10px;color:var(--green);text-align:center;font-weight:600">\ud83d\ude80 Tender scenario submitted to consultant for review!</div>';
+
+    navigate('tender_entry');
+  } catch (err) {
+    var msg2 = $('tsSaveMsg');
+    if (msg2) msg2.innerHTML = '<div style="padding:12px;background:rgba(239,68,68,0.1);border-radius:10px;color:var(--red);text-align:center;font-weight:600">\u274c Submission failed: ' + err.message + '</div>';
+  }
+}
+
+// ===== REVIEW TENDER ACTION (Consultant/Client) =====
+async function reviewTenderAction(action) {
+  if (!_tenderEdit) return;
+
+  if (action === 'rejected') {
+    var reason = prompt('Enter rejection reason (optional):');
+    _tenderEdit.rejectionReason = reason || '';
+    _tenderEdit.rejectedBy = state.name;
+    _tenderEdit.rejectedByUid = state.uid;
+    _tenderEdit.rejectedAt = new Date().toISOString();
+  }
+
+  if (action === 'approved') {
+    if (!confirm('Approve this tender scenario?')) return;
+    _tenderEdit.approvedBy = state.name;
+    _tenderEdit.approvedByUid = state.uid;
+    _tenderEdit.approvedAt = new Date().toISOString();
+  }
+
+  _tenderEdit.status = action;
+  _tenderEdit.reviewedBy = state.name;
+  _tenderEdit.reviewedByUid = state.uid;
+  _tenderEdit.reviewedAt = new Date().toISOString();
+  _tenderEdit.updatedAt = new Date().toISOString();
+
+  try {
+    await DB.saveTenderScenario(_tenderEdit);
+
+    var idx = state.tenderScenarios.findIndex(function(sc) { return sc.id === _tenderEdit.id; });
+    if (idx !== -1) state.tenderScenarios[idx] = JSON.parse(JSON.stringify(_tenderEdit));
+    else state.tenderScenarios.push(JSON.parse(JSON.stringify(_tenderEdit)));
+
+    var msg = $('tsSaveMsg');
+    if (msg) msg.innerHTML = '<div style="padding:12px;background:' + (action === 'approved' ? 'rgba(52,211,153,0.1)' : 'rgba(239,68,68,0.1)') + ';border-radius:10px;color:' + (action === 'approved' ? 'var(--green)' : 'var(--red)') + ';text-align:center;font-weight:600">' + (action === 'approved' ? '\u2705 Tender scenario approved!' : '\u274c Tender scenario rejected.') + '</div>';
+
+    navigate('tender_entry');
+  } catch (err) {
+    var msg2 = $('tsSaveMsg');
+    if (msg2) msg2.innerHTML = '<div style="padding:12px;background:rgba(239,68,68,0.1);border-radius:10px;color:var(--red);text-align:center;font-weight:600">\u274c Action failed: ' + err.message + '</div>';
+  }
 }
 
 function showTenderBOQError(msg) {

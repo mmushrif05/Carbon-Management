@@ -419,6 +419,12 @@ function matchToA13Materials(desc, catHint) {
 
   if (bestScore < 10) return { matched: false, score: 0, gwpSource: 'none' };
 
+  // Build alternatives from same A1-A3 category for dropdown selection
+  var alternatives = [];
+  bestMat.types.forEach(function(t, idx) {
+    alternatives.push({ name: t.name, baseline: t.baseline, target: t.target, idx: idx });
+  });
+
   return {
     matched: true,
     score: bestScore,
@@ -431,7 +437,9 @@ function matchToA13Materials(desc, catHint) {
     belowThreshold: false,
     coveragePct: 100,
     mat: bestMat,
-    gwpSource: 'A1-A3' // From consultant-defined MATERIALS
+    gwpSource: 'A1-A3', // From consultant-defined MATERIALS
+    alternatives: alternatives,
+    assumption: 'Auto-matched to A1-A3: "' + bestCat + '" \u2192 "' + bestType + '"'
   };
 }
 
@@ -523,6 +531,13 @@ function matchToICE(desc, catHint, unitHint) {
   var t = bestMat.types[bestIdx];
   var belowThreshold = bestMat.isMEP && t.coveragePct !== undefined && t.coveragePct < ICE_COVERAGE_THRESHOLD;
 
+  // Build alternatives from same ICE category for dropdown selection
+  var alternatives = [];
+  bestMat.types.forEach(function(tp, idx) {
+    var altBelow = bestMat.isMEP && tp.coveragePct !== undefined && tp.coveragePct < ICE_COVERAGE_THRESHOLD;
+    alternatives.push({ name: tp.name, baseline: altBelow ? 0 : tp.baseline, target: altBelow ? 0 : tp.target, idx: idx });
+  });
+
   return {
     matched: true,
     score: bestScore,
@@ -534,7 +549,10 @@ function matchToICE(desc, catHint, unitHint) {
     isMEP: !!bestMat.isMEP,
     belowThreshold: belowThreshold,
     coveragePct: t.coveragePct || 100,
-    mat: bestMat
+    mat: bestMat,
+    alternatives: alternatives,
+    assumption: 'Auto-matched to ICE: "' + bestCat + '" \u2192 "' + bestType + '"' + (belowThreshold ? ' [MEP <80% coverage \u2192 EF=0]' : ''),
+    iceRefUrl: 'https://circularecology.com/embodied-carbon-footprint-database.html'
   };
 }
 
