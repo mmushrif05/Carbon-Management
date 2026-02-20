@@ -1195,12 +1195,14 @@ function handleTenderBOQFile(file) {
         }
         var data = new Uint8Array(e.target.result);
         var wb = XLSX.read(data, { type: 'array' });
-        // Auto-select first sheet, auto-detect header row
-        var sheet = wb.Sheets[wb.SheetNames[0]];
+
+        // Smart sheet selection — find the sheet most likely to contain BOQ data
+        var sheet = smartSelectSheet(wb);
         var jsonData = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
-        // Auto-detect header row (first row with 2+ text columns)
-        var headerRowIdx = autoDetectHeaderRow(jsonData);
-        rows = jsonData.slice(headerRowIdx);
+
+        // Smart header detection — handles multi-row headers, merged cells, titles
+        var headerInfo = smartDetectHeaders(jsonData);
+        rows = headerInfo.rows;
       }
 
       if (!rows || rows.length < 2) {
@@ -1223,57 +1225,283 @@ function handleTenderBOQFile(file) {
   else reader.readAsArrayBuffer(file);
 }
 
-// Auto-detect header row index in Excel/CSV data
-function autoDetectHeaderRow(jsonData) {
-  for (var i = 0; i < Math.min(jsonData.length, 10); i++) {
+// ===== SMART SHEET SELECTION =====
+// Auto-select the best sheet in a workbook — looks for BOQ-related sheet names
+function smartSelectSheet(wb) {
+  if (wb.SheetNames.length === 1) return wb.Sheets[wb.SheetNames[0]];
+
+  // Priority keywords for sheet names (case-insensitive)
+  var boqKeywords = ['boq', 'bill of quantit', 'quantities', 'quantity', 'tender', 'pricing', 'schedule of quantities'];
+  var secondaryKeywords = ['payment', 'application', 'summary', 'schedule', 'materials', 'items'];
+
+  // Score each sheet
+  var bestSheet = null, bestScore = -1;
+  for (var i = 0; i < wb.SheetNames.length; i++) {
+    var name = wb.SheetNames[i].toLowerCase().trim();
+    var score = 0;
+
+    // Check BOQ keywords (high priority)
+    for (var b = 0; b < boqKeywords.length; b++) {
+      if (name.indexOf(boqKeywords[b]) !== -1) { score += 100; break; }
+    }
+    // Check secondary keywords
+    for (var s = 0; s < secondaryKeywords.length; s++) {
+      if (name.indexOf(secondaryKeywords[s]) !== -1) { score += 30; break; }
+    }
+
+    // Penalize "chart", "notes", "cover", "index" sheets
+    if (/\b(chart|graph|note|cover|index|log|revision|history)\b/i.test(name)) score -= 50;
+
+    // Check if sheet has substantial data (more rows = more likely to be BOQ)
+    var sheetData = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[i]], { header: 1 });
+    if (sheetData.length > 10) score += 20;
+    if (sheetData.length > 50) score += 20;
+
+    // First sheet gets a small bonus (often the main sheet)
+    if (i === 0) score += 10;
+
+    if (score > bestScore) {
+      bestScore = score;
+      bestSheet = wb.Sheets[wb.SheetNames[i]];
+    }
+  }
+
+  return bestSheet || wb.Sheets[wb.SheetNames[0]];
+}
+
+// ===== SMART HEADER DETECTION =====
+// Handles: multi-row headers, merged cells, title rows, Arabic text, watermarks
+// Returns { rows: [[headers], [data1], [data2], ...], headerRowIdx: N }
+function smartDetectHeaders(jsonData) {
+  if (!jsonData || jsonData.length < 2) return { rows: jsonData || [], headerRowIdx: 0 };
+
+  // BOQ-related header keywords (any language headers should contain some of these)
+  var headerKeywords = [
+    'description', 'desc', 'item', 'material', 'boq', 'quantity', 'qty',
+    'unit', 'uom', 'amount', 'rate', 'price', 'total', 'no', 'nr', 'sl',
+    'ref', 'spec', 'category', 'type', 'notes', 'remark', 'work', 'scope',
+    'bill', 'element', 'trade', 'section', 'measure', 'weight', 'volume'
+  ];
+
+  // Scan up to first 25 rows to find the best header row
+  var bestHeaderIdx = -1, bestScore = 0;
+  var scanLimit = Math.min(jsonData.length, 25);
+
+  for (var i = 0; i < scanLimit; i++) {
     var row = jsonData[i];
     if (!row || row.length < 2) continue;
+
+    var score = 0;
     var textCols = 0;
+
     for (var j = 0; j < row.length; j++) {
       var cell = String(row[j] || '').toLowerCase().trim();
-      if (cell && /[a-z]{2,}/.test(cell)) textCols++;
+      if (!cell) continue;
+
+      // Check if cell contains header keywords
+      for (var k = 0; k < headerKeywords.length; k++) {
+        if (cell.indexOf(headerKeywords[k]) !== -1) {
+          score += 10;
+          break;
+        }
+      }
+
+      // Count text columns (must have 2+ alphabetic characters)
+      if (/[a-z]{2,}/i.test(cell)) textCols++;
     }
-    if (textCols >= 2) return i;
+
+    // Require at least 2 text columns and 2 keyword matches
+    if (textCols >= 2 && score >= 20) {
+      // Bonus for more keyword matches
+      score += textCols * 2;
+
+      if (score > bestScore) {
+        bestScore = score;
+        bestHeaderIdx = i;
+      }
+    }
   }
-  return 0;
+
+  if (bestHeaderIdx < 0) {
+    // Fallback: find first row with 2+ text columns
+    for (var f = 0; f < scanLimit; f++) {
+      var fRow = jsonData[f];
+      if (!fRow || fRow.length < 2) continue;
+      var fTextCols = 0;
+      for (var fj = 0; fj < fRow.length; fj++) {
+        var fCell = String(fRow[fj] || '').toLowerCase().trim();
+        if (fCell && /[a-z]{2,}/i.test(fCell)) fTextCols++;
+      }
+      if (fTextCols >= 2) { bestHeaderIdx = f; break; }
+    }
+    if (bestHeaderIdx < 0) bestHeaderIdx = 0;
+  }
+
+  // Multi-row header merge: check if the row BELOW the header has additional labels
+  // (e.g., "BOQ" on row 5, "Quantity" on row 6 → merge into "BOQ Quantity")
+  var headerRow = (jsonData[bestHeaderIdx] || []).slice();
+  var nextRowIdx = bestHeaderIdx + 1;
+
+  if (nextRowIdx < jsonData.length) {
+    var nextRow = jsonData[nextRowIdx] || [];
+    var mergedAny = false;
+
+    for (var m = 0; m < headerRow.length; m++) {
+      var hCell = String(headerRow[m] || '').trim();
+      var nCell = String(nextRow[m] || '').trim();
+
+      // If header cell is short and next row has a label (not a number), merge
+      if (hCell && nCell && !/^\d/.test(nCell) && /[a-z]{2,}/i.test(nCell)) {
+        // Check if next row cell adds context (e.g., "BOQ" + "Quantity")
+        if (hCell.length < 20 && nCell.length < 20) {
+          headerRow[m] = hCell + ' ' + nCell;
+          mergedAny = true;
+        }
+      } else if (!hCell && nCell && /[a-z]{2,}/i.test(nCell)) {
+        // Empty header cell with label below — use the label
+        headerRow[m] = nCell;
+        mergedAny = true;
+      }
+    }
+
+    // If we merged, skip the sub-header row in data
+    if (mergedAny) {
+      var result = [headerRow].concat(jsonData.slice(nextRowIdx + 1));
+      return { rows: result, headerRowIdx: bestHeaderIdx };
+    }
+  }
+
+  return { rows: jsonData.slice(bestHeaderIdx), headerRowIdx: bestHeaderIdx };
+}
+
+// ===== PARSE QUANTITY from real-world formats =====
+// Handles: "800+", "~500", "est. 750", "1,000.50", "1.000,50" (European), negative signs
+function parseRobustQuantity(raw) {
+  if (raw == null || raw === '') return NaN;
+  var s = String(raw).trim();
+
+  // Remove common non-numeric prefixes/suffixes
+  s = s.replace(/^[~≈≤≥<>]+/, '');          // ~500, ≈500, <500
+  s = s.replace(/\+$/, '');                   // 800+
+  s = s.replace(/^\(|\)$/g, '');              // (500) → 500
+  s = s.replace(/^(est\.?|approx\.?|about|circa)\s*/i, '');  // est. 500
+  s = s.replace(/\s*\(.*?\)\s*$/, '');        // 500 (approx)
+
+  // Detect European number format: "1.000,50" (dots as thousands, comma as decimal)
+  if (/^\d{1,3}(\.\d{3})+(,\d+)?$/.test(s)) {
+    s = s.replace(/\./g, '').replace(',', '.');
+  }
+
+  // Remove remaining commas (thousands separator)
+  s = s.replace(/,/g, '');
+
+  // Extract first valid number
+  var match = s.match(/-?\d+(?:\.\d+)?/);
+  if (match) return parseFloat(match[0]);
+  return NaN;
 }
 
 // Fully automatic: detect columns → match GWP → add items to tender → re-render
 function autoMatchAndAddBOQ(rows, fileName) {
   var headers = rows[0].map(function(h) { return String(h).toLowerCase().trim(); });
 
-  var descCol = findColumn(headers, ['description', 'desc', 'item description', 'material description', 'boq item', 'item', 'material', 'name', 'element', 'component', 'spec', 'specification']);
-  var qtyCol = findColumn(headers, ['quantity', 'qty', 'amount', 'vol', 'volume', 'weight', 'mass', 'total qty', 'boq qty', 'total quantity']);
-  var unitCol = findColumn(headers, ['unit', 'uom', 'unit of measure', 'units', 'measure']);
-  var catCol = findColumn(headers, ['category', 'cat', 'material category', 'group', 'material group', 'type', 'material type', 'class']);
-  var efCol = findColumn(headers, ['ef', 'emission factor', 'carbon factor', 'gwp', 'co2', 'kgco2', 'embodied carbon', 'a1-a3', 'a1a3', 'epd']);
-  var notesCol = findColumn(headers, ['notes', 'remarks', 'comment', 'comments', 'reference', 'ref', 'epd ref', 'source']);
-  var itemNoCol = findColumn(headers, ['item no', 'item number', 'sl no', 'sl.no', 'boq ref', 'bill no', 'bill item', 'clause', 'ref no', 'item ref', 'sn']);
+  // Enterprise-grade column detection — uses scoring, excludes already-matched columns
+  // Description column (most important — try first with long, specific keywords)
+  var descCol = findColumn(headers, [
+    'item description', 'material description', 'description of work', 'work description',
+    'description', 'desc', 'boq item', 'scope of work', 'material',
+    'element', 'component', 'specification', 'spec', 'name', 'item'
+  ]);
+
+  // Quantity column — "boq" alone is a valid quantity header, as are many variants
+  var usedCols = descCol >= 0 ? [descCol] : [];
+  var qtyCol = findColumn(headers, [
+    'boq quantity', 'boq qty', 'total quantity', 'total qty',
+    'quantity', 'qty', 'original quantity', 'revised quantity',
+    'amount', 'volume', 'weight', 'mass', 'count',
+    'boq'
+  ], usedCols);
+
+  // Unit column — avoid matching "unit price" or "unit rate"
+  var usedCols2 = usedCols.concat(qtyCol >= 0 ? [qtyCol] : []);
+  var unitCol = findColumn(headers, [
+    'unit of measure', 'uom', 'units', 'unit', 'measurement', 'measure'
+  ], usedCols2);
+
+  // If unit matched a "unit price" or "unit rate" column, reject it
+  if (unitCol >= 0 && /\b(price|rate|cost|value|amount)\b/i.test(headers[unitCol])) {
+    // Try again excluding this column
+    var usedCols2b = usedCols2.concat([unitCol]);
+    var unitCol2 = findColumn(headers, ['uom', 'units', 'unit', 'measurement'], usedCols2b);
+    if (unitCol2 >= 0) unitCol = unitCol2;
+    else unitCol = -1; // No clean unit column found — will extract from description
+  }
+
+  var usedCols3 = usedCols2.concat(unitCol >= 0 ? [unitCol] : []);
+  var catCol = findColumn(headers, [
+    'material category', 'category', 'material group', 'group', 'material type',
+    'type', 'class', 'trade', 'section', 'discipline'
+  ], usedCols3);
+
+  var usedCols4 = usedCols3.concat(catCol >= 0 ? [catCol] : []);
+  var efCol = findColumn(headers, [
+    'emission factor', 'carbon factor', 'embodied carbon', 'gwp',
+    'kgco2', 'a1-a3', 'a1a3', 'epd', 'co2', 'ef'
+  ], usedCols4);
+
+  var notesCol = findColumn(headers, [
+    'notes', 'remarks', 'comment', 'comments', 'reference'
+  ], usedCols4);
+
+  var itemNoCol = findColumn(headers, [
+    'item no', 'item number', 'item nr', 'sl no', 'sl.no', 'sl nr', 'sl.nr',
+    'boq ref', 'bill no', 'bill item', 'clause', 'ref no', 'item ref', 'sn', 'serial'
+  ], usedCols4);
 
   if (descCol < 0 || qtyCol < 0) {
     _tenderBOQProcessing = false;
-    showBOQStatus('<strong>Error:</strong> Could not auto-detect Description and Quantity columns in your file. Headers found: ' + headers.filter(function(h) { return h; }).join(', '), 'red');
+    showBOQStatus(
+      '<strong>Error:</strong> Could not auto-detect columns in your file.' +
+      '<br><strong>Headers found:</strong> ' + headers.filter(function(h) { return h; }).join(', ') +
+      '<br><strong>Detected:</strong> Description=' + (descCol >= 0 ? '"' + headers[descCol] + '"' : '<span style="color:var(--red)">NOT FOUND</span>') +
+      ' | Quantity=' + (qtyCol >= 0 ? '"' + headers[qtyCol] + '"' : '<span style="color:var(--red)">NOT FOUND</span>') +
+      '<br><strong>Tip:</strong> Ensure your file has column headers like "Description" and "Quantity" or "Qty".',
+      'red'
+    );
     return;
   }
 
-  showBOQStatus('<strong>Step 3/4:</strong> Matching materials to A1-A3 factors & ICE database...', 'info');
+  showBOQStatus('<strong>Step 3/4:</strong> Columns detected — Description="' + headers[descCol] + '", Quantity="' + headers[qtyCol] + '"' +
+    (unitCol >= 0 ? ', Unit="' + headers[unitCol] + '"' : '') +
+    '. Matching materials to A1-A3 & ICE...', 'info');
 
   // Match all rows to GWP database
   var dataRows = rows.slice(1);
-  var matchedItems = [];
   var a13Count = 0, iceCount = 0, unmatchedCount = 0;
+  var skippedRows = 0;
 
   for (var r = 0; r < dataRows.length; r++) {
     var row = dataRows[r];
     var desc = String(row[descCol] || '').trim();
-    var rawQty = String(row[qtyCol] || '').replace(/,/g, '');
-    var qty = parseFloat(rawQty);
+    var qty = parseRobustQuantity(row[qtyCol]);
     var unit = unitCol >= 0 ? String(row[unitCol] || '').trim() : '';
     var catHint = catCol >= 0 ? String(row[catCol] || '').trim() : '';
-    var efValue = efCol >= 0 ? parseFloat(row[efCol]) : NaN;
+    var efValue = efCol >= 0 ? parseFloat(String(row[efCol] || '').replace(/,/g, '')) : NaN;
     var notes = notesCol >= 0 ? String(row[notesCol] || '').trim() : '';
 
-    if (!desc || isNaN(qty) || qty <= 0) continue;
+    // Skip rows without description or valid quantity
+    if (!desc || desc.length < 3) { skippedRows++; continue; }
+    if (isNaN(qty) || qty <= 0) { skippedRows++; continue; }
+
+    // Skip non-material rows (subtotals, totals, headers repeated, VAT, etc.)
+    var dLower = desc.toLowerCase();
+    if (/^(sub[- ]?total|total|grand total|carried? (to|forward)|brought forward|page \d|amount|sum)/i.test(dLower)) { skippedRows++; continue; }
+    if (/\b(add\s+vat|vat\s+of|add\s+\d+%|contingenc|provisional\s+sum|prime\s+cost|day\s*work|prelim(?:inar)|insurance|bond|permit)\b/i.test(dLower)) { skippedRows++; continue; }
+
+    // If no unit column, try to extract unit from the description
+    if (!unit) {
+      unit = extractUnitFromDescription(desc);
+    }
 
     var match = lookupTenderGWP(desc, catHint, unit);
 
@@ -1297,7 +1525,7 @@ function autoMatchAndAddBOQ(rows, fileName) {
     var boqItemNo = itemNoCol >= 0 ? String(row[itemNoCol] || '').trim() : String(r + 1);
 
     _tenderItems.push({
-      id: Date.now() + r,
+      id: Date.now() + Math.random(),
       boqItemNo: boqItemNo,
       originalDesc: desc,
       category: match.category || 'Unmatched',

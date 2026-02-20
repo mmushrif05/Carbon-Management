@@ -502,19 +502,38 @@ function isICEMEPBelowThreshold(category, typeName) {
   return (t.coveragePct || 100) < ICE_COVERAGE_THRESHOLD;
 }
 
-// Fuzzy column finder for BOQ uploads
-function findColumn(headers, keywords) {
-  for (var k = 0; k < keywords.length; k++) {
-    for (var h = 0; h < headers.length; h++) {
-      if (headers[h] === keywords[k]) return h;
+// ===== ENTERPRISE-GRADE COLUMN DETECTION =====
+// Scoring-based column finder — tries exact match, then substring, then fuzzy
+// Returns best-scoring column index, or -1 if no match above threshold
+function findColumn(headers, keywords, excludeCols) {
+  var bestIdx = -1, bestScore = 0;
+  var exclude = excludeCols || [];
+
+  for (var h = 0; h < headers.length; h++) {
+    if (exclude.indexOf(h) !== -1) continue;
+    var hdr = headers[h];
+    if (!hdr) continue;
+    var score = 0;
+
+    for (var k = 0; k < keywords.length; k++) {
+      var kw = keywords[k];
+      // Exact match (highest priority)
+      if (hdr === kw) { score = Math.max(score, 100 - k); }
+      // Starts with keyword
+      else if (hdr.indexOf(kw) === 0) { score = Math.max(score, 80 - k); }
+      // Contains keyword
+      else if (hdr.indexOf(kw) !== -1) { score = Math.max(score, 60 - k); }
+      // Keyword contains header (short header like "boq" matches "boq qty")
+      else if (kw.indexOf(hdr) !== -1 && hdr.length >= 2) { score = Math.max(score, 40 - k); }
+    }
+
+    if (score > bestScore) {
+      bestScore = score;
+      bestIdx = h;
     }
   }
-  for (var k2 = 0; k2 < keywords.length; k2++) {
-    for (var h2 = 0; h2 < headers.length; h2++) {
-      if (headers[h2].indexOf(keywords[k2]) !== -1) return h2;
-    }
-  }
-  return -1;
+
+  return bestScore >= 5 ? bestIdx : -1;
 }
 
 function buildColSelect(id, label, headers, autoIdx) {
