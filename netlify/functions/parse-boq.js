@@ -53,7 +53,7 @@ IMPORTANT: The text might be fragmented. Item numbers and descriptions might app
 3. Extract the COMPLETE description — do NOT summarize or truncate. Copy the FULL text describing the work.
 4. NEVER use the item number (like "C2.97") as the description. The description MUST be the actual text explaining the work/material. If you cannot find a description, write "No description found - [item number]".
 5. Extract the numeric quantity. If quantity says "Various" or is missing, set qty to 0.
-6. Extract the unit exactly as shown (m², m³, kg, tonnes, nr, m, lin.m, etc.).
+6. Extract the unit as a CLEAN standard abbreviation: m², m³, kg, tonnes, nr, m, lin.m, etc. Do NOT include extra words like "Provisional" or "Sum" in the unit field — just the unit abbreviation. For example, if the BOQ says "(Provisional) m²", the unit is just "m²".
 7. Match each item to the correct material category and GWP factor.
 8. Skip preamble text, section headers, notes, and non-quantifiable items.
 9. DO NOT make silly mistakes — "grouting" is NOT tin, it is cement/concrete. "GERCC" means General Excavation, Return, Compaction, and Carting — it is earthwork, NOT a metal.
