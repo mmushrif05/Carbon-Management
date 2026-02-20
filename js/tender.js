@@ -498,7 +498,7 @@ function renderTenderForm(el) {
       ${_tenderItems.length ? '<div><button class="btn btn-secondary btn-sm" onclick="exportTenderExcel()" style="margin-right:6px">\ud83d\udcc4 Excel</button><button class="btn btn-secondary btn-sm" onclick="exportTenderPDF()">\ud83d\udcc4 PDF</button></div>' : ''}
     </div>
     <div class="tbl-wrap"><table>
-      <thead><tr><th style="min-width:50px">BOQ #</th><th>BOQ Description</th><th>Category</th><th>Type</th><th class="r">BOQ Qty</th><th class="r">Calc Qty</th><th class="r">EF</th><th class="r">tCO\u2082</th><th>Source</th><th>80%</th><th>Remarks</th><th></th></tr></thead>
+      <thead><tr><th style="min-width:50px">BOQ #</th><th>BOQ Description</th><th>Stage</th><th>Category</th><th>Type</th><th class="r">BOQ Qty</th><th class="r">Calc Qty</th><th class="r">EF</th><th class="r">tCO\u2082</th><th>Source</th><th>80%</th><th>Remarks</th><th></th></tr></thead>
       <tbody id="tenderItemsTbl">${_tenderItems.length ? _tenderItems.map((it, idx) => {
         const in80 = it._in80Pct;
         const srcBadge = it.gwpSource === 'A1-A3'
@@ -578,9 +578,20 @@ function renderTenderForm(el) {
           // Same units — no conversion needed
           calcQtyCell = '<span style="color:var(--slate5);font-size:9px">\u2014</span>';
         }
-        return `<tr${in80 ? ' style="background:rgba(52,211,153,0.04)"' : ''}>
-          <td style="font-weight:600;color:var(--slate4);font-size:11px;white-space:nowrap">${esc(it.boqItemNo || '')}</td>
+        // Lifecycle stage badge
+        const stage = it.lifecycleStage || 'A1-A3';
+        const stageColors = { 'A1-A3': 'var(--green)', 'A4': 'var(--blue)', 'A5': 'var(--orange)', 'D': 'var(--purple)' };
+        const stageColor = stageColors[stage] || 'var(--slate5)';
+        const stageBadge = '<span style="display:inline-block;font-size:8px;font-weight:700;padding:1px 5px;border-radius:3px;background:' + stageColor + '15;color:' + stageColor + ';border:1px solid ' + stageColor + '30">' + stage + (it.isDemolition ? ' D' : '') + '</span>';
+        // Confidence indicator
+        const confColors = { high: 'var(--green)', medium: 'var(--yellow)', low: 'var(--red)' };
+        const conf = it.confidence || 'medium';
+        const confDot = '<span title="Confidence: ' + conf + '" style="display:inline-block;width:7px;height:7px;border-radius:50%;background:' + (confColors[conf] || 'var(--slate5)') + ';margin-right:3px;vertical-align:middle"></span>';
+        const lowConfHighlight = conf === 'low' ? ';background:rgba(239,68,68,0.04)' : '';
+        return `<tr${in80 ? ' style="background:rgba(52,211,153,0.04)' + lowConfHighlight + '"' : (lowConfHighlight ? ' style="' + lowConfHighlight.substring(1) + '"' : '')}>
+          <td style="font-weight:600;color:var(--slate4);font-size:11px;white-space:nowrap">${confDot}${esc(it.boqItemNo || '')}</td>
           <td style="font-size:11px;color:var(--text)">${esc(it.originalDesc || it.type)}</td>
+          <td style="text-align:center">${stageBadge}</td>
           <td style="font-size:10px">${catDropdown}</td>
           <td style="font-size:10px">${typeDropdown}</td>
           <td class="r mono" style="font-size:10px">${fmtI(it.boqQty != null ? it.boqQty : it.qty)} <span style="font-size:8px;color:var(--slate5)">${esc(it.boqUnit || it.unit || '')}</span></td>
@@ -592,9 +603,9 @@ function renderTenderForm(el) {
           <td style="font-size:9px;max-width:240px;line-height:1.4">${remarks}</td>
           <td><button class="btn btn-danger btn-sm" onclick="removeTenderItem(${idx})">✕</button></td>
         </tr>`;
-      }).join('') : '<tr><td colspan="12" class="empty">No line items yet. Use the form above to add materials.</td></tr>'}
+      }).join('') : '<tr><td colspan="13" class="empty">No line items yet. Use the form above to add materials.</td></tr>'}
       ${_tenderItems.length > 1 ? `<tr class="total-row">
-        <td colspan="7">Total</td>
+        <td colspan="8">Total</td>
         <td class="r mono">${fmt(totals.baseline)}</td>
         <td colspan="4"></td>
       </tr>` : ''}
@@ -822,6 +833,9 @@ function addTenderItem() {
     targetEmission: baselineEmission, // Tender = baseline only
     isCustom,
     gwpSource: _tenderCurrentGWPSource || 'Manual',
+    lifecycleStage: 'A1-A3',
+    isDemolition: false,
+    confidence: 'high',
     assumption: isCustom ? 'Manually entered custom material' : ('Manually selected ' + (_tenderCurrentGWPSource || 'Manual') + ': "' + category + '" \u2192 "' + type + '"'),
     alternatives: manualAlternatives,
     iceRefUrl: (!isCustom && !MATERIALS[cat] && ICE_MATERIALS[cat]) ? 'https://circularecology.com/embodied-carbon-footprint-database.html' : '',
@@ -1064,20 +1078,24 @@ function renderScenarioDetail(s) {
   return `<div class="card">
     <div class="card-title">${esc(s.name)} \u2014 Line Items (${items.length})</div>
     <div class="tbl-wrap"><table>
-      <thead><tr><th>BOQ #</th><th>BOQ Description</th><th>Category</th><th>Type</th><th class="r">Qty</th><th>Unit</th><th class="r">EF</th><th class="r">tCO\u2082</th><th>Source</th><th>Remarks</th></tr></thead>
+      <thead><tr><th>BOQ #</th><th>BOQ Description</th><th>Stage</th><th>Category</th><th>Type</th><th class="r">Qty</th><th>Unit</th><th class="r">EF</th><th class="r">tCO\u2082</th><th>Source</th><th>Remarks</th></tr></thead>
       <tbody>${items.map(it => {
         const srcBadge = it.gwpSource === 'A1-A3'
           ? '<span style="display:inline-block;background:rgba(52,211,153,0.1);color:var(--green);font-size:9px;padding:2px 6px;border-radius:4px;font-weight:600">A1-A3</span>'
           : it.gwpSource === 'ICE'
           ? '<span style="display:inline-block;background:rgba(96,165,250,0.1);color:var(--blue);font-size:9px;padding:2px 6px;border-radius:4px;font-weight:600">ICE</span>'
           : '<span style="display:inline-block;background:rgba(251,191,36,0.1);color:var(--yellow);font-size:9px;padding:2px 6px;border-radius:4px;font-weight:600">Manual</span>';
+        const stage = it.lifecycleStage || 'A1-A3';
+        const stgC = { 'A1-A3': 'var(--green)', 'A4': 'var(--blue)', 'A5': 'var(--orange)', 'D': 'var(--purple)' };
+        const stageBadge = '<span style="font-size:8px;font-weight:700;color:' + (stgC[stage] || 'var(--slate5)') + '">' + stage + '</span>';
         let remarkText = it.assumption || '';
         if (it.gwpSource === 'ICE' && it.iceRefUrl) {
-          remarkText += (remarkText ? ' ' : '') + '<a href="' + it.iceRefUrl + '" target="_blank" rel="noopener" style="color:var(--blue);font-size:9px;text-decoration:underline">\ud83d\udd17 ICE Ref</a>';
+          remarkText += (remarkText ? ' ' : '') + '<a href="' + it.iceRefUrl + '" target="_blank" rel="noopener" style="color:var(--blue);font-size:9px;text-decoration:underline">ICE Ref</a>';
         }
         return `<tr>
           <td style="font-size:11px;color:var(--slate4)">${esc(it.boqItemNo || '')}</td>
           <td style="font-size:11px;color:var(--text)">${esc(it.originalDesc || it.type)}</td>
+          <td style="text-align:center">${stageBadge}</td>
           <td style="font-size:10px;color:var(--slate4)">${esc(it.category)}${it.isCustom ? ' <span style="color:var(--orange);font-size:9px">CUSTOM</span>' : ''}</td>
           <td style="font-size:10px">${esc(it.type)}</td>
           <td class="r mono">${fmtI(it.qty)}</td>
@@ -1089,7 +1107,7 @@ function renderScenarioDetail(s) {
         </tr>`;
       }).join('')}
       ${items.length > 1 ? `<tr class="total-row">
-        <td colspan="7">Total</td>
+        <td colspan="8">Total</td>
         <td class="r mono">${fmt(s.totalBaseline || 0)}</td>
         <td colspan="2"></td>
       </tr>` : ''}
@@ -1100,17 +1118,28 @@ function renderScenarioDetail(s) {
 
 // ===== BOQ UPLOAD RESULT SUMMARY =====
 function renderBOQResultSummary(r) {
+  var confHtml = '';
+  if (r.aiParsed && (r.highConf || r.medConf || r.lowConf)) {
+    confHtml = '<div style="margin:8px 0;display:flex;gap:8px;flex-wrap:wrap;align-items:center">' +
+      '<span style="font-size:10px;font-weight:600;color:var(--slate5)">AI CONFIDENCE:</span>' +
+      (r.highConf ? '<span style="display:inline-block;background:rgba(52,211,153,0.12);color:var(--green);font-size:10px;padding:2px 8px;border-radius:10px;font-weight:600">' + r.highConf + ' High</span>' : '') +
+      (r.medConf ? '<span style="display:inline-block;background:rgba(251,191,36,0.12);color:var(--yellow);font-size:10px;padding:2px 8px;border-radius:10px;font-weight:600">' + r.medConf + ' Medium</span>' : '') +
+      (r.lowConf ? '<span style="display:inline-block;background:rgba(239,68,68,0.12);color:var(--red);font-size:10px;padding:2px 8px;border-radius:10px;font-weight:600">' + r.lowConf + ' Low — needs review</span>' : '') +
+      '</div>';
+  }
   return '<div style="margin-top:14px;padding:14px 16px;background:rgba(52,211,153,0.08);border:2px solid rgba(52,211,153,0.3);border-radius:12px">' +
-    '<div style="font-size:14px;font-weight:700;color:var(--green);margin-bottom:10px">\u2705 BOQ processed successfully: ' + esc(r.fileName) + '</div>' +
+    '<div style="font-size:14px;font-weight:700;color:var(--green);margin-bottom:10px">BOQ processed successfully: ' + esc(r.fileName) + '</div>' +
     '<div class="stats-row" style="margin-bottom:8px">' +
     '<div class="stat-card green"><div class="sc-label">A1-A3 Matched</div><div class="sc-value">' + r.a13Count + '</div></div>' +
     '<div class="stat-card blue"><div class="sc-label">ICE Matched</div><div class="sc-value">' + r.iceCount + '</div></div>' +
     '<div class="stat-card orange"><div class="sc-label">Unmatched</div><div class="sc-value">' + r.unmatchedCount + '</div></div>' +
     '<div class="stat-card cyan"><div class="sc-label">Total Baseline</div><div class="sc-value">' + fmt(r.totalBL) + '</div><div class="sc-sub">tCO\u2082eq</div></div>' +
     '</div>' +
-    (r.aiParsed ? '<div style="font-size:11px;color:var(--green);margin-bottom:4px;font-weight:600">\ud83e\udde0 Parsed by AI (Claude) \u2014 intelligent document understanding</div>' : '') +
-    '<div style="font-size:12px;color:var(--slate4)">' + r.totalItems + ' line items added. See the <strong>BOQ Line Items</strong> table and <strong>80% Material Identification</strong> bar below.' + (r.aiParsed ? ' Use the <strong>Category</strong> and <strong>Type</strong> dropdowns to correct any mismatches.' : '') + '</div>' +
+    (r.aiParsed ? '<div style="font-size:11px;color:var(--green);margin-bottom:4px;font-weight:600">Parsed by AI (Claude) — intelligent carbon classification engine</div>' : '') +
+    confHtml +
+    '<div style="font-size:12px;color:var(--slate4)">' + r.totalItems + ' line items added. See the <strong>BOQ Line Items</strong> table and <strong>80% Material Identification</strong> bar below.' + (r.aiParsed ? ' Use the <strong>Category</strong> and <strong>Type</strong> dropdowns to correct any mismatches.' + (r.lowConf ? ' <strong style="color:var(--red)">Items flagged "Low" confidence need human review.</strong>' : '') : '') + '</div>' +
     '<div class="btn-row" style="margin-top:10px"><button class="btn btn-secondary btn-sm" onclick="clearBOQResult()">Dismiss</button>' +
+    (r.lowConf ? '<button class="btn btn-sm" style="background:rgba(239,68,68,0.1);color:var(--red);border:1px solid rgba(239,68,68,0.3)" onclick="filterLowConfidence()">Review Low Confidence (' + r.lowConf + ')</button>' : '') +
     '<button class="btn btn-primary btn-sm" onclick="clearBOQResult();openTenderFileInput()">Upload Another File</button></div>' +
     '</div>';
 }
@@ -1119,6 +1148,27 @@ function clearBOQResult() {
   _tenderBOQLastResult = null;
   _tenderBOQMode = false;
   navigate('tender_entry');
+}
+
+// Scroll to and highlight low-confidence items that need human review
+function filterLowConfidence() {
+  clearBOQResult();
+  setTimeout(function() {
+    var tbl = $('tenderItemsTbl');
+    if (!tbl) return;
+    var rows = tbl.getElementsByTagName('tr');
+    var firstLow = null;
+    for (var i = 0; i < _tenderItems.length; i++) {
+      if (_tenderItems[i].confidence === 'low') {
+        if (rows[i]) {
+          rows[i].style.outline = '2px solid var(--red)';
+          rows[i].style.outlineOffset = '-1px';
+          if (!firstLow) firstLow = rows[i];
+        }
+      }
+    }
+    if (firstLow) firstLow.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, 200);
 }
 
 // ===== TENDER BOQ UPLOAD HANDLERS =====
@@ -1524,6 +1574,17 @@ function autoMatchAndAddBOQ(rows, fileName) {
 
     var boqItemNo = itemNoCol >= 0 ? String(row[itemNoCol] || '').trim() : String(r + 1);
 
+    // Infer lifecycle stage from description context
+    var demoPattern = /\b(demolit|break\s*out|remov(?:al|e|ing)\s+(?:existing|old)|strip(?:ping)?\s+(?:existing|old)|pull\s*down|dismantle)\b/i;
+    var haulPattern = /\b(cart\s*away|haul(?:ing|age)?|transport(?:ing|ation)?\s+(?:waste|rubble|debris|demolition))\b/i;
+    var inferredStage = 'A1-A3';
+    var inferredDemo = false;
+    if (demoPattern.test(desc)) { inferredStage = 'A5'; inferredDemo = true; }
+    else if (haulPattern.test(desc)) { inferredStage = 'A4'; }
+
+    // Infer confidence from match quality
+    var inferredConf = match.matched ? (match.score >= 30 ? 'high' : 'medium') : 'low';
+
     _tenderItems.push({
       id: Date.now() + Math.random(),
       boqItemNo: boqItemNo,
@@ -1548,6 +1609,9 @@ function autoMatchAndAddBOQ(rows, fileName) {
       targetEmission: blEm,
       isCustom: !match.matched,
       gwpSource: match.gwpSource || (match.matched ? 'ICE' : 'Manual'),
+      lifecycleStage: inferredStage,
+      isDemolition: inferredDemo,
+      confidence: inferredConf,
       assumption: match.assumption || (!match.matched ? 'No match found in A1-A3 or ICE database. Manual EF entry required.' : ''),
       alternatives: match.alternatives || [],
       iceRefUrl: match.iceRefUrl || '',
@@ -1841,6 +1905,16 @@ function aiAddBOQItems(aiItems, fileName) {
     else if (gwpSource === 'ICE') iceCount++;
     else unmatchedCount++;
 
+    // Carry through lifecycle stage and confidence from AI
+    var lifecycleStage = item.lifecycleStage || 'A1-A3';
+    var isDemolition = !!item.isDemolition;
+    var confidence = item.confidence || 'medium';
+
+    // If demolition item, note it in assumption
+    if (isDemolition && assumption.indexOf('demolition') === -1) {
+      assumption = (assumption ? assumption + '. ' : '') + 'Demolition/removal of existing material (A5 stage)';
+    }
+
     _tenderItems.push({
       id: Date.now() + Math.random(),
       boqItemNo: item.itemNo || '',
@@ -1865,6 +1939,9 @@ function aiAddBOQItems(aiItems, fileName) {
       targetEmission: blEm,
       isCustom: gwpSource === 'none',
       gwpSource: gwpSource === 'none' ? 'Manual' : gwpSource,
+      lifecycleStage: lifecycleStage,
+      isDemolition: isDemolition,
+      confidence: confidence,
       assumption: assumption,
       alternatives: alternatives,
       iceRefUrl: iceRefUrl,
@@ -1881,10 +1958,16 @@ function aiAddBOQItems(aiItems, fileName) {
     descInput.value = 'AI-parsed from BOQ: ' + fileName;
   }
 
-  // Store result summary
+  // Store result summary with confidence breakdown
   var totalItems = _tenderItems.length;
   var totalBL = 0;
-  _tenderItems.forEach(function(it) { totalBL += it.baselineEmission || 0; });
+  var highConf = 0, medConf = 0, lowConf = 0;
+  _tenderItems.forEach(function(it) {
+    totalBL += it.baselineEmission || 0;
+    if (it.confidence === 'high') highConf++;
+    else if (it.confidence === 'low') lowConf++;
+    else medConf++;
+  });
 
   _tenderBOQMode = true;
   _tenderBOQMatched = [];
@@ -1898,7 +1981,10 @@ function aiAddBOQItems(aiItems, fileName) {
     iceCount: iceCount,
     unmatchedCount: unmatchedCount,
     totalBL: totalBL,
-    aiParsed: true
+    aiParsed: true,
+    highConf: highConf,
+    medConf: medConf,
+    lowConf: lowConf
   };
 
   navigate('tender_entry');

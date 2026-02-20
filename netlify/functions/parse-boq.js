@@ -9,80 +9,110 @@ function buildPrompt(text, fileName, chunkInfo) {
     ? `\n\nNOTE: This is chunk ${chunkInfo.current} of ${chunkInfo.total} from a large document. Parse ALL items in this chunk.`
     : '';
 
-  return `You are an expert construction quantity surveyor and embodied carbon analyst.
+  return `You are an intelligent carbon classification engine for embodied carbon accounting (EN 15978 / ISO 21930).
+
+## ROLE
+Expert construction quantity surveyor and embodied carbon analyst. Your goal is 100% coverage — EVERY BOQ item with a quantity MUST be classified. Do NOT leave items unprocessed.
 
 ## TASK
-Parse the following extracted text from a PDF Bill of Quantities (BOQ) document.
-Identify EVERY construction line item that represents actual work/material with a quantity.${chunkNote}
+Parse the following Bill of Quantities (BOQ) text extracted from a PDF.
+For each line item, follow this decision tree:
+1. Identify the PRIMARY WORK ACTIVITY — is it procurement of virgin material, processing/manufacturing, installation, demolition/deconstruction, or transportation of materials/waste?
+2. Extract the material type and quantity unit
+3. Determine the LIFECYCLE STAGE (see below)
+4. Flag any unit mismatches, but intelligently reconcile them using industry-standard conversion factors
+5. Assign a CONFIDENCE level for your classification${chunkNote}
+
+## LIFECYCLE STAGE CLASSIFICATION (EN 15978)
+Classify each item into the correct stage:
+- "A1-A3" — Raw material supply + transport + manufacturing (virgin material production and delivery to site)
+- "A4" — Transport to site (hauling, delivery, logistics)
+- "A5" — Construction/installation process AND demolition/deconstruction work
+- "D" — Reuse, recovery, recycling potential (benefits beyond system boundary)
+
+DECISION RULES:
+- Material procurement items (concrete, steel, timber, pipes, etc.) → A1-A3
+- Delivery/hauling of materials TO site → A4
+- Installation, placing, laying, fixing activities → A5 (but the MATERIAL is still A1-A3)
+- Demolition, breaking out, removal of existing structures → A5 (classify the material being demolished)
+- Transport of demolition WASTE away from site → A4
+- Items mentioning "reuse", "recycled", "reclaimed" → note D-stage potential
+- Excavation/earthwork: if moving material = A5 process; if procuring fill = A1-A3
+
+CONTEXTUAL INTELLIGENCE for demolition items:
+- "Demolition of existing asphalt pavement" → The activity is A5 demolition, the material is demolished asphalt (NOT virgin asphalt)
+- "Break out existing concrete slab" → A5 demolition of concrete, NOT new concrete
+- "Cart away demolition rubble" → A4 transport of waste
+- "Reuse of excavated material as fill" → Note D-stage recycling potential, classify as Earthwork
 
 ## UNDERSTANDING THE DOCUMENT FORMAT
 This text was extracted from a PDF using PDF.js. The text is reconstructed from coordinates — columns are separated by tabs or multiple spaces. The document is a table with columns like:
 - Item Number (e.g., "C2.97", "4.1.3", "B/1/001", "2.01")
-- Description (the MAIN TEXT describing the work/material — this is usually the longest column)
+- Description (the MAIN TEXT — usually the longest column)
 - Quantity (a number)
 - Unit (m², m³, kg, tonnes, nr, m, lin.m, etc.)
 - Rate and Amount columns (ignore these — they are costs)
 
-IMPORTANT: The text might be fragmented. Item numbers and descriptions might appear on separate fragments. You MUST reconstruct the full meaning. Look for patterns — short codes like "C2.97" or "B2.15" are ITEM NUMBERS, not descriptions. The DESCRIPTION is the longer text that explains what the work item is (e.g., "Supply and install 200mm dia HDPE pipe for storm water drainage").
+IMPORTANT: The text might be fragmented. Item numbers and descriptions might appear on separate fragments. You MUST reconstruct the full meaning. Short codes like "C2.97" or "B2.15" are ITEM NUMBERS, not descriptions.
 
 ## CRITICAL RULES
-1. Read the FULL document carefully. Understand the structure — section headers, item numbers, descriptions, quantities, units.
-2. Extract the EXACT item number as shown in the document (e.g., "C2.97", "4.1.3", "B/1/001").
-3. Extract the COMPLETE description — do NOT summarize or truncate. Copy the FULL text describing the work.
-4. NEVER use the item number (like "C2.97") as the description. The description MUST be the actual text explaining the work/material. If you cannot find a description, write "No description found - [item number]".
-5. Extract the numeric quantity. If quantity says "Various" or is missing, set qty to 0.
-6. Extract the unit as a CLEAN standard abbreviation: m², m³, kg, tonnes, nr, m, lin.m, etc. Do NOT include extra words like "Provisional" or "Sum" in the unit field — just the unit abbreviation. For example, if the BOQ says "(Provisional) m²", the unit is just "m²".
+1. Read the FULL document. Understand the structure — section headers, item numbers, descriptions, quantities, units.
+2. Extract the EXACT item number (e.g., "C2.97", "4.1.3", "B/1/001").
+3. Extract the COMPLETE description — do NOT summarize or truncate.
+4. NEVER use the item number as the description. If you cannot find a description, write "No description found - [item number]".
+5. Extract the numeric quantity. "Various" or missing = qty 0.
+6. Extract the unit as a CLEAN abbreviation: m², m³, kg, tonnes, nr, m, lin.m. Do NOT include "Provisional" or "Sum" — just the unit.
 7. Match each item to the correct material category and GWP factor.
 8. Skip preamble text, section headers, notes, and non-quantifiable items.
-9. DO NOT make silly mistakes — "grouting" is NOT tin, it is cement/concrete. "GERCC" means General Excavation, Return, Compaction, and Carting — it is earthwork, NOT a metal.
-10. Multi-line descriptions: If a description spans multiple lines, combine them into one complete description.
-11. Look at section headers (like "STORM WATER DRAINAGE", "EARTHWORKS", "CONCRETE") to understand the context of items below them.
-12. EXTRACT THICKNESS/DEPTH: If the description mentions a thickness, depth, or layer dimension (e.g., "depth 450mm", "150mm thick", "200mm layer", "thk 100mm"), extract it as "thicknessMM" in millimeters. This is CRITICAL for unit conversion (m² → m³). Do NOT confuse rebar diameter (e.g., "16mm dia rebar") or pipe diameter (e.g., "200mm dia HDPE") with layer thickness.
-13. SKIP NON-MATERIAL ITEMS: Do NOT include these in the output:
-    - Equipment/plant items (e.g., "Concrete mixer", "Crane", "Compactor", "Generator", "Scaffolding")
-    - VAT, tax, or percentage lines (e.g., "Add VAT of Sub total", "Add 15% contingency")
+9. DO NOT make silly mistakes — "grouting" is NOT tin, it is cement/concrete. "GERCC" = General Excavation, Return, Compaction, and Carting = earthwork, NOT metal.
+10. Multi-line descriptions: combine into one complete description.
+11. Use section headers ("STORM WATER DRAINAGE", "EARTHWORKS", "CONCRETE") to understand context.
+12. EXTRACT THICKNESS/DEPTH: If the description mentions thickness, depth, or layer dimension, extract it as "thicknessMM" in mm. CRITICAL for m² → m³ conversion. Do NOT confuse rebar diameter or pipe diameter with layer thickness.
+13. SKIP NON-MATERIAL ITEMS:
+    - Equipment/plant (Crane, Compactor, Generator, Scaffolding)
+    - VAT, tax, percentage lines ("Add VAT", "Add 15% contingency")
     - Provisional sums, prime cost sums, day works
-    - Preliminaries, general items, insurance, bonds, permits
+    - Preliminaries, insurance, bonds, permits
     - Subtotals, totals, carried forward amounts
     - Labour-only items with no material content
-    - Temporary works unless they involve permanent materials
+    - Temporary works (unless they involve permanent materials)
+14. POLYMER MODIFIED BINDER (PMB): If asphalt mentions PMB, polymer modified, or modified binder, note this in assumption — it has higher EF than standard binder.
+15. SET CONFIDENCE: Rate your match confidence as "high", "medium", or "low":
+    - "high" = clear material identification, exact grade/type match, unambiguous unit
+    - "medium" = reasonable match but some inference required (e.g., no explicit concrete grade, assumed from context)
+    - "low" = ambiguous item, multiple possible matches, or unusual description — NEEDS HUMAN REVIEW
 
-## CONCRETE GRADE MATCHING — IMPORTANT
-When matching concrete items to grades:
-- If strength class is given as "F" value: F5.2 N/mm² ≈ C30-40, F10 ≈ C40-50, F3.5 ≈ C20-30
+## CONCRETE GRADE MATCHING
+- F-value strength: F5.2 N/mm² ≈ C30-40, F10 ≈ C40-50, F3.5 ≈ C20-30
 - "lean mix", "blinding", "mass concrete" ≈ C15-20
 - "general structural", "foundations", "RC slabs" ≈ C30-40
 - "high strength", "post-tensioned", "precast" ≈ C40-50 or C50-60
-- PCC (Portland Cement Concrete) without grade specification ≈ C30-40
+- PCC (Portland Cement Concrete) without grade ≈ C30-40
 
 ## MATERIAL MATCHING — A1-A3 CATEGORIES (Priority 1)
 Match to these first. These are consultant-defined baseline emission factors:
 
 Concrete [unit: m³, efUnit: kgCO₂e/m³]:
-  C15-20 (baseline: 323), C20-30 (354), C30-40 (431), C40-50 (430), C50-60 (483), C60-70 (522)
-  Matching: PCC, portland cement concrete, mass concrete, structural concrete, blinding, foundations, slabs
+  C15-20 (323), C20-30 (354), C30-40 (431), C40-50 (430), C50-60 (483), C60-70 (522)
 
 Steel [unit: kg, efUnit: kgCO₂e/kg]:
   Structural I-sections (2.46), Rebar (2.26), Hollow sections (2.52), Hot Dip Galvanized (2.74)
-  Matching: reinforcement, rebar, mesh, fabric, steel bars, structural steel, galvanized
 
 Asphalt [unit: tons, efUnit: kgCO₂e/ton]:
   3% Binder (50.1), 4% (52.2), 5% (54.2), 6% (56.3), 7% (58.4)
-  Matching: asphalt, bituminous, wearing course, binder course, tarmac
+  Note: For PMB asphalt, use 5% Binder as minimum baseline
 
 Aluminum [unit: kg, efUnit: kgCO₂e/kg]:
-  Profile Without Coating (10.8), Profile With Coating (10.8), Sheets (13.5)
+  Profile Without Coating (10.8), With Coating (10.8), Sheets (13.5)
 
 Glass [unit: kg, efUnit: kgCO₂e/kg]:
   Annealed (1.28), Coated (1.61), Laminated (1.77), IGU (4.12)
 
 Earth_Work [unit: tkm, efUnit: kgCO₂/tkm]:
   Excavation/Hauling (0.11), Demolition Removal (0.11)
-  Matching: excavation, clearance, grading, leveling, earthwork, GERCC, GEVR, hauling, removal, demolition, site clearing
 
 Subgrade [unit: kg, efUnit: kgCO₂e/kg]:
   Coarse & Fine Aggregate Recycled (0.0006), Coarse Aggregate (0.0103), Sand (0.0052)
-  Matching: crushed aggregate, base course, sub-base, fill, granular, ABC, aggregate
 
 Pipes [unit: m, efUnit: kgCO₂e/m]:
   600mm (179.9), 700mm (241.3), 800mm (307.2), 900mm (394.7), 1000mm (436.2), 1200mm (543.8), 1500mm (814.1), 1800mm (1138.3)
@@ -91,7 +121,7 @@ Pipes [unit: m, efUnit: kgCO₂e/m]:
 Concrete (ICE): C8-10 to C70-85, Precast, Lightweight, Fibre Reinforced, Blocks
 Steel (ICE): I/H Sections, Rebar, Tubes, Galvanized, Coil, Plate, Stainless, Mesh, Piles
 Timber: Softwood, Hardwood, Glulam, CLT, Plywood
-Masonry: Brick (Common/Engineering/Facing), Mortar, Natural Stone
+Masonry: Brick, Mortar, Natural Stone
 Ceramics: Floor/Wall tiles, Porcelain, Roof tiles
 Cement: CEM I (0.91), CEM II (0.63-0.76), GGBS (0.07), Lime (0.76)
   Matching: cement, grouting, grout, injection, cementitious
@@ -108,38 +138,39 @@ MEP - Plumbing: Copper/PPR/CPVC/PEX pipe, Pumps, Tanks
 MEP - Fire Protection: Sprinkler pipe, Fire pump, Dampers
 
 ## UNIT HANDLING — CRITICAL
-- ALWAYS extract thickness/depth from description if present. Set "thicknessMM" to the value in mm.
-- If BOQ quantity is in m² but the material factor is per m³ (e.g., concrete slab), the system will auto-convert using thickness. You MUST set thicknessMM.
-- If BOQ quantity is in m³ and factor is per m³, use directly. Set thicknessMM to null.
-- If BOQ gives weight (kg/tonnes), the system will auto-convert. Set thicknessMM to null.
-- Examples of thickness extraction:
-  - "Portland cement concrete, depth 450mm" → thicknessMM: 450
-  - "Concrete slab 200mm thick" → thicknessMM: 200
+- ALWAYS extract thickness/depth from description if present. Set "thicknessMM" in mm.
+- If BOQ is m² but factor is per m³ → You MUST set thicknessMM
+- If BOQ is m³ and factor is per m³ → use directly, thicknessMM: null
+- If BOQ gives weight (kg/tonnes) → auto-convert, thicknessMM: null
+- Thickness examples:
+  - "depth 450mm" → thicknessMM: 450
+  - "200mm thick slab" → thicknessMM: 200
   - "150mm blinding layer" → thicknessMM: 150
-  - "Cement treated base course, thickness 150mm" → thicknessMM: 150
-  - "200mm thick base course" → thicknessMM: 200
-  - "layer thickness 100mm" → thicknessMM: 100
-  - "Rebar B500B 16mm dia" → thicknessMM: null (bar diameter, NOT layer thickness)
-  - "200mm dia HDPE pipe" → thicknessMM: null (pipe diameter, NOT layer thickness)
+  - "Rebar 16mm dia" → thicknessMM: null (bar diameter)
+  - "200mm dia pipe" → thicknessMM: null (pipe diameter)
 
 ## OUTPUT FORMAT
 Return ONLY a valid JSON array, no other text. Each element:
 {
-  "itemNo": "exact BOQ number (e.g. C2.97, 4.1.3)",
-  "description": "THE FULL WORK DESCRIPTION — NOT the item number. Example: 'Supply and install 200mm dia HDPE pipe for storm water drainage including all fittings and jointing'. MUST be the actual description text, at least 10+ characters.",
+  "itemNo": "exact BOQ number",
+  "description": "THE FULL WORK DESCRIPTION (NOT the item number). MUST be 10+ characters.",
   "qty": number,
-  "unit": "clean unit abbreviation only (m², m³, kg, tonnes, nr, m, lin.m, etc.)",
-  "thicknessMM": number or null (extracted thickness/depth in mm from the description, NOT pipe/rebar diameter),
+  "unit": "clean unit abbreviation only",
+  "thicknessMM": number or null,
+  "lifecycleStage": "A1-A3" or "A4" or "A5" or "D",
+  "isDemolition": true/false (is this demolishing/removing existing material?),
   "category": "material category name from lists above",
   "type": "specific type name from lists above",
   "gwpSource": "A1-A3" or "ICE" or "none",
-  "baselineEF": number (the emission factor),
+  "baselineEF": number,
   "efUnit": "unit of EF",
-  "materialUnit": "the unit the EF expects (m³, kg, etc.)",
-  "assumption": "explain what you assumed for this match"
+  "materialUnit": "the unit the EF expects",
+  "confidence": "high" or "medium" or "low",
+  "assumption": "explain classification reasoning — include lifecycle stage reasoning, any unit conversion needed, and flag queries for human review if confidence is low"
 }
 
-CRITICAL: the "description" field must contain the ACTUAL work description, NOT the item number. If description says "C2.97" that is WRONG — that is an item number. Find the actual text that describes the work.
+CRITICAL: "description" must be the ACTUAL work description, NOT the item number.
+CRITICAL: Every item with a quantity MUST be classified. 100% coverage. If ambiguous, set confidence to "low" with explanation.
 
 ## DOCUMENT TEXT (from: ${fileName || 'uploaded PDF'})
 ---
@@ -180,12 +211,23 @@ function cleanItems(items) {
       }
     }
 
+    // Normalize lifecycle stage
+    let stage = String(item.lifecycleStage || 'A1-A3').toUpperCase().replace(/\s+/g, '');
+    if (!['A1-A3', 'A4', 'A5', 'D'].includes(stage)) stage = 'A1-A3';
+
+    // Normalize confidence
+    let confidence = String(item.confidence || 'medium').toLowerCase();
+    if (!['high', 'medium', 'low'].includes(confidence)) confidence = 'medium';
+
     return {
       itemNo: itemNo,
       description: desc,
       qty: Number(item.qty) || 0,
       unit: String(item.unit || ''),
       thicknessMM: (item.thicknessMM != null && !isNaN(item.thicknessMM) && Number(item.thicknessMM) > 0) ? Number(item.thicknessMM) : null,
+      lifecycleStage: stage,
+      isDemolition: !!item.isDemolition,
+      confidence: confidence,
       category: String(item.category || 'Unmatched'),
       type: String(item.type || desc || ''),
       gwpSource: item.gwpSource === 'A1-A3' ? 'A1-A3' : item.gwpSource === 'ICE' ? 'ICE' : 'none',
