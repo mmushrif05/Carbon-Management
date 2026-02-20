@@ -314,6 +314,10 @@ function logout() {
   state.orgLinks = [];
   state.assignments = [];
   state.users = [];
+  state.projects = [];
+  state.projectAssignments = [];
+  state.projectOrgLinks = [];
+  state.selectedProjectId = null;
   $('appShell').style.display = 'none';
   $('loginScreen').style.display = 'flex';
   // Reset form fields
