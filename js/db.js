@@ -487,71 +487,79 @@ const DB = {
 
   // === PROJECTS ===
   async getProjects() {
-    if (!dbConnected) return [];
+    if (!dbConnected) { console.warn('[DB] getProjects skipped — not connected'); return []; }
     try {
       const res = await apiCall('/projects', {
         method: 'POST',
         body: JSON.stringify({ action: 'list' })
       });
       if (res.ok) {
-        const data = await res.json();
+        const data = await safeJsonParse(res);
         return data.projects || [];
       }
-    } catch (e) { console.warn('API error (getProjects):', e); }
+      // Log non-OK responses so we can diagnose issues
+      const errData = await safeJsonParse(res).catch(() => ({}));
+      console.error('[DB] getProjects failed (HTTP ' + res.status + '):', errData.error || 'Unknown error');
+    } catch (e) { console.error('[DB] getProjects error:', e.message || e); }
     return [];
   },
 
   async createProject(name, description, code) {
-    if (!dbConnected) throw new Error('Server connection required.');
+    await ensureDbConnected();
+    console.log('[DB] Creating project:', name);
     const res = await apiCall('/projects', {
       method: 'POST',
       body: JSON.stringify({ action: 'create', name, description, code })
     });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Failed to create project.');
+    const data = await safeJsonParse(res);
+    if (!res.ok) {
+      console.error('[DB] createProject failed (HTTP ' + res.status + '):', data.error);
+      throw new Error(data.error || 'Failed to create project (HTTP ' + res.status + ').');
+    }
+    console.log('[DB] Project created successfully:', data.project && data.project.id);
     return data;
   },
 
   async updateProject(projectId, updates) {
-    if (!dbConnected) throw new Error('Server connection required.');
+    await ensureDbConnected();
     const res = await apiCall('/projects', {
       method: 'POST',
       body: JSON.stringify({ action: 'update', projectId, ...updates })
     });
-    const data = await res.json();
+    const data = await safeJsonParse(res);
     if (!res.ok) throw new Error(data.error || 'Failed to update project.');
     return data;
   },
 
   async deleteProject(projectId) {
-    if (!dbConnected) throw new Error('Server connection required.');
+    await ensureDbConnected();
     const res = await apiCall('/projects', {
       method: 'POST',
       body: JSON.stringify({ action: 'delete', projectId })
     });
-    const data = await res.json();
+    const data = await safeJsonParse(res);
     if (!res.ok) throw new Error(data.error || 'Failed to delete project.');
     return data;
   },
 
   async assignUserToProject(userId, projectId) {
-    if (!dbConnected) throw new Error('Server connection required.');
+    await ensureDbConnected();
     const res = await apiCall('/projects', {
       method: 'POST',
       body: JSON.stringify({ action: 'assign-user', userId, projectId })
     });
-    const data = await res.json();
+    const data = await safeJsonParse(res);
     if (!res.ok) throw new Error(data.error || 'Failed to assign user to project.');
     return data;
   },
 
   async removeUserFromProject(assignmentId) {
-    if (!dbConnected) throw new Error('Server connection required.');
+    await ensureDbConnected();
     const res = await apiCall('/projects', {
       method: 'POST',
       body: JSON.stringify({ action: 'remove-user', assignmentId })
     });
-    const data = await res.json();
+    const data = await safeJsonParse(res);
     if (!res.ok) throw new Error(data.error || 'Failed to remove user from project.');
     return data;
   },
@@ -566,31 +574,33 @@ const DB = {
         body: JSON.stringify(payload)
       });
       if (res.ok) {
-        const data = await res.json();
+        const data = await safeJsonParse(res);
         return data.assignments || [];
       }
-    } catch (e) { console.warn('API error (getProjectAssignments):', e); }
+      const errData = await safeJsonParse(res).catch(() => ({}));
+      console.error('[DB] getProjectAssignments failed (HTTP ' + res.status + '):', errData.error || 'Unknown');
+    } catch (e) { console.error('[DB] getProjectAssignments error:', e.message || e); }
     return [];
   },
 
   async linkOrgToProject(orgId, projectId) {
-    if (!dbConnected) throw new Error('Server connection required.');
+    await ensureDbConnected();
     const res = await apiCall('/projects', {
       method: 'POST',
       body: JSON.stringify({ action: 'link-org', orgId, projectId })
     });
-    const data = await res.json();
+    const data = await safeJsonParse(res);
     if (!res.ok) throw new Error(data.error || 'Failed to link organization to project.');
     return data;
   },
 
   async unlinkOrgFromProject(linkId) {
-    if (!dbConnected) throw new Error('Server connection required.');
+    await ensureDbConnected();
     const res = await apiCall('/projects', {
       method: 'POST',
       body: JSON.stringify({ action: 'unlink-org', linkId })
     });
-    const data = await res.json();
+    const data = await safeJsonParse(res);
     if (!res.ok) throw new Error(data.error || 'Failed to unlink organization from project.');
     return data;
   },
@@ -605,10 +615,12 @@ const DB = {
         body: JSON.stringify(payload)
       });
       if (res.ok) {
-        const data = await res.json();
+        const data = await safeJsonParse(res);
         return data.links || [];
       }
-    } catch (e) { console.warn('API error (getProjectOrgLinks):', e); }
+      const errData = await safeJsonParse(res).catch(() => ({}));
+      console.error('[DB] getProjectOrgLinks failed (HTTP ' + res.status + '):', errData.error || 'Unknown');
+    } catch (e) { console.error('[DB] getProjectOrgLinks error:', e.message || e); }
     return [];
   },
 
@@ -620,7 +632,7 @@ const DB = {
         body: JSON.stringify({ action: 'summary', projectId })
       });
       if (res.ok) {
-        return await res.json();
+        return await safeJsonParse(res);
       }
     } catch (e) { console.warn('API error (getProjectSummary):', e); }
     return null;

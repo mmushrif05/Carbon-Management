@@ -4,6 +4,17 @@
 const API = '/api';
 let dbConnected = false;
 
+// Safe JSON parse for API responses — handles HTML error pages from Netlify
+async function safeJsonParse(res) {
+  const text = await res.text();
+  try {
+    return JSON.parse(text);
+  } catch (e) {
+    console.error('[API] Non-JSON response (status ' + res.status + '):', text.substring(0, 200));
+    throw new Error('Server error (HTTP ' + res.status + '). The server may be starting up — please try again in a moment.');
+  }
+}
+
 // Helper: make authenticated API calls with auto token refresh
 async function apiCall(endpoint, options = {}) {
   const token = localStorage.getItem('ct_auth_token');
@@ -15,7 +26,13 @@ async function apiCall(endpoint, options = {}) {
   };
   const config = { ...defaults, ...options, headers: { ...defaults.headers, ...(options.headers || {}) } };
 
-  let res = await fetch(API + endpoint, config);
+  let res;
+  try {
+    res = await fetch(API + endpoint, config);
+  } catch (e) {
+    console.error('[API] Network error calling ' + endpoint + ':', e.message);
+    throw new Error('Cannot reach the server. Please check your internet connection.');
+  }
 
   // If unauthorized, try refreshing the token
   if (res.status === 401) {
@@ -28,7 +45,7 @@ async function apiCall(endpoint, options = {}) {
           body: JSON.stringify({ action: 'refresh', refreshToken })
         });
         if (refreshRes.ok) {
-          const refreshData = await refreshRes.json();
+          const refreshData = await safeJsonParse(refreshRes);
           localStorage.setItem('ct_auth_token', refreshData.token);
           localStorage.setItem('ct_refresh_token', refreshData.refreshToken);
           // Retry original request with new token
@@ -36,6 +53,7 @@ async function apiCall(endpoint, options = {}) {
           res = await fetch(API + endpoint, config);
         }
       } catch (e) {
+        console.warn('[API] Token refresh failed:', e.message);
         // Refresh failed — will return the 401
       }
     }
@@ -44,7 +62,7 @@ async function apiCall(endpoint, options = {}) {
   return res;
 }
 
-// Check server connection
+// Check server connection — can be called anytime to re-check
 async function checkDbConnection() {
   try {
     const res = await fetch(API + '/db-status');
@@ -52,12 +70,25 @@ async function checkDbConnection() {
       const data = await res.json();
       dbConnected = data.connected;
     } else {
+      console.warn('[DB] Status check returned HTTP', res.status);
       dbConnected = false;
     }
   } catch (e) {
+    console.warn('[DB] Connection check failed:', e.message);
     dbConnected = false;
   }
   updateDbStatus();
+}
+
+// Re-check connection before write operations (called by DB methods)
+async function ensureDbConnected() {
+  if (!dbConnected) {
+    console.log('[DB] Not connected — retrying connection check...');
+    await checkDbConnection();
+  }
+  if (!dbConnected) {
+    throw new Error('Server is not reachable. Please check your internet connection and refresh the page. If the problem persists, verify that your Netlify environment variables (FIREBASE_SERVICE_ACCOUNT, FIREBASE_DATABASE_URL, FIREBASE_API_KEY) are configured correctly.');
+  }
 }
 
 function updateDbStatus() {
