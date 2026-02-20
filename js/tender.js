@@ -55,6 +55,26 @@ function extractThickness(description) {
   return null;
 }
 
+// Try to extract a unit from a BOQ description string
+// Used as fallback when the AI returns garbage in the unit field
+function extractUnitFromDescription(desc) {
+  if (!desc) return '';
+  // Look for unit patterns in the description text
+  var m = desc.match(/\b(m[²³]|m2|m3|sqm|sq\.?\s*m|cum|cu\.?\s*m|cbm|kg|tonnes?|tons?|mt|lm|lin\.?\s*m|rm|nr|nos?|each|ea|pcs?|ls|set|lot|tkm)\b/i);
+  if (m) return m[1];
+  // Also check for unit in parentheses like "(Provisional m²)"
+  var p = desc.match(/\(\s*(?:provisional\s*)?(?:sum\s*)?(m[²³]|m2|m3|sqm|sq\.?\s*m|cum|cu\.?\s*m|cbm|kg|tonnes?|tons?|nr|nos?|each|m|lm|lin\.?\s*m)\s*\)/i);
+  if (p) return p[1];
+  return '';
+}
+
+// Check if a normalized unit is a recognized unit (not garbage)
+function isRecognizedUnit(normalizedUnit) {
+  if (!normalizedUnit) return false;
+  var known = ['m2', 'm3', 'kg', 'tons', 'm', 'nr', 'ls', 'set', 'lot', 'tkm'];
+  return known.indexOf(normalizedUnit) !== -1;
+}
+
 // Normalize a unit string for comparison
 // Handles AI returning messy units like "Provisional m²", "(Provisional Sum) m²", "28,894", etc.
 function normalizeUnitStr(u) {
@@ -1381,7 +1401,8 @@ async function handleTenderPDFFile(file) {
 
     // Try AI parsing first — falls back to regex if AI is unavailable
     // Split large documents into chunks for complete coverage (parts 1-12+)
-    var CHUNK_SIZE = 50000; // chars per chunk — keeps each API call within limits
+    // Keep chunks small enough for Claude to respond within Netlify's 26s timeout
+    var CHUNK_SIZE = 25000; // chars per chunk — keeps each API call fast
     var aiSuccess = false;
 
     try {
@@ -1443,12 +1464,13 @@ async function handleTenderPDFFile(file) {
         aiSuccess = true;
       }
     } catch (aiErr) {
-      showBOQStatus('<strong>Step 2/3:</strong> AI service unreachable. Using pattern matching fallback...', 'info');
+      console.error('AI parsing error:', aiErr);
+      showBOQStatus('<strong>Step 2/3:</strong> AI service error: ' + (aiErr.message || 'unreachable') + '. Using pattern matching fallback...', 'yellow');
     }
 
     // Fallback to regex-based parsing if AI didn't work
     if (!aiSuccess) {
-      showBOQStatus('<strong>Step 2/3:</strong> Parsing with pattern matching...', 'info');
+      showBOQStatus('<strong>Step 2/3:</strong> AI parsing did not succeed. Falling back to pattern matching (less accurate)...', 'yellow');
       var parsedRows = parsePDFTextToBOQ(allLines, allText);
 
       if (parsedRows.length < 2) {
@@ -1474,9 +1496,17 @@ function aiAddBOQItems(aiItems, fileName) {
   var a13Count = 0, iceCount = 0, unmatchedCount = 0;
 
   aiItems.forEach(function(item) {
-    if (item.qty <= 0 && item.gwpSource !== 'none') return; // Skip zero-qty unless unmatched
+    if (item.qty <= 0) return; // Skip zero-qty items
 
     var desc = item.description || '';
+    var dLower = desc.toLowerCase();
+
+    // FILTER: Skip non-material items that AI may have included
+    // Equipment/plant
+    if (/\b(concrete\s+mixer|crane|compactor|generator|scaffolding|formwork\s+(?:removal|strip)|temporary\s+works)\b/i.test(dLower) && item.qty <= 10) return;
+    // VAT, tax, percentages, provisionals
+    if (/\b(add\s+vat|vat\s+of|add\s+\d+%|contingenc|provisional\s+sum|prime\s+cost|day\s*work|prelim(?:inar)|insurance|bond|permit|carried?\s+(?:to|forward)|sub[- ]?total|brought\s+forward)\b/i.test(dLower)) return;
+
     var catHint = item.category || '';
     var unitHint = item.unit || '';
 
@@ -1542,6 +1572,24 @@ function aiAddBOQItems(aiItems, fileName) {
     var boqQty = item.qty;
     var boqUnit = item.unit || '';
     var materialUnit = unit; // EF's expected unit (from local match or AI)
+
+    // CRITICAL FIX: If AI returned a garbage unit (e.g., the quantity value "28,894" as unit),
+    // try to extract the real unit from the description text
+    var normalizedBoqUnit = normalizeUnitStr(boqUnit);
+    if (!isRecognizedUnit(normalizedBoqUnit)) {
+      // AI unit is garbage — try extracting from description
+      var descUnit = extractUnitFromDescription(desc);
+      if (descUnit) {
+        boqUnit = descUnit;
+      } else {
+        // Also try from the original AI item fields
+        var aiMatUnit = item.materialUnit || '';
+        if (aiMatUnit && isRecognizedUnit(normalizeUnitStr(aiMatUnit))) {
+          // materialUnit from AI is valid — boqUnit might be same
+          // Don't override, let conversion handle it
+        }
+      }
+    }
 
     // Extract thickness: AI may provide thicknessMM, otherwise extract from description
     var thicknessObj = null;

@@ -197,31 +197,46 @@ function cleanItems(items) {
   });
 }
 
-// Call Claude API for a single chunk
+// Call Claude API for a single chunk with timeout protection
 async function callClaude(apiKey, prompt) {
-  const response = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': apiKey,
-      'anthropic-version': '2023-06-01'
-    },
-    body: JSON.stringify({
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: 64000,
-      messages: [{ role: 'user', content: prompt }]
-    })
-  });
+  // Use AbortController for 22-second timeout (Netlify max is 26s, leave margin)
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 22000);
 
-  if (!response.ok) {
-    const errText = await response.text();
-    throw new Error('API error ' + response.status + ': ' + errText);
+  try {
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      signal: controller.signal,
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01'
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 16384,
+        messages: [{ role: 'user', content: prompt }]
+      })
+    });
+
+    clearTimeout(timeoutId);
+
+    if (!response.ok) {
+      const errText = await response.text();
+      throw new Error('API error ' + response.status + ': ' + errText);
+    }
+
+    const result = await response.json();
+    const content = result.content && result.content[0] && result.content[0].text;
+    if (!content) throw new Error('Empty response from AI');
+    return content;
+  } catch (err) {
+    clearTimeout(timeoutId);
+    if (err.name === 'AbortError') {
+      throw new Error('AI response timeout (>22s) — try uploading a smaller document or use Excel/CSV format');
+    }
+    throw err;
   }
-
-  const result = await response.json();
-  const content = result.content && result.content[0] && result.content[0].text;
-  if (!content) throw new Error('Empty response from AI');
-  return content;
 }
 
 // Split text into chunks at line boundaries
@@ -271,7 +286,8 @@ exports.handler = async (event) => {
 
   // If the client already chunked the text, process this single chunk directly
   // Otherwise, process the full text (with server-side chunking for very large texts)
-  const maxCharsPerChunk = 60000;
+  // Keep chunks small enough that Claude responds within Netlify's timeout (~22s)
+  const maxCharsPerChunk = 25000;
 
   try {
     let allItems = [];
