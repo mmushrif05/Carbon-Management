@@ -1,41 +1,19 @@
 // ===== AI-POWERED BOQ PARSING =====
 // Uses Claude API to intelligently parse PDF BOQ text and match materials
+// Supports chunked processing for large documents (parts 1-12+)
 const { verifyToken, headers, respond, optionsResponse } = require('./utils/firebase');
 
-exports.handler = async (event) => {
-  if (event.httpMethod === 'OPTIONS') return optionsResponse();
-  if (event.httpMethod !== 'POST') return respond(405, { error: 'Method not allowed' });
+// Build the AI prompt for a given text chunk
+function buildPrompt(text, fileName, chunkInfo) {
+  const chunkNote = chunkInfo
+    ? `\n\nNOTE: This is chunk ${chunkInfo.current} of ${chunkInfo.total} from a large document. Parse ALL items in this chunk.`
+    : '';
 
-  // Verify authentication
-  const user = await verifyToken(event);
-  if (!user) return respond(401, { error: 'Unauthorized' });
-
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) {
-    return respond(500, { error: 'AI parsing not configured. Set ANTHROPIC_API_KEY in Netlify environment variables.' });
-  }
-
-  let body;
-  try {
-    body = JSON.parse(event.body);
-  } catch (e) {
-    return respond(400, { error: 'Invalid request body' });
-  }
-
-  const { text, fileName } = body;
-  if (!text || text.trim().length < 20) {
-    return respond(400, { error: 'No text content provided or text too short' });
-  }
-
-  // Truncate very long documents to stay within token limits
-  const maxChars = 80000;
-  const truncatedText = text.length > maxChars ? text.substring(0, maxChars) + '\n[... document truncated ...]' : text;
-
-  const prompt = `You are an expert construction quantity surveyor and embodied carbon analyst.
+  return `You are an expert construction quantity surveyor and embodied carbon analyst.
 
 ## TASK
 Parse the following extracted text from a PDF Bill of Quantities (BOQ) document.
-Identify EVERY construction line item that represents actual work/material with a quantity.
+Identify EVERY construction line item that represents actual work/material with a quantity.${chunkNote}
 
 ## UNDERSTANDING THE DOCUMENT FORMAT
 This text was extracted from a PDF using PDF.js. The text is reconstructed from coordinates — columns are separated by tabs or multiple spaces. The document is a table with columns like:
@@ -60,6 +38,22 @@ IMPORTANT: The text might be fragmented. Item numbers and descriptions might app
 10. Multi-line descriptions: If a description spans multiple lines, combine them into one complete description.
 11. Look at section headers (like "STORM WATER DRAINAGE", "EARTHWORKS", "CONCRETE") to understand the context of items below them.
 12. EXTRACT THICKNESS/DEPTH: If the description mentions a thickness, depth, or layer dimension (e.g., "depth 450mm", "150mm thick", "200mm layer", "thk 100mm"), extract it as "thicknessMM" in millimeters. This is CRITICAL for unit conversion (m² → m³). Do NOT confuse rebar diameter (e.g., "16mm dia rebar") or pipe diameter (e.g., "200mm dia HDPE") with layer thickness.
+13. SKIP NON-MATERIAL ITEMS: Do NOT include these in the output:
+    - Equipment/plant items (e.g., "Concrete mixer", "Crane", "Compactor", "Generator", "Scaffolding")
+    - VAT, tax, or percentage lines (e.g., "Add VAT of Sub total", "Add 15% contingency")
+    - Provisional sums, prime cost sums, day works
+    - Preliminaries, general items, insurance, bonds, permits
+    - Subtotals, totals, carried forward amounts
+    - Labour-only items with no material content
+    - Temporary works unless they involve permanent materials
+
+## CONCRETE GRADE MATCHING — IMPORTANT
+When matching concrete items to grades:
+- If strength class is given as "F" value: F5.2 N/mm² ≈ C30-40, F10 ≈ C40-50, F3.5 ≈ C20-30
+- "lean mix", "blinding", "mass concrete" ≈ C15-20
+- "general structural", "foundations", "RC slabs" ≈ C30-40
+- "high strength", "post-tensioned", "precast" ≈ C40-50 or C50-60
+- PCC (Portland Cement Concrete) without grade specification ≈ C30-40
 
 ## MATERIAL MATCHING — A1-A3 CATEGORIES (Priority 1)
 Match to these first. These are consultant-defined baseline emission factors:
@@ -67,7 +61,6 @@ Match to these first. These are consultant-defined baseline emission factors:
 Concrete [unit: m³, efUnit: kgCO₂e/m³]:
   C15-20 (baseline: 323), C20-30 (354), C30-40 (431), C40-50 (430), C50-60 (483), C60-70 (522)
   Matching: PCC, portland cement concrete, mass concrete, structural concrete, blinding, foundations, slabs
-  Strength hint: F5.2 N/mm² ≈ C30-40, F10 ≈ C40-50, general structural ≈ C30-40, lean mix/blinding ≈ C15-20
 
 Steel [unit: kg, efUnit: kgCO₂e/kg]:
   Structural I-sections (2.46), Rebar (2.26), Hollow sections (2.52), Hot Dip Galvanized (2.74)
@@ -124,6 +117,8 @@ MEP - Fire Protection: Sprinkler pipe, Fire pump, Dampers
   - "Concrete slab 200mm thick" → thicknessMM: 200
   - "150mm blinding layer" → thicknessMM: 150
   - "Cement treated base course, thickness 150mm" → thicknessMM: 150
+  - "200mm thick base course" → thicknessMM: 200
+  - "layer thickness 100mm" → thicknessMM: 100
   - "Rebar B500B 16mm dia" → thicknessMM: null (bar diameter, NOT layer thickness)
   - "200mm dia HDPE pipe" → thicknessMM: null (pipe diameter, NOT layer thickness)
 
@@ -133,7 +128,7 @@ Return ONLY a valid JSON array, no other text. Each element:
   "itemNo": "exact BOQ number (e.g. C2.97, 4.1.3)",
   "description": "THE FULL WORK DESCRIPTION — NOT the item number. Example: 'Supply and install 200mm dia HDPE pipe for storm water drainage including all fittings and jointing'. MUST be the actual description text, at least 10+ characters.",
   "qty": number,
-  "unit": "unit as in BOQ",
+  "unit": "clean unit abbreviation only (m², m³, kg, tonnes, nr, m, lin.m, etc.)",
   "thicknessMM": number or null (extracted thickness/depth in mm from the description, NOT pipe/rebar diameter),
   "category": "material category name from lists above",
   "type": "specific type name from lists above",
@@ -148,97 +143,178 @@ CRITICAL: the "description" field must contain the ACTUAL work description, NOT 
 
 ## DOCUMENT TEXT (from: ${fileName || 'uploaded PDF'})
 ---
-${truncatedText}
+${text}
 ---
 
 Return ONLY the JSON array. No markdown, no explanation.`;
+}
+
+// Parse and clean AI response into items array
+function parseAIResponse(content) {
+  let jsonStr = content.trim();
+  // Remove markdown code blocks if present
+  if (jsonStr.startsWith('```')) {
+    jsonStr = jsonStr.replace(/^```(?:json)?\s*\n?/, '').replace(/\n?```\s*$/, '');
+  }
+  const items = JSON.parse(jsonStr);
+  if (!Array.isArray(items)) throw new Error('Response is not an array');
+  return items;
+}
+
+// Validate and clean parsed items
+function cleanItems(items) {
+  return items.filter(item => {
+    return item && item.description && typeof item.qty === 'number';
+  }).map((item, idx) => {
+    let desc = String(item.description || '');
+    const itemNo = String(item.itemNo || idx + 1);
+
+    // Fix: If description is the same as item number (AI mistake), try to recover
+    if (desc === itemNo || /^[A-Z]?\d+\.?\d*$/.test(desc.trim())) {
+      if (item.type && item.type.length > desc.length) {
+        desc = item.type;
+      } else if (item.assumption && item.assumption.length > 10) {
+        desc = item.assumption;
+      } else {
+        desc = (item.category || 'Unknown') + ' - Item ' + itemNo;
+      }
+    }
+
+    return {
+      itemNo: itemNo,
+      description: desc,
+      qty: Number(item.qty) || 0,
+      unit: String(item.unit || ''),
+      thicknessMM: (item.thicknessMM != null && !isNaN(item.thicknessMM) && Number(item.thicknessMM) > 0) ? Number(item.thicknessMM) : null,
+      category: String(item.category || 'Unmatched'),
+      type: String(item.type || desc || ''),
+      gwpSource: item.gwpSource === 'A1-A3' ? 'A1-A3' : item.gwpSource === 'ICE' ? 'ICE' : 'none',
+      baselineEF: Number(item.baselineEF) || 0,
+      efUnit: String(item.efUnit || ''),
+      materialUnit: String(item.materialUnit || item.unit || ''),
+      assumption: String(item.assumption || '')
+    };
+  });
+}
+
+// Call Claude API for a single chunk
+async function callClaude(apiKey, prompt) {
+  const response = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': apiKey,
+      'anthropic-version': '2023-06-01'
+    },
+    body: JSON.stringify({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 64000,
+      messages: [{ role: 'user', content: prompt }]
+    })
+  });
+
+  if (!response.ok) {
+    const errText = await response.text();
+    throw new Error('API error ' + response.status + ': ' + errText);
+  }
+
+  const result = await response.json();
+  const content = result.content && result.content[0] && result.content[0].text;
+  if (!content) throw new Error('Empty response from AI');
+  return content;
+}
+
+// Split text into chunks at line boundaries
+function splitIntoChunks(text, maxCharsPerChunk) {
+  if (text.length <= maxCharsPerChunk) return [text];
+
+  const chunks = [];
+  const lines = text.split('\n');
+  let currentChunk = '';
+
+  for (const line of lines) {
+    if (currentChunk.length + line.length + 1 > maxCharsPerChunk && currentChunk.length > 0) {
+      chunks.push(currentChunk);
+      currentChunk = line;
+    } else {
+      currentChunk += (currentChunk ? '\n' : '') + line;
+    }
+  }
+  if (currentChunk) chunks.push(currentChunk);
+  return chunks;
+}
+
+exports.handler = async (event) => {
+  if (event.httpMethod === 'OPTIONS') return optionsResponse();
+  if (event.httpMethod !== 'POST') return respond(405, { error: 'Method not allowed' });
+
+  // Verify authentication
+  const user = await verifyToken(event);
+  if (!user) return respond(401, { error: 'Unauthorized' });
+
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  if (!apiKey) {
+    return respond(500, { error: 'AI parsing not configured. Set ANTHROPIC_API_KEY in Netlify environment variables.' });
+  }
+
+  let body;
+  try {
+    body = JSON.parse(event.body);
+  } catch (e) {
+    return respond(400, { error: 'Invalid request body' });
+  }
+
+  const { text, fileName, chunkIndex, totalChunks } = body;
+  if (!text || text.trim().length < 20) {
+    return respond(400, { error: 'No text content provided or text too short' });
+  }
+
+  // If the client already chunked the text, process this single chunk directly
+  // Otherwise, process the full text (with server-side chunking for very large texts)
+  const maxCharsPerChunk = 60000;
 
   try {
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01'
-      },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 16384,
-        messages: [{ role: 'user', content: prompt }]
-      })
-    });
+    let allItems = [];
+    let chunks;
 
-    if (!response.ok) {
-      const errText = await response.text();
-      console.error('Anthropic API error:', response.status, errText);
-      return respond(502, { error: 'AI service error: ' + response.status, fallback: true });
+    if (chunkIndex !== undefined && totalChunks !== undefined) {
+      // Client has already chunked — process this single chunk
+      chunks = [text.length > maxCharsPerChunk ? text.substring(0, maxCharsPerChunk) : text];
+    } else if (text.length > maxCharsPerChunk) {
+      // Server-side chunking for backward compatibility
+      chunks = splitIntoChunks(text, maxCharsPerChunk);
+    } else {
+      chunks = [text];
     }
 
-    const result = await response.json();
-    const content = result.content && result.content[0] && result.content[0].text;
+    for (let i = 0; i < chunks.length; i++) {
+      const chunkInfo = chunks.length > 1 ? { current: i + 1, total: chunks.length } : null;
+      const prompt = buildPrompt(chunks[i], fileName, chunkInfo);
 
-    if (!content) {
-      return respond(502, { error: 'Empty response from AI', fallback: true });
-    }
+      const content = await callClaude(apiKey, prompt);
 
-    // Parse JSON from response — handle potential markdown wrapping
-    let items;
-    try {
-      let jsonStr = content.trim();
-      // Remove markdown code blocks if present
-      if (jsonStr.startsWith('```')) {
-        jsonStr = jsonStr.replace(/^```(?:json)?\s*\n?/, '').replace(/\n?```\s*$/, '');
-      }
-      items = JSON.parse(jsonStr);
-    } catch (parseErr) {
-      console.error('Failed to parse AI response as JSON:', content.substring(0, 500));
-      return respond(502, { error: 'AI returned invalid JSON', fallback: true, raw: content.substring(0, 200) });
-    }
-
-    if (!Array.isArray(items)) {
-      return respond(502, { error: 'AI response is not an array', fallback: true });
-    }
-
-    // Validate and clean each item
-    const cleaned = items.filter(item => {
-      return item && item.description && typeof item.qty === 'number';
-    }).map((item, idx) => {
-      let desc = String(item.description || '');
-      const itemNo = String(item.itemNo || idx + 1);
-
-      // Fix: If description is the same as item number (AI mistake), try to recover
-      // Common patterns: "C2.97", "B2.15", "4.1.3" etc.
-      if (desc === itemNo || /^[A-Z]?\d+\.?\d*$/.test(desc.trim())) {
-        // Description is just a code — use type or category + assumption as fallback
-        if (item.type && item.type.length > desc.length) {
-          desc = item.type;
-        } else if (item.assumption && item.assumption.length > 10) {
-          desc = item.assumption;
-        } else {
-          desc = (item.category || 'Unknown') + ' - Item ' + itemNo;
+      try {
+        const items = parseAIResponse(content);
+        const cleaned = cleanItems(items);
+        allItems = allItems.concat(cleaned);
+      } catch (parseErr) {
+        console.error('Failed to parse AI response for chunk ' + (i + 1) + ':', content.substring(0, 500));
+        // Continue with other chunks even if one fails
+        if (chunks.length === 1) {
+          return respond(502, { error: 'AI returned invalid JSON', fallback: true, raw: content.substring(0, 200) });
         }
       }
+    }
 
-      return {
-        itemNo: itemNo,
-        description: desc,
-        qty: Number(item.qty) || 0,
-        unit: String(item.unit || ''),
-        thicknessMM: (item.thicknessMM != null && !isNaN(item.thicknessMM) && Number(item.thicknessMM) > 0) ? Number(item.thicknessMM) : null,
-        category: String(item.category || 'Unmatched'),
-        type: String(item.type || desc || ''),
-        gwpSource: item.gwpSource === 'A1-A3' ? 'A1-A3' : item.gwpSource === 'ICE' ? 'ICE' : 'none',
-        baselineEF: Number(item.baselineEF) || 0,
-        efUnit: String(item.efUnit || ''),
-        materialUnit: String(item.materialUnit || item.unit || ''),
-        assumption: String(item.assumption || '')
-      };
-    });
+    if (allItems.length === 0) {
+      return respond(502, { error: 'No items parsed from document', fallback: true });
+    }
 
     return respond(200, {
       success: true,
-      items: cleaned,
-      totalParsed: cleaned.length,
+      items: allItems,
+      totalParsed: allItems.length,
+      chunksProcessed: chunks.length,
       model: 'claude-sonnet-4-20250514'
     });
 

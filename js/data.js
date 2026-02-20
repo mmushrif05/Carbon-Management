@@ -395,16 +395,56 @@ function matchToA13Materials(desc, catHint) {
 
     m.types.forEach(function(t, idx) {
       var score = catBonus;
-      var words = t.name.toLowerCase().split(/[\s\/\-\(\)]+/).filter(function(w) { return w.length > 2; });
+      var tL = t.name.toLowerCase();
+      var words = tL.split(/[\s\/\-\(\)]+/).filter(function(w) { return w.length > 2; });
       words.forEach(function(w) { if (d.indexOf(w) !== -1) score += 12; });
 
-      // Concrete grade matching
-      var gradeMatch = d.match(/c(\d{2,3})/i);
-      if (gradeMatch && t.name.toLowerCase().indexOf('c' + gradeMatch[1]) !== -1) score += 40;
+      // Concrete grade matching — explicit C-grade (e.g., "C30", "C20/25")
+      var gradeMatch = d.match(/\bc(\d{2,3})(?:[\/-]\d{2,3})?\b/i);
+      if (gradeMatch && tL.indexOf('c' + gradeMatch[1]) !== -1) score += 40;
+
+      // Concrete strength-to-grade mapping (F-value to C-grade)
+      // F3.5 N/mm² ≈ C20-30, F5.2 ≈ C30-40, F10 ≈ C40-50
+      if (cat === 'Concrete') {
+        var fMatch = d.match(/f\s*(\d+(?:\.\d+)?)\s*(?:n\/mm|mpa|n\.mm)/i);
+        if (fMatch) {
+          var fVal = parseFloat(fMatch[1]);
+          var fGrade = '';
+          if (fVal <= 2.5) fGrade = 'c15-20';
+          else if (fVal <= 4) fGrade = 'c20-30';
+          else if (fVal <= 7) fGrade = 'c30-40';
+          else if (fVal <= 12) fGrade = 'c40-50';
+          else fGrade = 'c50-60';
+          if (tL.indexOf(fGrade) !== -1) score += 40;
+        }
+
+        // Keyword-based concrete grade hints
+        if (!gradeMatch && !fMatch) {
+          if (/\b(lean\s*mix|blinding|mass\s*concrete|non[- ]?structural)\b/i.test(d) && tL.indexOf('c15-20') !== -1) score += 25;
+          else if (/\b(pcc|portland|structural|foundation|footing|slab|beam|column|raft|pile\s*cap)\b/i.test(d) && tL.indexOf('c30-40') !== -1) score += 25;
+          else if (/\b(high\s*strength|post[- ]?tension|precast|prestress)\b/i.test(d) && tL.indexOf('c40-50') !== -1) score += 25;
+        }
+      }
 
       // Pipe size matching
       var pipeMatch = d.match(/(\d{3,4})\s*mm/);
       if (pipeMatch && t.name.indexOf(pipeMatch[1] + 'mm') !== -1) score += 35;
+
+      // Additional keyword matching for specific materials
+      if (cat === 'Steel') {
+        if (/\b(rebar|reinforc|bar|mesh|fabric|brc)\b/i.test(d) && tL.indexOf('rebar') !== -1) score += 20;
+        if (/\b(galvani[sz]ed|hdg)\b/i.test(d) && tL.indexOf('galvanized') !== -1) score += 20;
+        if (/\b(hollow|rhs|chs|shs|tube)\b/i.test(d) && tL.indexOf('hollow') !== -1) score += 20;
+        if (/\b(i[- ]?section|h[- ]?section|wide\s*flange|universal|ub|uc)\b/i.test(d) && tL.indexOf('i-section') !== -1) score += 20;
+      }
+
+      if (cat === 'Earth_Work') {
+        if (/\b(gercc|gevr|excavat|clear|grade|level|earthwork|haul|remov|demolit|site\s*clear)\b/i.test(d)) score += 15;
+      }
+
+      if (cat === 'Subgrade') {
+        if (/\b(aggregate|crush|base\s*course|sub[- ]?base|fill|granular|abc|gravel|layer|compact)\b/i.test(d)) score += 15;
+      }
 
       if (score > bestScore) {
         bestScore = score;
@@ -499,21 +539,42 @@ function matchToICE(desc, catHint, unitHint) {
 
     m.types.forEach(function(t, idx) {
       var score = catBonus;
-      var words = t.name.toLowerCase().split(/[\s\/\-\(\)]+/).filter(function(w) { return w.length > 2; });
+      var tL = t.name.toLowerCase();
+      var words = tL.split(/[\s\/\-\(\)]+/).filter(function(w) { return w.length > 2; });
       words.forEach(function(w) { if (d.indexOf(w) !== -1) score += 12; });
 
       // Concrete grade matching
-      var gradeMatch = d.match(/c(\d{2,3})/i);
-      if (gradeMatch && t.name.toLowerCase().indexOf('c' + gradeMatch[1]) !== -1) score += 40;
+      var gradeMatch = d.match(/\bc(\d{2,3})(?:[\/-]\d{2,3})?\b/i);
+      if (gradeMatch && tL.indexOf('c' + gradeMatch[1]) !== -1) score += 40;
 
       // Pipe size matching
       var pipeMatch = d.match(/(\d{3,4})\s*mm/);
       if (pipeMatch && t.name.indexOf(pipeMatch[1] + 'mm') !== -1) score += 35;
 
+      // Cement/grout matching
+      if (catL.indexOf('cement') !== -1) {
+        if (/\b(grout|grouting|cement|injection|cementitious|mortar)\b/i.test(d)) score += 15;
+      }
+
+      // Timber matching
+      if (catL.indexOf('timber') !== -1) {
+        if (/\b(timber|wood|lumber|plywood|glulam|clt|softwood|hardwood|formwork)\b/i.test(d)) score += 15;
+      }
+
+      // Waterproofing matching
+      if (catL.indexOf('waterproof') !== -1) {
+        if (/\b(waterproof|membrane|bitumen|epdm|tpo|damp\s*proof|dpc|dpm)\b/i.test(d)) score += 15;
+      }
+
+      // Plastics matching
+      if (catL.indexOf('plastic') !== -1) {
+        if (/\b(pvc|hdpe|polypropylene|polyethylene|polycarbonate|upvc|plastic)\b/i.test(d)) score += 15;
+      }
+
       // MEP keywords
       if (m.isMEP) {
         var mepKw = ['ahu','chiller','transformer','switchgear','cable','duct','sprinkler','pump','fan','boiler','heat pump','vrf','vrv','fcu','vav','conduit','busbar','led','solar','generator','ups'];
-        mepKw.forEach(function(kw) { if (d.indexOf(kw) !== -1 && t.name.toLowerCase().indexOf(kw) !== -1) score += 25; });
+        mepKw.forEach(function(kw) { if (d.indexOf(kw) !== -1 && tL.indexOf(kw) !== -1) score += 25; });
       }
 
       if (score > bestScore) {
