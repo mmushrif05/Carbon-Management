@@ -55,7 +55,7 @@ async function handleListProjects(decoded) {
   const data = snap.val() || {};
   let projects = Object.values(data);
 
-  // If consultant or contractor, only show projects they are assigned to
+  // If consultant or contractor, show projects they are assigned to OR created
   if (profile.role === 'consultant' || profile.role === 'contractor') {
     const assignSnap = await db.ref('project_assignments').once('value');
     const assignments = assignSnap.val() || {};
@@ -65,7 +65,7 @@ async function handleListProjects(decoded) {
         myProjectIds.add(a.projectId);
       }
     });
-    projects = projects.filter(p => myProjectIds.has(p.id));
+    projects = projects.filter(p => myProjectIds.has(p.id) || p.createdBy === decoded.uid);
   }
 
   projects.sort((a, b) => a.name.localeCompare(b.name));
