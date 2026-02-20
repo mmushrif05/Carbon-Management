@@ -1142,49 +1142,78 @@ async function handleTenderPDFFile(file) {
 }
 
 // ===== AI-PARSED BOQ ITEMS → TENDER TABLE =====
+// AI provides item extraction (item numbers, descriptions, quantities, units).
+// Local matching (lookupTenderGWP) is used to match to material database —
+// this is more reliable than AI matching since it uses the exact same database.
 function aiAddBOQItems(aiItems, fileName) {
   var a13Count = 0, iceCount = 0, unmatchedCount = 0;
 
   aiItems.forEach(function(item) {
     if (item.qty <= 0 && item.gwpSource !== 'none') return; // Skip zero-qty unless unmatched
 
-    var bl = item.baselineEF || 0;
-    var blEm = (item.qty * bl) / 1000;
-    var gwpSource = item.gwpSource || 'none';
+    var desc = item.description || '';
+    var catHint = item.category || '';
+    var unitHint = item.unit || '';
 
-    // Build alternatives from the matched category
-    var alternatives = [];
-    var iceRefUrl = '';
-    if (gwpSource === 'A1-A3' && MATERIALS[item.category]) {
-      MATERIALS[item.category].types.forEach(function(t, idx) {
-        alternatives.push({ name: t.name, baseline: t.baseline, target: t.target, idx: idx });
-      });
-    } else if (gwpSource === 'ICE' && ICE_MATERIALS[item.category]) {
-      var iceMat = ICE_MATERIALS[item.category];
-      iceMat.types.forEach(function(t, idx) {
-        var altBelow = iceMat.isMEP && t.coveragePct !== undefined && t.coveragePct < ICE_COVERAGE_THRESHOLD;
-        alternatives.push({ name: t.name, baseline: altBelow ? 0 : t.baseline, target: altBelow ? 0 : t.target, idx: idx });
-      });
-      iceRefUrl = 'https://circularecology.com/embodied-carbon-footprint-database.html';
-    } else if (gwpSource === 'none') {
-      // Try to find category in both databases for alternatives
-      if (MATERIALS[item.category]) {
-        MATERIALS[item.category].types.forEach(function(t, idx) {
+    // LOCAL RE-MATCHING: Use the description to match against our material databases.
+    // This is more reliable than AI matching since it uses the exact same MATERIALS and ICE_MATERIALS.
+    var localMatch = lookupTenderGWP(desc, catHint, unitHint);
+
+    var bl, gwpSource, category, typeName, alternatives, iceRefUrl, matDB, efUnit, massFactor, unit, assumption;
+
+    if (localMatch.matched) {
+      // Local matching succeeded — use local results
+      bl = localMatch.baseline;
+      gwpSource = localMatch.gwpSource;
+      category = localMatch.category;
+      typeName = localMatch.typeName;
+      alternatives = localMatch.alternatives || [];
+      iceRefUrl = localMatch.iceRefUrl || '';
+      assumption = localMatch.assumption || '';
+      matDB = localMatch.mat;
+      efUnit = matDB ? matDB.efUnit : (item.efUnit || '');
+      massFactor = matDB ? matDB.massFactor : 1;
+      unit = matDB ? matDB.unit : (item.materialUnit || item.unit);
+    } else {
+      // Local matching failed — use AI results as fallback
+      bl = item.baselineEF || 0;
+      gwpSource = item.gwpSource || 'none';
+      category = item.category || 'Unmatched';
+      typeName = item.type || desc;
+      alternatives = [];
+      iceRefUrl = '';
+      assumption = item.assumption || '';
+
+      // Build alternatives from AI category if it exists in our databases
+      if (gwpSource === 'A1-A3' && MATERIALS[category]) {
+        MATERIALS[category].types.forEach(function(t, idx) {
           alternatives.push({ name: t.name, baseline: t.baseline, target: t.target, idx: idx });
         });
-      } else if (ICE_MATERIALS[item.category]) {
-        var iceM = ICE_MATERIALS[item.category];
+      } else if (gwpSource === 'ICE' && ICE_MATERIALS[category]) {
+        var iceMat = ICE_MATERIALS[category];
+        iceMat.types.forEach(function(t, idx) {
+          var altBelow = iceMat.isMEP && t.coveragePct !== undefined && t.coveragePct < ICE_COVERAGE_THRESHOLD;
+          alternatives.push({ name: t.name, baseline: altBelow ? 0 : t.baseline, target: altBelow ? 0 : t.target, idx: idx });
+        });
+        iceRefUrl = 'https://circularecology.com/embodied-carbon-footprint-database.html';
+      } else if (MATERIALS[category]) {
+        MATERIALS[category].types.forEach(function(t, idx) {
+          alternatives.push({ name: t.name, baseline: t.baseline, target: t.target, idx: idx });
+        });
+      } else if (ICE_MATERIALS[category]) {
+        var iceM = ICE_MATERIALS[category];
         iceM.types.forEach(function(t, idx) {
           alternatives.push({ name: t.name, baseline: t.baseline, target: t.target, idx: idx });
         });
       }
+
+      matDB = MATERIALS[category] || ICE_MATERIALS[category];
+      efUnit = item.efUnit || (matDB ? matDB.efUnit : '');
+      massFactor = matDB ? matDB.massFactor : 1;
+      unit = item.materialUnit || (matDB ? matDB.unit : item.unit);
     }
 
-    // Get unit and EF unit from the database if available
-    var matDB = MATERIALS[item.category] || ICE_MATERIALS[item.category];
-    var unit = item.materialUnit || (matDB ? matDB.unit : item.unit);
-    var efUnit = item.efUnit || (matDB ? matDB.efUnit : '');
-    var massFactor = matDB ? matDB.massFactor : 1;
+    var blEm = (item.qty * bl) / 1000;
 
     if (gwpSource === 'A1-A3') a13Count++;
     else if (gwpSource === 'ICE') iceCount++;
@@ -1193,9 +1222,9 @@ function aiAddBOQItems(aiItems, fileName) {
     _tenderItems.push({
       id: Date.now() + Math.random(),
       boqItemNo: item.itemNo || '',
-      originalDesc: item.description || '',
-      category: item.category || 'Unmatched',
-      type: item.type || item.description || '',
+      originalDesc: desc,
+      category: category,
+      type: typeName,
       qty: item.qty,
       unit: unit,
       efUnit: efUnit,
@@ -1206,7 +1235,7 @@ function aiAddBOQItems(aiItems, fileName) {
       targetEmission: blEm,
       isCustom: gwpSource === 'none',
       gwpSource: gwpSource === 'none' ? 'Manual' : gwpSource,
-      assumption: item.assumption || '',
+      assumption: assumption,
       alternatives: alternatives,
       iceRefUrl: iceRefUrl,
       notes: ''
@@ -1251,24 +1280,66 @@ function aiAddBOQItems(aiItems, fileName) {
 }
 
 // Extract lines from PDF.js text content, reconstructing rows by Y-position
+// Uses Y-tolerance grouping to handle sub-pixel alignment differences in PDF tables
 function extractLinesFromTextContent(textContent) {
   if (!textContent || !textContent.items || !textContent.items.length) return [];
 
-  var lineMap = {};
+  // Collect all text items with coordinates
+  var allItems = [];
   textContent.items.forEach(function(item) {
     if (!item.str || !item.str.trim()) return;
-    var y = Math.round(item.transform[5]);
-    var x = item.transform[4];
-    if (!lineMap[y]) lineMap[y] = [];
-    lineMap[y].push({ x: x, text: item.str });
+    allItems.push({
+      x: item.transform[4],
+      y: item.transform[5],
+      text: item.str,
+      width: item.width || (item.str.length * 5) // estimate width if not provided
+    });
   });
 
-  var yKeys = Object.keys(lineMap).map(Number).sort(function(a, b) { return b - a; });
+  if (allItems.length === 0) return [];
+
+  // Sort by Y descending (top of page first), then X ascending (left to right)
+  allItems.sort(function(a, b) { return b.y - a.y || a.x - b.x; });
+
+  // Group items into lines using Y-tolerance (items within 4 points = same row)
+  var Y_TOLERANCE = 4;
+  var lineGroups = [];
+  var currentGroup = [allItems[0]];
+  var currentY = allItems[0].y;
+
+  for (var i = 1; i < allItems.length; i++) {
+    if (Math.abs(allItems[i].y - currentY) <= Y_TOLERANCE) {
+      currentGroup.push(allItems[i]);
+    } else {
+      currentGroup.sort(function(a, b) { return a.x - b.x; });
+      lineGroups.push(currentGroup);
+      currentGroup = [allItems[i]];
+      currentY = allItems[i].y;
+    }
+  }
+  if (currentGroup.length > 0) {
+    currentGroup.sort(function(a, b) { return a.x - b.x; });
+    lineGroups.push(currentGroup);
+  }
+
+  // Build text lines — use tab separators for large X-gaps (column boundaries)
   var lines = [];
-  yKeys.forEach(function(y) {
-    var items = lineMap[y].sort(function(a, b) { return a.x - b.x; });
-    lines.push(items.map(function(it) { return it.text.trim(); }).join('\t'));
+  lineGroups.forEach(function(group) {
+    var result = '';
+    for (var j = 0; j < group.length; j++) {
+      if (j > 0) {
+        var prevEnd = group[j - 1].x + group[j - 1].width;
+        var gap = group[j].x - prevEnd;
+        // Large gap = column separator (tab), medium gap = spaces, small = direct join
+        if (gap > 40) result += '\t';
+        else if (gap > 8) result += '  ';
+        else if (gap > 2) result += ' ';
+      }
+      result += group[j].text;
+    }
+    lines.push(result);
   });
+
   return lines;
 }
 

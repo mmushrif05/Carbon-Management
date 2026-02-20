@@ -28,7 +28,7 @@ exports.handler = async (event) => {
   }
 
   // Truncate very long documents to stay within token limits
-  const maxChars = 60000;
+  const maxChars = 80000;
   const truncatedText = text.length > maxChars ? text.substring(0, maxChars) + '\n[... document truncated ...]' : text;
 
   const prompt = `You are an expert construction quantity surveyor and embodied carbon analyst.
@@ -37,15 +37,28 @@ exports.handler = async (event) => {
 Parse the following extracted text from a PDF Bill of Quantities (BOQ) document.
 Identify EVERY construction line item that represents actual work/material with a quantity.
 
+## UNDERSTANDING THE DOCUMENT FORMAT
+This text was extracted from a PDF using PDF.js. The text is reconstructed from coordinates — columns are separated by tabs or multiple spaces. The document is a table with columns like:
+- Item Number (e.g., "C2.97", "4.1.3", "B/1/001", "2.01")
+- Description (the MAIN TEXT describing the work/material — this is usually the longest column)
+- Quantity (a number)
+- Unit (m², m³, kg, tonnes, nr, m, lin.m, etc.)
+- Rate and Amount columns (ignore these — they are costs)
+
+IMPORTANT: The text might be fragmented. Item numbers and descriptions might appear on separate fragments. You MUST reconstruct the full meaning. Look for patterns — short codes like "C2.97" or "B2.15" are ITEM NUMBERS, not descriptions. The DESCRIPTION is the longer text that explains what the work item is (e.g., "Supply and install 200mm dia HDPE pipe for storm water drainage").
+
 ## CRITICAL RULES
 1. Read the FULL document carefully. Understand the structure — section headers, item numbers, descriptions, quantities, units.
 2. Extract the EXACT item number as shown in the document (e.g., "C2.97", "4.1.3", "B/1/001").
-3. Extract the COMPLETE description — do NOT summarize or truncate. Copy the full text.
-4. Extract the numeric quantity. If quantity says "Various" or is missing, set qty to 0.
-5. Extract the unit exactly as shown (m², m³, kg, tonnes, nr, m, lin.m, etc.).
-6. Match each item to the correct material category and GWP factor.
-7. Skip preamble text, section headers, notes, and non-quantifiable items.
-8. DO NOT make silly mistakes — "grouting" is NOT tin, it is cement/concrete. "GERCC" means General Excavation, Return, Compaction, and Carting — it is earthwork, NOT a metal.
+3. Extract the COMPLETE description — do NOT summarize or truncate. Copy the FULL text describing the work.
+4. NEVER use the item number (like "C2.97") as the description. The description MUST be the actual text explaining the work/material. If you cannot find a description, write "No description found - [item number]".
+5. Extract the numeric quantity. If quantity says "Various" or is missing, set qty to 0.
+6. Extract the unit exactly as shown (m², m³, kg, tonnes, nr, m, lin.m, etc.).
+7. Match each item to the correct material category and GWP factor.
+8. Skip preamble text, section headers, notes, and non-quantifiable items.
+9. DO NOT make silly mistakes — "grouting" is NOT tin, it is cement/concrete. "GERCC" means General Excavation, Return, Compaction, and Carting — it is earthwork, NOT a metal.
+10. Multi-line descriptions: If a description spans multiple lines, combine them into one complete description.
+11. Look at section headers (like "STORM WATER DRAINAGE", "EARTHWORKS", "CONCRETE") to understand the context of items below them.
 
 ## MATERIAL MATCHING — A1-A3 CATEGORIES (Priority 1)
 Match to these first. These are consultant-defined baseline emission factors:
@@ -109,8 +122,8 @@ MEP - Fire Protection: Sprinkler pipe, Fire pump, Dampers
 ## OUTPUT FORMAT
 Return ONLY a valid JSON array, no other text. Each element:
 {
-  "itemNo": "exact BOQ number",
-  "description": "FULL description exactly as in document",
+  "itemNo": "exact BOQ number (e.g. C2.97, 4.1.3)",
+  "description": "THE FULL WORK DESCRIPTION — NOT the item number. Example: 'Supply and install 200mm dia HDPE pipe for storm water drainage including all fittings and jointing'. MUST be the actual description text, at least 10+ characters.",
   "qty": number,
   "unit": "unit as in BOQ",
   "category": "material category name from lists above",
@@ -121,6 +134,8 @@ Return ONLY a valid JSON array, no other text. Each element:
   "materialUnit": "the unit the EF expects (m³, kg, etc.)",
   "assumption": "explain what you assumed for this match"
 }
+
+CRITICAL: the "description" field must contain the ACTUAL work description, NOT the item number. If description says "C2.97" that is WRONG — that is an item number. Find the actual text that describes the work.
 
 ## DOCUMENT TEXT (from: ${fileName || 'uploaded PDF'})
 ---
@@ -139,7 +154,7 @@ Return ONLY the JSON array. No markdown, no explanation.`;
       },
       body: JSON.stringify({
         model: 'claude-sonnet-4-20250514',
-        max_tokens: 8192,
+        max_tokens: 16384,
         messages: [{ role: 'user', content: prompt }]
       })
     });
@@ -178,19 +193,37 @@ Return ONLY the JSON array. No markdown, no explanation.`;
     // Validate and clean each item
     const cleaned = items.filter(item => {
       return item && item.description && typeof item.qty === 'number';
-    }).map((item, idx) => ({
-      itemNo: String(item.itemNo || idx + 1),
-      description: String(item.description || ''),
-      qty: Number(item.qty) || 0,
-      unit: String(item.unit || ''),
-      category: String(item.category || 'Unmatched'),
-      type: String(item.type || item.description || ''),
-      gwpSource: item.gwpSource === 'A1-A3' ? 'A1-A3' : item.gwpSource === 'ICE' ? 'ICE' : 'none',
-      baselineEF: Number(item.baselineEF) || 0,
-      efUnit: String(item.efUnit || ''),
-      materialUnit: String(item.materialUnit || item.unit || ''),
-      assumption: String(item.assumption || '')
-    }));
+    }).map((item, idx) => {
+      let desc = String(item.description || '');
+      const itemNo = String(item.itemNo || idx + 1);
+
+      // Fix: If description is the same as item number (AI mistake), try to recover
+      // Common patterns: "C2.97", "B2.15", "4.1.3" etc.
+      if (desc === itemNo || /^[A-Z]?\d+\.?\d*$/.test(desc.trim())) {
+        // Description is just a code — use type or category + assumption as fallback
+        if (item.type && item.type.length > desc.length) {
+          desc = item.type;
+        } else if (item.assumption && item.assumption.length > 10) {
+          desc = item.assumption;
+        } else {
+          desc = (item.category || 'Unknown') + ' - Item ' + itemNo;
+        }
+      }
+
+      return {
+        itemNo: itemNo,
+        description: desc,
+        qty: Number(item.qty) || 0,
+        unit: String(item.unit || ''),
+        category: String(item.category || 'Unmatched'),
+        type: String(item.type || desc || ''),
+        gwpSource: item.gwpSource === 'A1-A3' ? 'A1-A3' : item.gwpSource === 'ICE' ? 'ICE' : 'none',
+        baselineEF: Number(item.baselineEF) || 0,
+        efUnit: String(item.efUnit || ''),
+        materialUnit: String(item.materialUnit || item.unit || ''),
+        assumption: String(item.assumption || '')
+      };
+    });
 
     return respond(200, {
       success: true,
