@@ -538,6 +538,17 @@ const DB = {
     return data;
   },
 
+  async bulkDeleteProjects(projectIds) {
+    await ensureDbConnected();
+    const res = await apiCall('/projects', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'bulk-delete', projectIds })
+    });
+    const data = await safeJsonParse(res);
+    if (!res.ok) throw new Error(data.error || 'Failed to delete projects.');
+    return data;
+  },
+
   async assignUserToProject(userId, projectId) {
     await ensureDbConnected();
     const res = await apiCall('/projects', {

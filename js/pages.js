@@ -1198,8 +1198,13 @@ function renderProjectList(projects) {
   const projAssignments = state.projectAssignments || [];
   const projOrgLinks = state.projectOrgLinks || [];
 
-  el.innerHTML = `<div class="tbl-wrap"><table>
-    <thead><tr><th>Project</th><th>Code</th><th>Description</th><th>Consultants</th><th>Contractors</th><th>Orgs</th><th>Status</th><th>Created</th>${canManage ? '<th>Actions</th>' : ''}</tr></thead>
+  el.innerHTML = `${canManage ? `<div id="projBulkBar" style="display:none;padding:10px 14px;margin-bottom:10px;background:rgba(248,113,113,0.08);border:1px solid rgba(248,113,113,0.2);border-radius:10px;display:none;align-items:center;gap:10px">
+    <span id="projSelCount" style="font-size:13px;color:var(--red);font-weight:600"></span>
+    <button class="btn btn-danger btn-sm" onclick="bulkDeleteProjects()">Delete Selected</button>
+    <button class="btn btn-sm" onclick="toggleAllProjects(false)" style="font-size:12px">Clear Selection</button>
+  </div>` : ''}
+  <div class="tbl-wrap"><table>
+    <thead><tr>${canManage ? '<th style="width:36px"><input type="checkbox" id="projSelectAll" onchange="toggleAllProjects(this.checked)" title="Select all" /></th>' : ''}<th>Project</th><th>Code</th><th>Description</th><th>Consultants</th><th>Contractors</th><th>Orgs</th><th>Status</th><th>Created</th>${canManage ? '<th>Actions</th>' : ''}</tr></thead>
     <tbody>${projects.map(p => {
       const pAssign = projAssignments.filter(a => a.projectId === p.id);
       const pOrgs = projOrgLinks.filter(l => l.projectId === p.id);
@@ -1207,7 +1212,8 @@ function renderProjectList(projects) {
       const contractorCount = pAssign.filter(a => a.userRole === 'contractor').length;
       const statusClass = p.status === 'active' ? 'approved' : p.status === 'completed' ? 'review' : 'pending';
       return `<tr>
-        <td style="font-weight:600">${p.name}</td>
+        ${canManage ? `<td><input type="checkbox" class="proj-sel" value="${p.id}" onchange="updateProjSelection()" /></td>` : ''}
+        <td style="font-weight:600">${p.name || ''}</td>
         <td style="color:var(--blue);font-family:monospace;font-size:12px">${p.code || '--'}</td>
         <td style="color:var(--slate5);font-size:12px;max-width:200px;overflow:hidden;text-overflow:ellipsis">${p.description || '--'}</td>
         <td class="r"><span style="color:var(--green);font-weight:700">${consultantCount}</span></td>
@@ -1341,6 +1347,37 @@ async function deleteProject(projectId) {
   } catch (e) {
     console.error('[PROJECT] Delete failed:', e);
     alert(e.message || 'Failed to delete project.');
+  }
+}
+
+function toggleAllProjects(checked) {
+  document.querySelectorAll('.proj-sel').forEach(cb => { cb.checked = checked; });
+  const selectAll = $('projSelectAll');
+  if (selectAll) selectAll.checked = checked;
+  updateProjSelection();
+}
+
+function updateProjSelection() {
+  const checked = document.querySelectorAll('.proj-sel:checked');
+  const bar = $('projBulkBar');
+  const countEl = $('projSelCount');
+  const selectAll = $('projSelectAll');
+  const total = document.querySelectorAll('.proj-sel');
+  if (bar) bar.style.display = checked.length > 0 ? 'flex' : 'none';
+  if (countEl) countEl.textContent = checked.length + ' project' + (checked.length === 1 ? '' : 's') + ' selected';
+  if (selectAll) selectAll.checked = total.length > 0 && checked.length === total.length;
+}
+
+async function bulkDeleteProjects() {
+  const ids = Array.from(document.querySelectorAll('.proj-sel:checked')).map(cb => cb.value);
+  if (!ids.length) return;
+  if (!confirm('Delete ' + ids.length + ' project' + (ids.length === 1 ? '' : 's') + '? All assignments and org links for these projects will also be removed.')) return;
+  try {
+    await DB.bulkDeleteProjects(ids);
+    await loadProjectData();
+  } catch (e) {
+    console.error('[PROJECT] Bulk delete failed:', e);
+    alert(e.message || 'Failed to delete projects.');
   }
 }
 

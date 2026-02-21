@@ -163,6 +163,47 @@ async function handleDeleteProject(body, decoded) {
   return respond(200, { success: true });
 }
 
+// === BULK DELETE PROJECTS ===
+async function handleBulkDeleteProjects(body, decoded) {
+  const { projectIds } = body;
+  if (!Array.isArray(projectIds) || projectIds.length === 0) {
+    return respond(400, { error: 'projectIds array is required.' });
+  }
+
+  const profile = await getUserProfile(decoded.uid);
+  if (!profile) return respond(403, { error: 'Profile not found.' });
+  if (profile.role !== 'client') {
+    return respond(403, { error: 'Only clients can delete projects.' });
+  }
+
+  const db = getDb();
+  const toDelete = {};
+
+  // Collect all associated assignments and org links
+  const [assignSnap, orgLinkSnap] = await Promise.all([
+    db.ref('project_assignments').once('value'),
+    db.ref('project_org_links').once('value')
+  ]);
+  const assignments = assignSnap.val() || {};
+  const orgLinks = orgLinkSnap.val() || {};
+  const idSet = new Set(projectIds);
+
+  for (const [id, a] of Object.entries(assignments)) {
+    if (idSet.has(a.projectId)) toDelete['project_assignments/' + id] = null;
+  }
+  for (const [id, l] of Object.entries(orgLinks)) {
+    if (idSet.has(l.projectId)) toDelete['project_org_links/' + id] = null;
+  }
+  for (const pid of projectIds) {
+    toDelete['projects/' + pid] = null;
+  }
+
+  await db.ref().update(toDelete);
+  console.log('[PROJECT] Bulk deleted', projectIds.length, 'projects');
+
+  return respond(200, { success: true, deleted: projectIds.length });
+}
+
 // === ASSIGN USER TO PROJECT ===
 async function handleAssignUserToProject(body, decoded) {
   const { userId, projectId } = body;
@@ -435,6 +476,7 @@ exports.handler = async (event) => {
       case 'get':                 return await handleGetProject(body, decoded);
       case 'update':              return await handleUpdateProject(body, decoded);
       case 'delete':              return await handleDeleteProject(body, decoded);
+      case 'bulk-delete':         return await handleBulkDeleteProjects(body, decoded);
 
       // User-to-project assignments
       case 'assign-user':         return await handleAssignUserToProject(body, decoded);
