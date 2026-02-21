@@ -60,6 +60,28 @@ const DB = {
     localStorage.setItem('ct_entries', JSON.stringify(entries));
   },
 
+  async forceDeleteEntry(id, reason) {
+    await ensureDbConnected();
+    const res = await apiCall('/entries', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'force-delete', id, reason })
+    });
+    const data = await safeJsonParse(res);
+    if (!res.ok) throw new Error(data.error || 'Force delete failed');
+    return data;
+  },
+
+  async forceCorrectEntry(id, corrections, reason) {
+    await ensureDbConnected();
+    const res = await apiCall('/entries', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'force-correct', id, corrections, reason })
+    });
+    const data = await safeJsonParse(res);
+    if (!res.ok) throw new Error(data.error || 'Force correct failed');
+    return data;
+  },
+
   async getA5Entries() {
     if (dbConnected) {
       try {
