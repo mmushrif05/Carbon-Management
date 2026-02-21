@@ -1199,7 +1199,7 @@ function renderRecent(){
     <td>${actionHtml}</td></tr>`;}).join(''):'<tr><td colspan="11" class="empty">No entries</td></tr>';
 }
 
-async function delEntry(id){await DB.deleteEntry(id);state.entries=state.entries.filter(e=>String(e.id)!==String(id));navigate(state.page);}
+async function delEntry(id){try{await DB.deleteEntry(id);state.entries=state.entries.filter(e=>String(e.id)!==String(id));navigate(state.page);}catch(e){alert('Delete failed: '+(e.message||'Unknown error'));}}
 
 // ===== EDIT/DELETE REQUEST WORKFLOW =====
 

@@ -47,14 +47,13 @@ const DB = {
   },
 
   async deleteEntry(id) {
-    if (dbConnected) {
-      try {
-        await apiCall('/entries', {
-          method: 'POST',
-          body: JSON.stringify({ action: 'delete', id })
-        });
-      } catch (e) { console.warn('API error (deleteEntry):', e); }
-    }
+    await ensureDbConnected();
+    const res = await apiCall('/entries', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'delete', id })
+    });
+    const data = await safeJsonParse(res);
+    if (!res.ok) throw new Error(data.error || 'Delete failed');
     let entries = JSON.parse(localStorage.getItem('ct_entries') || '[]');
     entries = entries.filter(e => e.id !== id);
     localStorage.setItem('ct_entries', JSON.stringify(entries));
