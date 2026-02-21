@@ -368,4 +368,12 @@ td.mono{font-family:'Courier New',monospace;font-size:11px}
 .intel-history-left{display:flex;align-items:center;gap:10px}
 .intel-history-right{display:flex;align-items:center;gap:6px;flex-shrink:0}
 
+/* Anomaly / Data Integrity */
+.anomaly-banner{background:rgba(248,113,113,0.05)!important;border:1px solid rgba(248,113,113,0.25)!important;border-left:4px solid var(--red)!important}
+.force-actions{display:flex;gap:3px;align-items:center;white-space:nowrap}
+.force-del-btn{font-size:8px!important;padding:2px 6px!important;background:rgba(248,113,113,0.1)!important;color:var(--red)!important;border:1px solid rgba(248,113,113,0.25)!important;font-weight:700!important;border-radius:4px!important;cursor:pointer;transition:all .15s}
+.force-del-btn:hover{background:rgba(248,113,113,0.2)!important}
+.anomaly-fix-btn{font-size:8px!important;padding:2px 6px!important;background:rgba(251,146,60,0.1)!important;color:var(--orange)!important;border:1px solid rgba(251,146,60,0.25)!important;font-weight:700!important;border-radius:4px!important;cursor:pointer;transition:all .15s}
+.anomaly-fix-btn:hover{background:rgba(251,146,60,0.2)!important}
+
 @media(max-width:768px){.intel-header{flex-direction:column;align-items:stretch}.intel-project-select select{width:100%}.intel-dim-card{flex-direction:column;align-items:stretch;gap:8px}.intel-dim-right{justify-content:flex-end}}
