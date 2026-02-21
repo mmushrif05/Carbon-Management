@@ -195,18 +195,34 @@ function openProjectModal(idx, opts) {
   // --- TAB: Contributors (raw traceability table) ---
   const sorted=[...pe].sort((a,b)=>(b.a13A||0)-(a.a13A||0));
   const isContr = r === 'contractor';
+  const isCons = r === 'consultant';
   const _ctbActions = (e) => {
-    if (!isContr) return '';
-    // If edit is approved, show Edit button
-    if (e.editRequestStatus === 'approved' && e.editRequestType === 'edit') {
-      return `<td><button class="btn btn-sm btn-primary" onclick="openEditEntryForm('${e.id}')" style="font-size:8px;padding:2px 6px">Edit Now</button></td>`;
+    // === CONTRACTOR actions ===
+    if (isContr) {
+      if (e.editRequestStatus === 'approved' && e.editRequestType === 'edit') {
+        return `<td><button class="btn btn-sm btn-primary" onclick="openEditEntryForm('${e.id}')" style="font-size:8px;padding:2px 6px">Edit Now</button></td>`;
+      }
+      if (e.editRequestStatus === 'pending') {
+        return `<td><span class="badge review" style="font-size:8px">${e.editRequestType==='delete'?'Del':'Edit'} Requested</span></td>`;
+      }
+      return `<td class="edit-req-actions"><button class="btn btn-sm" onclick="requestEditEntry('${e.id}')" style="font-size:8px;padding:2px 5px;background:rgba(96,165,250,0.12);color:var(--blue);border:1px solid rgba(96,165,250,0.2)" title="Request Edit">Edit</button><button class="btn btn-sm" onclick="requestDeleteEntry('${e.id}')" style="font-size:8px;padding:2px 5px;background:rgba(248,113,113,0.12);color:var(--red);border:1px solid rgba(248,113,113,0.2);margin-left:2px" title="Request Delete">Del</button></td>`;
     }
-    // If request is pending, show waiting badge
-    if (e.editRequestStatus === 'pending') {
-      return `<td><span class="badge review" style="font-size:8px">${e.editRequestType==='delete'?'Del':'Edit'} Requested</span></td>`;
+    // === CONSULTANT actions — show approve/reject directly on entry ===
+    if (isCons && e.editRequestStatus === 'pending' && e.editRequestId) {
+      return `<td style="min-width:160px">
+        <div style="font-size:9px;color:var(--orange);font-weight:700;margin-bottom:2px">${e.editRequestType==='delete'?'DELETE':'EDIT'} REQUEST</div>
+        ${e.editRequestReason?`<div style="font-size:8px;color:var(--slate5);margin-bottom:3px;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${(e.editRequestReason||'').replace(/"/g,'&quot;')}">${e.editRequestReason}</div>`:''}
+        <div style="display:flex;gap:3px">
+          <button class="btn btn-sm" onclick="resolveEditRequestFromEntry('${e.id}','approved')" style="font-size:8px;padding:2px 6px;background:rgba(52,211,153,0.15);color:var(--green);border:1px solid rgba(52,211,153,0.3);font-weight:700">Approve</button>
+          <button class="btn btn-sm" onclick="resolveEditRequestFromEntry('${e.id}','rejected')" style="font-size:8px;padding:2px 6px;background:rgba(248,113,113,0.15);color:var(--red);border:1px solid rgba(248,113,113,0.3);font-weight:700">Reject</button>
+        </div>
+      </td>`;
     }
-    // Otherwise, show request buttons (only if entry is not already deleted)
-    return `<td class="edit-req-actions"><button class="btn btn-sm" onclick="requestEditEntry('${e.id}')" style="font-size:8px;padding:2px 5px;background:rgba(96,165,250,0.12);color:var(--blue);border:1px solid rgba(96,165,250,0.2)" title="Request Edit">Edit</button><button class="btn btn-sm" onclick="requestDeleteEntry('${e.id}')" style="font-size:8px;padding:2px 5px;background:rgba(248,113,113,0.12);color:var(--red);border:1px solid rgba(248,113,113,0.2);margin-left:2px" title="Request Delete">Del</button></td>`;
+    if (isCons && e.editRequestStatus === 'approved' && e.editRequestType === 'edit') {
+      return `<td><span class="badge approved" style="font-size:8px">Edit Approved</span></td>`;
+    }
+    if (isCons) return '<td></td>';
+    return '';
   };
   const tabCtb=`<div class="pm-tab-pane" data-tab="contributors" style="display:${activeTab==='contributors'?'block':'none'}">
     ${sorted.length>0?`
@@ -225,7 +241,7 @@ function openProjectModal(idx, opts) {
       </select>
     </div>
     <div class="tbl-wrap" id="ctbTbl"><table>
-      <thead><tr><th>Month</th><th>Contractor</th><th>Material</th><th>Type</th><th class="r">Qty</th><th class="r">BL EF</th><th class="r">Act EF</th><th class="r">Baseline</th><th class="r">Actual</th><th class="r">Savings</th><th class="r">Red%</th><th>EPD</th><th>Status</th>${isContr?'<th>Actions</th>':''}</tr></thead>
+      <thead><tr><th>Month</th><th>Contractor</th><th>Material</th><th>Type</th><th class="r">Qty</th><th class="r">BL EF</th><th class="r">Act EF</th><th class="r">Baseline</th><th class="r">Actual</th><th class="r">Savings</th><th class="r">Red%</th><th>EPD</th><th>Status</th>${(isContr||isCons)?'<th>Actions</th>':''}</tr></thead>
       <tbody>${sorted.map(e=>{const pct=e.a13B>0?((e.a13B-e.a13A)/e.a13B)*100:0;const sav=Math.max((e.a13B||0)-(e.a13A||0),0);
       const blEF=e.baselineEF||e.baseline;const acEF=e.actualEF||e.actual;
       const suspect=blEF&&acEF&&blEF>0&&acEF/blEF>10;
@@ -1182,7 +1198,10 @@ async function requestEditEntry(entryId) {
     entry.editRequestId = res.requestId;
     entry.editRequestType = 'edit';
     entry.editRequestStatus = 'pending';
-    state.editRequests = await DB.getEditRequests();
+    entry.editRequestReason = reason.trim();
+    entry.editRequestBy = state.name;
+    entry.editRequestByOrg = state.organizationName || null;
+    try { state.editRequests = await DB.getEditRequests(); } catch (e2) {}
     alert('Edit request sent to consultant for approval.');
     navigate(state.page);
   } catch (e) { alert('Failed: ' + (e.message || 'Unknown error')); }
@@ -1197,11 +1216,14 @@ async function requestDeleteEntry(entryId) {
   if (!reason.trim()) { alert('Please provide a reason for the delete request.'); return; }
   if (!confirm('Request deletion of this entry?\n\n' + entry.category + ' - ' + entry.type + '\nQty: ' + fmtI(entry.qty) + ', Actual: ' + fmt(entry.a13A) + ' tCO\u2082')) return;
   try {
-    await DB.requestChange(String(entryId), 'delete', reason.trim());
-    entry.editRequestId = true;
+    const delRes = await DB.requestChange(String(entryId), 'delete', reason.trim());
+    entry.editRequestId = delRes.requestId;
     entry.editRequestType = 'delete';
     entry.editRequestStatus = 'pending';
-    state.editRequests = await DB.getEditRequests();
+    entry.editRequestReason = reason.trim();
+    entry.editRequestBy = state.name;
+    entry.editRequestByOrg = state.organizationName || null;
+    try { state.editRequests = await DB.getEditRequests(); } catch (e2) {}
     alert('Delete request sent to consultant for approval.');
     navigate(state.page);
   } catch (e) { alert('Failed: ' + (e.message || 'Unknown error')); }
@@ -1225,14 +1247,54 @@ async function resolveEditRequest(requestId, resolution) {
     } else {
       // Rejected — clear flags
       const entry = state.entries.find(e => String(e.id) === String(req.entryId));
-      if (entry) { entry.editRequestId = null; entry.editRequestType = null; entry.editRequestStatus = null; }
+      if (entry) { entry.editRequestId = null; entry.editRequestType = null; entry.editRequestStatus = null; entry.editRequestReason = null; entry.editRequestBy = null; entry.editRequestByOrg = null; }
     }
-    state.editRequests = await DB.getEditRequests();
+    try { state.editRequests = await DB.getEditRequests(); } catch (e2) {}
     // Re-open the modal on the requests tab
     const modalEl = document.getElementById('projectModalOverlay');
     if (modalEl) {
       const projIdx = modalEl.getAttribute('data-proj-idx');
       if (projIdx !== null) openProjectModal(parseInt(projIdx), {tab:'requests'});
+    } else {
+      navigate(state.page);
+    }
+  } catch (e) { alert('Failed: ' + (e.message || 'Unknown error')); }
+}
+
+// Consultant approves/rejects directly from entry row (no editRequests lookup needed)
+async function resolveEditRequestFromEntry(entryId, resolution) {
+  const entry = state.entries.find(e => String(e.id) === String(entryId));
+  if (!entry) { alert('Entry not found'); return; }
+  if (!entry.editRequestId) { alert('No edit request found on this entry.'); return; }
+
+  const action = resolution === 'approved' ? 'approve' : 'reject';
+  const reqType = entry.editRequestType || 'edit';
+  const reqBy = entry.editRequestBy || 'contractor';
+  if (!confirm(action.charAt(0).toUpperCase() + action.slice(1) + ' this ' + reqType + ' request from ' + reqBy + '?')) return;
+
+  try {
+    const res = await DB.resolveRequest(entry.editRequestId, resolution);
+
+    if (resolution === 'approved' && reqType === 'delete') {
+      state.entries = state.entries.filter(e => String(e.id) !== String(entryId));
+    } else if (resolution === 'approved' && reqType === 'edit') {
+      entry.editRequestStatus = 'approved';
+    } else {
+      entry.editRequestId = null;
+      entry.editRequestType = null;
+      entry.editRequestStatus = null;
+      entry.editRequestReason = null;
+      entry.editRequestBy = null;
+      entry.editRequestByOrg = null;
+    }
+
+    try { state.editRequests = await DB.getEditRequests(); } catch (e2) {}
+
+    // Re-open the modal on the contributors tab so consultant sees the update
+    const modalEl = document.getElementById('projectModalOverlay');
+    if (modalEl) {
+      const projIdx = modalEl.getAttribute('data-proj-idx');
+      if (projIdx !== null) openProjectModal(parseInt(projIdx), {tab:'contributors'});
     } else {
       navigate(state.page);
     }
@@ -1350,8 +1412,11 @@ async function applyEntryEdit(entryId) {
     entry.editRequestId = null;
     entry.editRequestType = null;
     entry.editRequestStatus = null;
+    entry.editRequestReason = null;
+    entry.editRequestBy = null;
+    entry.editRequestByOrg = null;
     entry.status = 'pending';
-    state.editRequests = await DB.getEditRequests();
+    try { state.editRequests = await DB.getEditRequests(); } catch (e2) {}
     closeEditForm();
     alert('Changes applied. Entry re-submitted for review.');
     navigate(state.page);
