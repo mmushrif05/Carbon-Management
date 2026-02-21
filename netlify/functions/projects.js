@@ -13,7 +13,7 @@ async function getUserProfile(uid) {
 
 // === CREATE PROJECT ===
 async function handleCreateProject(body, decoded) {
-  const { name, description, code, status, package: pkg } = body;
+  const { name, description, code, status, packageIds } = body;
 
   if (!name || !name.trim()) return respond(400, { error: 'Project name is required.' });
 
@@ -36,7 +36,7 @@ async function handleCreateProject(body, decoded) {
     name: name.trim(),
     description: (description || '').trim(),
     code: (code || '').trim(),
-    package: (pkg || '').trim(),
+    packageIds: (packageIds && typeof packageIds === 'object') ? packageIds : {},
     status: status || 'active',
     createdBy: decoded.uid,
     createdByName: profile.name || profile.email,
@@ -104,7 +104,7 @@ async function handleGetProject(body, decoded) {
 
 // === UPDATE PROJECT ===
 async function handleUpdateProject(body, decoded) {
-  const { projectId, name, description, code, status, package: pkg } = body;
+  const { projectId, name, description, code, status, packageIds } = body;
   if (!projectId) return respond(400, { error: 'Project ID is required.' });
 
   const profile = await getUserProfile(decoded.uid);
@@ -122,7 +122,7 @@ async function handleUpdateProject(body, decoded) {
   if (name) updates.name = name.trim();
   if (description !== undefined) updates.description = (description || '').trim();
   if (code !== undefined) updates.code = (code || '').trim();
-  if (pkg !== undefined) updates.package = (pkg || '').trim();
+  if (packageIds !== undefined) updates.packageIds = (packageIds && typeof packageIds === 'object') ? packageIds : {};
   if (status) updates.status = status;
 
   await db.ref('projects/' + projectId).update(updates);
