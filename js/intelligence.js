@@ -64,9 +64,20 @@ function renderDocumentsTab() {
         '<div class="intel-upload-text">Drag & drop PDF, Excel, or CSV files here</div>' +
         '<div class="intel-upload-sub">Or click to browse. Supports CIA, CEAP, Technical Reports, Material Submittals, BOQ Specs</div>' +
         '<input type="file" id="intelFileInput" accept=".pdf,.xlsx,.xls,.csv" onchange="handleIntelFileSelect(this)" style="display:none">' +
-        '<button class="btn btn-secondary btn-sm" onclick="$(\'intelFileInput\').click()" style="margin-top:12px">Browse Files</button>' +
+        '<div style="display:flex;gap:8px;margin-top:12px">' +
+          '<button class="btn btn-secondary btn-sm" onclick="$(\'intelFileInput\').click()">Browse Files</button>' +
+          '<button class="btn btn-secondary btn-sm" onclick="downloadBOQTemplate()" style="border-color:rgba(96,165,250,0.3);color:var(--blue)">Download BOQ Template</button>' +
+        '</div>' +
       '</div>' +
       '<div id="intelUploadStatus" style="display:none"></div>' +
+      '<div class="intel-template-hint" style="margin-top:12px;padding:12px 14px;background:var(--bg3);border-radius:8px;border:1px solid var(--border2)">' +
+        '<div style="font-size:11px;font-weight:700;color:var(--text2);margin-bottom:6px">Contractor BOQ Format (minimum required)</div>' +
+        '<div style="font-size:10px;color:var(--slate4);line-height:1.6">' +
+          '<span style="color:var(--green);font-weight:700">4 columns only:</span> Item No, Description, Quantity, Unit<br>' +
+          'The AI handles material classification, emission factor lookup (A1-A3 + ICE), unit conversion, and carbon calculation automatically.<br>' +
+          '<span style="color:var(--slate5)">Tip: More detail in the description = better classification. Include material grade, thickness, and specs when possible.</span>' +
+        '</div>' +
+      '</div>' +
     '</div>' +
     '<div class="card">' +
       '<div class="card-title">Document Library</div>' +
@@ -604,6 +615,31 @@ async function viewHistoryResult(resultId) {
   } catch (e) {
     alert('Failed to load result: ' + e.message);
   }
+}
+
+// ===== BOQ TEMPLATE DOWNLOAD =====
+function downloadBOQTemplate() {
+  var csv = 'Item No,Description,Quantity,Unit,Notes (optional)\n' +
+    '1.01,"Supply and place C40 concrete for foundation, 300mm thick",2500,m\u00B2,Grade C40\n' +
+    '1.02,"Supply and fix high yield steel reinforcement bar B500B, 16mm dia",450000,kg,\n' +
+    '2.01,"Supply and erect structural steel I-sections to roof frame",125000,kg,S355 grade\n' +
+    '3.01,"Asphalt wearing course 50mm thick, 5% binder content PMB",12000,m\u00B2,\n' +
+    '4.01,"Double glazed IGU units 6/12/6mm to curtain wall",3200,m\u00B2,Low-E\n' +
+    '5.01,"Aluminum curtain wall profiles with thermal break",28000,kg,\n' +
+    '6.01,"600mm dia ductile iron pipe to main drainage",2800,m,\n' +
+    '7.01,"50mm thick extruded polystyrene insulation to roof",6000,m\u00B2,XPS\n' +
+    '8.01,"200mm thick hollow concrete blockwork",3600,m\u00B2,\n' +
+    '9.01,"Remove existing floor tiles and screed",2000,m\u00B2,Demolition\n' +
+    '9.02,"Provisional sum for testing and commissioning",1,sum,\n' +
+    '9.03,"LED light fitting complete with driver and all accessories",523,nr,MEP assembly\n';
+
+  var blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url;
+  a.download = 'BOQ_Template_CarbonTrack.csv';
+  a.click();
+  URL.revokeObjectURL(url);
 }
 
 // ===== UTILITY =====
