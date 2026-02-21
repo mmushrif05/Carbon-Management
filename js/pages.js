@@ -1047,7 +1047,7 @@ async function assignUserToOrganization() {
 // ===== PROJECTS MANAGEMENT =====
 async function renderProjects(el) {
   const r = state.role;
-  const canManage = r === 'client' || r === 'consultant';
+  const canManage = r === 'client';
 
   el.innerHTML = `
   <!-- Project Overview -->
@@ -1167,10 +1167,10 @@ async function renderProjects(el) {
   </div>` : ''}
 
   <!-- Link Contractor to Project -->
-  ${canManage || state.role === 'consultant' ? `<div class="card">
+  ${canManage ? `<div class="card">
     <div class="card-title">Link Contractor to Project</div>
     <div style="padding:10px 14px;background:rgba(96,165,250,0.06);border:1px solid rgba(96,165,250,0.15);border-radius:10px;margin-bottom:14px;font-size:13px;color:var(--blue)">
-      ${canManage ? 'Link a contractor company directly to a project, or let the assigned consultant in-charge handle this.' : 'As consultant in-charge, link contractor companies to projects you manage.'}
+      Link a contractor company directly to a project, or let the assigned consultant in-charge handle this (after granting permission above).
     </div>
     <div class="form-row c3">
       <div class="fg">
@@ -1180,6 +1180,27 @@ async function renderProjects(el) {
       <div class="fg">
         <label>Contractor Company</label>
         <select id="projContOrg"><option value="">Select contractor company...</option></select>
+      </div>
+      <div class="fg" style="display:flex;align-items:flex-end">
+        <button class="btn btn-primary" onclick="linkContractorToProject()">Link</button>
+      </div>
+    </div>
+    <div class="login-error" id="projContError" style="margin-top:12px"></div>
+    <div id="projContOrgList" style="margin-top:12px"></div>
+  </div>` : ''}
+  ${state.role === 'consultant' ? `<div class="card" id="consultantContractorCard">
+    <div class="card-title">Link Contractor to Project</div>
+    <div style="padding:10px 14px;background:rgba(96,165,250,0.06);border:1px solid rgba(96,165,250,0.15);border-radius:10px;margin-bottom:14px;font-size:13px;color:var(--blue)">
+      Link contractor companies to projects where you have been granted linking permission by the client. Only allowed contractors will appear.
+    </div>
+    <div class="form-row c3">
+      <div class="fg">
+        <label>Project</label>
+        <select id="projContProject" onchange="filterContractorsByPermission()"><option value="">Select project...</option></select>
+      </div>
+      <div class="fg">
+        <label>Contractor Company</label>
+        <select id="projContOrg"><option value="">Select project first...</option></select>
       </div>
       <div class="fg" style="display:flex;align-items:flex-end">
         <button class="btn btn-primary" onclick="linkContractorToProject()">Link</button>
@@ -1229,13 +1250,14 @@ async function loadProjectData() {
   // Track errors so we can show a warning banner if something goes wrong
   const errors = [];
 
-  const [projects, users, orgs, projAssignments, projOrgLinks, pkgTemplates] = await Promise.all([
+  const [projects, users, orgs, projAssignments, projOrgLinks, pkgTemplates, consultantPerms] = await Promise.all([
     DB.getProjects().catch(e => { errors.push('Projects: ' + (e.message || 'failed')); return state.projects || []; }),
     DB.getUsers().catch(e => { errors.push('Users: ' + (e.message || 'failed')); return state.users || []; }),
     DB.getOrganizations().catch(e => { errors.push('Organizations: ' + (e.message || 'failed')); return state.organizations || []; }),
     DB.getProjectAssignments().catch(e => { errors.push('Assignments: ' + (e.message || 'failed')); return state.projectAssignments || []; }),
     DB.getProjectOrgLinks().catch(e => { errors.push('Org links: ' + (e.message || 'failed')); return state.projectOrgLinks || []; }),
-    DB.getPackageTemplates(state.role === 'client').catch(e => { errors.push('Pkg templates: ' + (e.message || 'failed')); return state.packageTemplates || []; })
+    DB.getPackageTemplates(state.role === 'client').catch(e => { errors.push('Pkg templates: ' + (e.message || 'failed')); return state.packageTemplates || []; }),
+    DB.getConsultantPermissions().catch(e => { errors.push('Consultant perms: ' + (e.message || 'failed')); return state.consultantPermissions || {}; })
   ]);
 
   state.projects = projects;
@@ -1244,6 +1266,7 @@ async function loadProjectData() {
   state.projectAssignments = projAssignments;
   state.projectOrgLinks = projOrgLinks;
   state.packageTemplates = pkgTemplates;
+  state.consultantPermissions = consultantPerms;
 
   renderProjectList(projects);
   renderProjectOrgLinks(projOrgLinks);
@@ -1342,24 +1365,45 @@ function renderProjectOrgLinks(links) {
   const consultantLinks = links.filter(l => l.orgType === 'consultant_firm');
   const contractorLinks = links.filter(l => l.orgType === 'contractor_company');
 
-  const canUnlinkConsultant = state.role === 'client';
-  const canUnlinkContractor = state.role === 'client' || state.role === 'consultant';
+  const isClient = state.role === 'client';
+  const canUnlink = isClient; // Only client can unlink any org
 
-  // Render consultant org links
+  // Render consultant org links (with permissions management for client)
   const consEl = $('projConsOrgList');
   if (consEl) {
     if (!consultantLinks.length) {
       consEl.innerHTML = '<div style="font-size:12px;color:var(--slate5);text-align:center;padding:8px">No consultant firms linked yet.</div>';
     } else {
+      const perms = state.consultantPermissions || {};
       consEl.innerHTML = `<div class="tbl-wrap"><table>
-        <thead><tr><th>Project</th><th>Consultant Firm</th><th>Role</th><th>Linked By</th>${canUnlinkConsultant ? '<th>Actions</th>' : ''}</tr></thead>
-        <tbody>${consultantLinks.map(l => `<tr>
+        <thead><tr><th>Project</th><th>Consultant Firm</th><th>Role</th><th>Linked By</th>${isClient ? '<th>Can Link Contractors</th><th>Allowed Contractors</th><th>Actions</th>' : ''}</tr></thead>
+        <tbody>${consultantLinks.map(l => {
+          const projPerms = (perms[l.projectId] || {})[l.orgId] || {};
+          const canLink = !!projPerms.canLinkContractors;
+          const allowedIds = projPerms.allowedContractorOrgIds || {};
+          const allowedNames = Object.keys(allowedIds).map(id => {
+            const org = (state.organizations || []).find(o => o.id === id);
+            return org ? org.name : id;
+          });
+          return `<tr>
           <td style="font-weight:600;color:var(--blue)">${l.projectName}</td>
           <td style="font-weight:600">${l.orgName}</td>
           <td><span class="badge approved">${l.role || 'Consultant'}</span></td>
           <td style="color:var(--slate5);font-size:12px">${l.createdByName || '--'}</td>
-          ${canUnlinkConsultant ? `<td><button class="btn btn-danger btn-sm" onclick="unlinkOrgFromProject('${l.id}')">Unlink</button></td>` : ''}
-        </tr>`).join('')}</tbody>
+          ${isClient ? `
+          <td>
+            <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px">
+              <input type="checkbox" ${canLink ? 'checked' : ''} onchange="toggleConsultantLinkPerm('${l.projectId}','${l.orgId}',this.checked)" />
+              <span style="color:${canLink ? 'var(--green)' : 'var(--slate5)'}">${canLink ? 'Yes' : 'No'}</span>
+            </label>
+          </td>
+          <td>
+            ${allowedNames.length > 0 ? allowedNames.map(n => '<span class="badge review" style="font-size:10px;margin:1px">' + n + '</span>').join(' ') : '<span style="color:var(--slate5);font-size:11px">All (no restriction)</span>'}
+            <button class="btn btn-sm" style="font-size:10px;margin-left:4px;padding:2px 8px" onclick="editAllowedContractors('${l.projectId}','${l.orgId}')">Edit</button>
+          </td>
+          <td><button class="btn btn-danger btn-sm" onclick="unlinkOrgFromProject('${l.id}')">Unlink</button></td>
+          ` : ''}
+        </tr>`; }).join('')}</tbody>
       </table></div>`;
     }
   }
@@ -1371,12 +1415,12 @@ function renderProjectOrgLinks(links) {
       contEl.innerHTML = '<div style="font-size:12px;color:var(--slate5);text-align:center;padding:8px">No contractor companies linked yet.</div>';
     } else {
       contEl.innerHTML = `<div class="tbl-wrap"><table>
-        <thead><tr><th>Project</th><th>Contractor Company</th><th>Linked By</th>${canUnlinkContractor ? '<th>Actions</th>' : ''}</tr></thead>
+        <thead><tr><th>Project</th><th>Contractor Company</th><th>Linked By</th>${canUnlink ? '<th>Actions</th>' : ''}</tr></thead>
         <tbody>${contractorLinks.map(l => `<tr>
           <td style="font-weight:600;color:var(--blue)">${l.projectName}</td>
           <td style="font-weight:600">${l.orgName}</td>
           <td style="color:var(--slate5);font-size:12px">${l.createdByName || '--'} <span class="badge ${l.createdByRole === 'client' ? 'approved' : 'review'}" style="font-size:10px">${l.createdByRole || ''}</span></td>
-          ${canUnlinkContractor ? `<td><button class="btn btn-danger btn-sm" onclick="unlinkOrgFromProject('${l.id}')">Unlink</button></td>` : ''}
+          ${canUnlink ? `<td><button class="btn btn-danger btn-sm" onclick="unlinkOrgFromProject('${l.id}')">Unlink</button></td>` : ''}
         </tr>`).join('')}</tbody>
       </table></div>`;
     }
@@ -1392,12 +1436,18 @@ function renderProjectUserAssignments(assignments) {
     return;
   }
 
-  const canRemove = state.role === 'client' || state.role === 'consultant' || state.role === 'contractor';
+  // Determine which projects current user is in-charge of
+  const myInChargeProjects = new Set();
+  if (state.role === 'consultant' || state.role === 'contractor') {
+    assignments.forEach(a => {
+      if (a.userId === state.uid && a.designation === 'in_charge') myInChargeProjects.add(a.projectId);
+    });
+  }
 
   // Group by project for clarity
   const byProject = {};
   assignments.forEach(a => {
-    if (!byProject[a.projectId]) byProject[a.projectId] = { name: a.projectName, items: [] };
+    if (!byProject[a.projectId]) byProject[a.projectId] = { name: a.projectName, id: a.projectId, items: [] };
     byProject[a.projectId].items.push(a);
   });
 
@@ -1409,21 +1459,31 @@ function renderProjectUserAssignments(assignments) {
       if (b.designation === 'in_charge' && a.designation !== 'in_charge') return 1;
       return (a.userName || '').localeCompare(b.userName || '');
     });
+    const showActions = state.role === 'client' || myInChargeProjects.has(group.id);
     html += `<div style="margin-bottom:12px">
       <div style="font-size:11px;font-weight:700;color:var(--blue);text-transform:uppercase;letter-spacing:1px;padding:6px 0">${group.name}</div>
       <div class="tbl-wrap"><table>
-        <thead><tr><th>User</th><th>Designation</th><th>Role</th><th>Organization</th><th>Assigned By</th>${canRemove ? '<th>Actions</th>' : ''}</tr></thead>
+        <thead><tr><th>User</th><th>Designation</th><th>Role</th><th>Organization</th><th>Assigned By</th>${showActions ? '<th>Actions</th>' : ''}</tr></thead>
         <tbody>${group.items.map(a => {
           const desigBadge = a.designation === 'in_charge'
             ? '<span class="badge" style="background:rgba(251,191,36,0.15);color:var(--yellow);font-weight:700">In-Charge</span>'
             : '<span class="badge" style="background:rgba(148,163,184,0.12);color:var(--slate5)">Team Member</span>';
+          // Consultant can only remove own org members + contractor team; contractor can only remove own org
+          let canRemoveThis = false;
+          if (state.role === 'client') {
+            canRemoveThis = true;
+          } else if (state.role === 'consultant' && myInChargeProjects.has(group.id)) {
+            canRemoveThis = a.userRole !== 'client' && a.userId !== state.uid;
+          } else if (state.role === 'contractor' && myInChargeProjects.has(group.id)) {
+            canRemoveThis = a.userOrgId === state.organizationId && a.userId !== state.uid;
+          }
           return `<tr>
           <td style="font-weight:600">${a.userName}</td>
           <td>${desigBadge}</td>
           <td><span class="badge ${a.userRole === 'consultant' ? 'approved' : a.userRole === 'contractor' ? 'review' : 'pending'}" style="text-transform:capitalize">${a.userRole}</span></td>
           <td style="color:var(--slate5);font-size:12px">${a.userOrgName || '--'}</td>
           <td style="color:var(--slate5);font-size:12px">${a.createdByName || '--'} <span class="badge" style="font-size:10px;background:rgba(148,163,184,0.08);color:var(--slate5)">${a.createdByRole || ''}</span></td>
-          ${canRemove ? `<td><button class="btn btn-danger btn-sm" onclick="removeUserFromProject('${a.id}')">Remove</button></td>` : ''}
+          ${showActions ? `<td>${canRemoveThis ? `<button class="btn btn-danger btn-sm" onclick="removeUserFromProject('${a.id}')">Remove</button>` : ''}</td>` : ''}
         </tr>`; }).join('')}</tbody>
       </table></div>
     </div>`;
@@ -1438,7 +1498,7 @@ function populateProjectDropdowns(projects, users, orgs) {
   const consultantOrgs = orgs.filter(o => o.type === 'consultant_firm');
   const contractorOrgs = orgs.filter(o => o.type === 'contractor_company');
 
-  // Consultant linking dropdowns
+  // Consultant linking dropdowns (client only)
   const cpEl = $('projConsProject');
   const coEl = $('projConsOrg');
   if (cpEl) cpEl.innerHTML = projOpts;
@@ -1447,8 +1507,37 @@ function populateProjectDropdowns(projects, users, orgs) {
   // Contractor linking dropdowns
   const ctpEl = $('projContProject');
   const ctoEl = $('projContOrg');
-  if (ctpEl) ctpEl.innerHTML = projOpts;
-  if (ctoEl) ctoEl.innerHTML = '<option value="">Select contractor company...</option>' + contractorOrgs.map(o => `<option value="${o.id}">${o.name}</option>`).join('');
+  if (ctpEl) {
+    if (state.role === 'consultant') {
+      // For consultants: show only projects where they have canLinkContractors permission
+      const perms = state.consultantPermissions || {};
+      const allowedProjects = projects.filter(p => {
+        const projPerms = perms[p.id] || {};
+        const myOrgPerms = projPerms[state.organizationId] || {};
+        return !!myOrgPerms.canLinkContractors;
+      });
+      ctpEl.innerHTML = '<option value="">Select project...</option>' + allowedProjects.map(p => `<option value="${p.id}">${p.name}${p.code ? ' (' + p.code + ')' : ''}</option>`).join('');
+      // Default contractor dropdown to "select project first"
+      if (ctoEl) ctoEl.innerHTML = '<option value="">Select project first...</option>';
+    } else {
+      ctpEl.innerHTML = projOpts;
+      if (ctoEl) ctoEl.innerHTML = '<option value="">Select contractor company...</option>' + contractorOrgs.map(o => `<option value="${o.id}">${o.name}</option>`).join('');
+    }
+  }
+
+  // Hide consultant contractor card if no projects with permission
+  if (state.role === 'consultant') {
+    const card = $('consultantContractorCard');
+    if (card) {
+      const perms = state.consultantPermissions || {};
+      const hasAnyPerm = projects.some(p => {
+        const projPerms = perms[p.id] || {};
+        const myOrgPerms = projPerms[state.organizationId] || {};
+        return !!myOrgPerms.canLinkContractors;
+      });
+      card.style.display = hasAnyPerm ? '' : 'none';
+    }
+  }
 
   // User assignment dropdowns
   const upEl = $('projUserProject');
@@ -1465,6 +1554,86 @@ function populateProjectDropdowns(projects, users, orgs) {
     availableUsers = availableUsers.filter(u => u.role === 'consultant' || u.role === 'contractor');
   }
   if (uuEl) uuEl.innerHTML = '<option value="">Select user...</option>' + availableUsers.map(u => `<option value="${u.uid}">${u.name} (${u.role})${u.organizationName ? ' - ' + u.organizationName : ''}</option>`).join('');
+}
+
+// === CONSULTANT CONTRACTOR PERMISSION FILTERING ===
+function filterContractorsByPermission() {
+  const projectId = $('projContProject') && $('projContProject').value;
+  const ctoEl = $('projContOrg');
+  if (!ctoEl) return;
+
+  if (!projectId) {
+    ctoEl.innerHTML = '<option value="">Select project first...</option>';
+    return;
+  }
+
+  const perms = state.consultantPermissions || {};
+  const projPerms = perms[projectId] || {};
+  const myOrgPerms = projPerms[state.organizationId] || {};
+  const allowedIds = myOrgPerms.allowedContractorOrgIds || {};
+  const hasRestrictions = Object.keys(allowedIds).length > 0;
+
+  const contractorOrgs = (state.organizations || []).filter(o => o.type === 'contractor_company');
+  const filtered = hasRestrictions ? contractorOrgs.filter(o => allowedIds[o.id]) : contractorOrgs;
+
+  ctoEl.innerHTML = '<option value="">Select contractor company...</option>' + filtered.map(o => `<option value="${o.id}">${o.name}</option>`).join('');
+}
+
+// === CONSULTANT PERMISSIONS MANAGEMENT (CLIENT ONLY) ===
+async function toggleConsultantLinkPerm(projectId, consultantOrgId, canLink) {
+  try {
+    // Preserve existing allowedContractorOrgIds
+    const perms = state.consultantPermissions || {};
+    const existing = (perms[projectId] || {})[consultantOrgId] || {};
+    await DB.setConsultantPermissions(projectId, consultantOrgId, {
+      canLinkContractors: canLink,
+      allowedContractorOrgIds: existing.allowedContractorOrgIds || {}
+    });
+    await loadProjectData();
+  } catch (e) {
+    console.error('[PROJECT] Toggle consultant perm failed:', e);
+    alert(e.message || 'Failed to update consultant permissions.');
+  }
+}
+
+async function editAllowedContractors(projectId, consultantOrgId) {
+  const perms = state.consultantPermissions || {};
+  const existing = (perms[projectId] || {})[consultantOrgId] || {};
+  const currentAllowed = existing.allowedContractorOrgIds || {};
+
+  const contractorOrgs = (state.organizations || []).filter(o => o.type === 'contractor_company');
+  if (!contractorOrgs.length) { alert('No contractor companies found. Create one first.'); return; }
+
+  // Build a simple checklist prompt
+  const lines = contractorOrgs.map(o => {
+    const checked = currentAllowed[o.id] ? '[x]' : '[ ]';
+    return checked + ' ' + o.name;
+  });
+  const input = prompt(
+    'Select allowed contractors for this consultant on this project.\n' +
+    'Enter comma-separated numbers (1-based) of contractors to allow.\n' +
+    'Leave empty for "all contractors allowed" (no restriction).\n\n' +
+    contractorOrgs.map((o, i) => (i + 1) + '. ' + o.name + (currentAllowed[o.id] ? ' (currently allowed)' : '')).join('\n')
+  );
+
+  if (input === null) return; // cancelled
+
+  const newAllowed = {};
+  if (input.trim()) {
+    const nums = input.split(',').map(s => parseInt(s.trim())).filter(n => !isNaN(n) && n >= 1 && n <= contractorOrgs.length);
+    nums.forEach(n => { newAllowed[contractorOrgs[n - 1].id] = true; });
+  }
+
+  try {
+    await DB.setConsultantPermissions(projectId, consultantOrgId, {
+      canLinkContractors: !!existing.canLinkContractors,
+      allowedContractorOrgIds: newAllowed
+    });
+    await loadProjectData();
+  } catch (e) {
+    console.error('[PROJECT] Edit allowed contractors failed:', e);
+    alert(e.message || 'Failed to update allowed contractors.');
+  }
 }
 
 async function createProject() {

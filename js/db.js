@@ -639,6 +639,31 @@ const DB = {
     return null;
   },
 
+  // === CONSULTANT PERMISSIONS ===
+  async setConsultantPermissions(projectId, consultantOrgId, permissions) {
+    await ensureDbConnected();
+    const res = await apiCall('/projects', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'set-consultant-perms', projectId, consultantOrgId, ...permissions })
+    });
+    const data = await safeJsonParse(res);
+    if (!res.ok) throw new Error(data.error || 'Failed to set consultant permissions.');
+    return data;
+  },
+
+  async getConsultantPermissions(projectId) {
+    if (!dbConnected) return state.consultantPermissions || {};
+    const payload = { action: 'get-consultant-perms' };
+    if (projectId) payload.projectId = projectId;
+    const res = await apiCall('/projects', {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    });
+    const data = await safeJsonParse(res);
+    if (!res.ok) throw new Error(data.error || 'Failed to load consultant permissions.');
+    return data.permissions || {};
+  },
+
   // === PACKAGE TEMPLATES ===
   async getPackageTemplates(includeInactive) {
     if (!dbConnected) return state.packageTemplates || [];
