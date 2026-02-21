@@ -1,0 +1,22 @@
+Item No,Description,Quantity,Unit,Notes (optional)
+1.01,"Supply and place C40 concrete for foundation, 300mm thick",2500,m²,Grade C40
+1.02,"Supply and fix high yield steel reinforcement bar B500B, 16mm dia",450000,kg,
+1.03,"Supply and install 150mm thick concrete blinding C15/20",800,m²,Lean mix
+2.01,"Supply and erect structural steel I-sections to roof frame",125000,kg,S355 grade
+2.02,"Hot dip galvanized steel handrails and balustrades",8500,kg,
+3.01,"Asphalt wearing course 50mm thick, 5% binder content PMB",12000,m²,Polymer modified
+3.02,"Asphalt base course 80mm thick, 4% binder content",12000,m²,
+4.01,"Double glazed IGU units 6/12/6mm to curtain wall",3200,m²,Low-E coated
+4.02,"12mm thick toughened safety glass to partitions",650,m²,
+5.01,"Aluminum curtain wall profiles with thermal break",28000,kg,Powder coated
+5.02,"Aluminum composite cladding panels to facade",4500,m²,
+6.01,"600mm dia ductile iron pipe to main drainage",2800,m,Class K9
+6.02,"200mm dia HDPE pipe to secondary drainage",1500,m,PE100 SDR17
+7.01,"50mm thick extruded polystyrene insulation to roof",6000,m²,XPS board
+7.02,"100mm thick mineral wool insulation to walls",4200,m²,Rock wool
+8.01,"Common facing bricks 215x102x65mm",85000,nr,Class B engineering
+8.02,"200mm thick hollow concrete blockwork",3600,m²,7N/mm²
+9.01,"Remove existing floor tiles and screed",2000,m²,Demolition
+9.02,"Provisional sum for testing and commissioning",1,sum,
+9.03,"Bi-directional LED light fitting complete with driver and all accessories",523,nr,Complex MEP assembly
+9.04,"Supply and install fan coil unit complete with controls and piping",86,nr,MEP assembly
