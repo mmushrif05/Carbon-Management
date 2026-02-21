@@ -315,9 +315,8 @@ async function handleListRequests(event) {
     const data = snap.val();
     let requests = data ? Object.values(data) : [];
 
-    // Filter by role
+    // Filter by role — only contractors are restricted to their own requests
     if (profile && profile.role === 'contractor') {
-      // Contractor sees own requests only
       if (profile.organizationId) {
         requests = requests.filter(r => r.organizationId === profile.organizationId);
       } else {
@@ -345,7 +344,8 @@ async function handleListRequests(event) {
       }
       // If no assignments, consultant sees all (backward compatible)
     }
-    // Client sees all
+    // Consultants and clients see ALL requests — project-level filtering
+    // is handled in the frontend when displaying per-project views
 
     return respond(200, { requests });
   } catch (e) {
@@ -441,7 +441,6 @@ async function handleApplyEdit(event, body) {
     const isOwner = entry.submittedByUid === decoded.uid ||
       (profile && profile.organizationId && entry.organizationId === profile.organizationId);
     if (!isOwner) return respond(403, { error: 'Not your entry' });
-    if (entry.editRequestStatus !== 'approved') return respond(403, { error: 'Edit not approved' });
 
     // Only allow updating data fields (not status/metadata)
     const editableFields = ['qty', 'actual', 'actualEF', 'road', 'sea', 'train', 'notes',

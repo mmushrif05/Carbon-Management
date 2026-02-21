@@ -202,10 +202,10 @@ function openProjectModal(idx, opts) {
     if (isAuth) {
       const blEF=e.baselineEF||e.baseline;const acEF=e.actualEF||e.actual;
       const suspect=blEF&&acEF&&blEF>0&&acEF/blEF>10;
-      // If consultant and there's a pending edit request, show approve/reject + force actions
-      if (isCons && e.editRequestStatus === 'pending' && e.editRequestId) {
+      // If consultant and there's a pending delete request, show approve/reject + force actions
+      if (isCons && e.editRequestStatus === 'pending' && e.editRequestType === 'delete' && e.editRequestId) {
         return `<td style="min-width:180px">
-          <div style="font-size:9px;color:var(--orange);font-weight:700;margin-bottom:2px">${e.editRequestType==='delete'?'DELETE':'EDIT'} REQUEST</div>
+          <div style="font-size:9px;color:var(--orange);font-weight:700;margin-bottom:2px">DELETE REQUEST</div>
           ${e.editRequestReason?`<div style="font-size:8px;color:var(--slate5);margin-bottom:3px;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${(e.editRequestReason||'').replace(/"/g,'&quot;')}">${e.editRequestReason}</div>`:''}
           <div style="display:flex;gap:3px;flex-wrap:wrap">
             <button class="btn btn-sm" onclick="resolveEditRequestFromEntry('${e.id}','approved')" style="font-size:8px;padding:2px 6px;background:rgba(52,211,153,0.15);color:var(--green);border:1px solid rgba(52,211,153,0.3);font-weight:700">Approve</button>
@@ -217,15 +217,15 @@ function openProjectModal(idx, opts) {
       // Otherwise show force-delete + fix EF (for suspect entries)
       return `<td class="force-actions">${suspect?`<button class="btn btn-sm anomaly-fix-btn" onclick="showCorrectModal('${e.id}')" title="Fix anomalous EF value">Fix EF</button>`:''}<button class="btn btn-sm force-del-btn" onclick="forceDeleteEntry('${e.id}')" title="Force delete this entry">Del</button></td>`;
     }
-    // === CONTRACTOR actions ===
+    // === CONTRACTOR actions — direct edit (no approval needed), delete still needs request ===
     if (!isContr) return '';
-    if (e.editRequestStatus === 'approved' && e.editRequestType === 'edit') {
-      return `<td><button class="btn btn-sm btn-primary" onclick="openEditEntryForm('${e.id}')" style="font-size:8px;padding:2px 6px">Edit Now</button></td>`;
+    if (e.editRequestStatus === 'pending' && e.editRequestType === 'delete') {
+      return `<td><span class="badge review" style="font-size:8px">Del Requested</span></td>`;
     }
-    if (e.editRequestStatus === 'pending') {
-      return `<td><span class="badge review" style="font-size:8px">${e.editRequestType==='delete'?'Del':'Edit'} Requested</span></td>`;
-    }
-    return `<td class="edit-req-actions"><button class="btn btn-sm" onclick="requestEditEntry('${e.id}')" style="font-size:8px;padding:2px 5px;background:rgba(96,165,250,0.12);color:var(--blue);border:1px solid rgba(96,165,250,0.2)" title="Request Edit">Edit</button><button class="btn btn-sm" onclick="requestDeleteEntry('${e.id}')" style="font-size:8px;padding:2px 5px;background:rgba(248,113,113,0.12);color:var(--red);border:1px solid rgba(248,113,113,0.2);margin-left:2px" title="Request Delete">Del</button></td>`;
+    const delBtn = e.status !== 'pending'
+      ? `<button class="btn btn-sm" onclick="requestDeleteEntry('${e.id}')" style="font-size:8px;padding:2px 5px;background:rgba(248,113,113,0.12);color:var(--red);border:1px solid rgba(248,113,113,0.2);margin-left:2px" title="Request Delete">Del</button>`
+      : `<button class="btn btn-sm" onclick="delEntry('${e.id}')" style="font-size:8px;padding:2px 5px;background:rgba(248,113,113,0.12);color:var(--red);border:1px solid rgba(248,113,113,0.2);margin-left:2px" title="Delete">Del</button>`;
+    return `<td class="edit-req-actions"><button class="btn btn-sm" onclick="openEditEntryForm('${e.id}')" style="font-size:8px;padding:2px 5px;background:rgba(96,165,250,0.12);color:var(--blue);border:1px solid rgba(96,165,250,0.2)" title="Edit Entry">Edit</button>${delBtn}</td>`;
   };
   const tabCtb=`<div class="pm-tab-pane" data-tab="contributors" style="display:${activeTab==='contributors'?'block':'none'}">
     ${sorted.length>0?`
@@ -1163,17 +1163,29 @@ function renderRecent(){
   const r=[...state.entries].reverse().slice(0,15);
   const isContr = state.role === 'contractor';
   t.innerHTML=r.length?r.map(e=>{const blEF=e.baselineEF||e.baseline;const acEF=e.actualEF||e.actual;const suspect=blEF&&acEF&&blEF>0&&acEF/blEF>10;const pct=e.a13B>0?((e.a13B-e.a13A)/e.a13B)*100:0;
-    // Action column logic for contractor
+    // Action column logic for contractor — direct edit, no approval needed
     let actionHtml = '';
     if (isContr) {
-      if (e.status === 'pending' && !e.editRequestStatus) {
+      if (e.editRequestStatus === 'pending' && e.editRequestType === 'delete') {
+        actionHtml = `<span class="badge review" style="font-size:8px">Del Req</span>`;
+      } else {
+        // Edit button always available — opens edit form directly
+        actionHtml = `<button class="btn btn-sm" onclick="openEditEntryForm('${e.id}')" style="font-size:8px;padding:2px 5px;background:rgba(96,165,250,0.12);color:var(--blue);border:1px solid rgba(96,165,250,0.2)" title="Edit Entry">Edit</button>`;
+        // Delete: direct delete if pending, otherwise request
+        if (e.status === 'pending') {
+          actionHtml += `<button class="btn btn-danger btn-sm" onclick="delEntry('${e.id}')" style="margin-left:2px">\u2715</button>`;
+        } else {
+          actionHtml += `<button class="btn btn-sm" onclick="requestDeleteEntry('${e.id}')" style="font-size:8px;padding:2px 5px;background:rgba(248,113,113,0.12);color:var(--red);border:1px solid rgba(248,113,113,0.2);margin-left:2px" title="Request Delete">Del</button>`;
+        }
+      }
+    } else if (state.role === 'consultant') {
+      // Consultant sees approve/reject only for delete requests
+      if (e.editRequestStatus === 'pending' && e.editRequestType === 'delete' && e.editRequestId) {
+        actionHtml = `<span style="font-size:8px;color:var(--orange);font-weight:700">DEL REQ</span> `
+          + `<button class="btn btn-sm" onclick="resolveEditRequestFromEntry('${e.id}','approved')" style="font-size:8px;padding:1px 5px;background:rgba(52,211,153,0.15);color:var(--green);border:1px solid rgba(52,211,153,0.3)">Approve</button> `
+          + `<button class="btn btn-sm" onclick="resolveEditRequestFromEntry('${e.id}','rejected')" style="font-size:8px;padding:1px 5px;background:rgba(248,113,113,0.15);color:var(--red);border:1px solid rgba(248,113,113,0.3)">Reject</button>`;
+      } else if (e.status === 'pending') {
         actionHtml = `<button class="btn btn-danger btn-sm" onclick="delEntry('${e.id}')">\u2715</button>`;
-      } else if (e.editRequestStatus === 'approved' && e.editRequestType === 'edit') {
-        actionHtml = `<button class="btn btn-sm btn-primary" onclick="openEditEntryForm('${e.id}')" style="font-size:9px;padding:2px 6px">Edit</button>`;
-      } else if (e.editRequestStatus === 'pending') {
-        actionHtml = `<span class="badge review" style="font-size:8px">${e.editRequestType==='delete'?'Del':'Edit'} Req</span>`;
-      } else if (e.status !== 'pending') {
-        actionHtml = `<button class="btn btn-sm" onclick="requestEditEntry('${e.id}')" style="font-size:8px;padding:2px 5px;background:rgba(96,165,250,0.12);color:var(--blue);border:1px solid rgba(96,165,250,0.2)" title="Request Edit">Edit</button><button class="btn btn-sm" onclick="requestDeleteEntry('${e.id}')" style="font-size:8px;padding:2px 5px;background:rgba(248,113,113,0.12);color:var(--red);border:1px solid rgba(248,113,113,0.2);margin-left:2px" title="Request Delete">Del</button>`;
       }
     } else {
       // Consultant/Client: force-delete any entry + fix EF on suspect
@@ -1474,8 +1486,6 @@ async function submitCorrectEF(entryId) {
 function openEditEntryForm(entryId) {
   const entry = state.entries.find(e => String(e.id) === String(entryId));
   if (!entry) { alert('Entry not found'); return; }
-  if (entry.editRequestStatus !== 'approved') { alert('Edit not yet approved.'); return; }
-
   // Remove old edit overlay
   const old = document.getElementById('editEntryOverlay'); if (old) old.remove();
   const ov = document.createElement('div');
@@ -1685,7 +1695,24 @@ function renderApprovals(el){
     ? `<div class="card"><div class="card-title">Your Assignments</div><div style="padding:10px 14px;background:rgba(96,165,250,0.08);border:1px solid rgba(96,165,250,0.2);border-radius:10px;font-size:13px;color:var(--blue)">You are reviewing submissions from <strong>${state.assignments.map(a=>a.contractorName).join(', ')}</strong>. Only their entries appear here.</div></div>`
     : '';
 
-  el.innerHTML=`${anomalyBanner}${assignInfo}<div class="card"><div class="card-title">Workflow</div>
+  // Build delete requests section for consultant (edit requests no longer needed — contractors edit directly)
+  const editReqHtml = r === 'consultant' ? (() => {
+    const delReqEntries = state.entries.filter(e => e.editRequestStatus === 'pending' && e.editRequestType === 'delete' && e.editRequestId);
+    if (delReqEntries.length === 0) return '';
+    return `<div class="card" style="border:1px solid rgba(251,146,60,0.3);background:rgba(251,146,60,0.03)"><div class="card-title" style="color:var(--orange)">Delete Requests (${delReqEntries.length})</div>
+    <div style="font-size:11px;color:var(--slate5);margin:-8px 14px 10px 14px">Contractors are requesting permission to delete entries below</div>
+    <div class="tbl-wrap"><table><thead><tr><th>Project</th><th>Material</th><th>Type</th><th>By</th><th>Reason</th><th class="r">Qty</th><th class="r">Actual</th><th>Actions</th></tr></thead>
+    <tbody>${delReqEntries.map(e => `<tr>
+      <td style="font-weight:600;color:var(--blue);font-size:11px">${e.projectName||'--'}</td>
+      <td>${e.category||'--'}</td><td>${e.type||'--'}</td>
+      <td style="font-size:11px">${e.editRequestBy||e.submittedBy||'--'}<br><span style="font-size:9px;color:var(--slate5)">${e.editRequestByOrg||e.organizationName||''}</span></td>
+      <td style="font-size:11px;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${(e.editRequestReason||'').replace(/"/g,'&quot;')}">${e.editRequestReason||'--'}</td>
+      <td class="r mono">${fmtI(e.qty)}</td><td class="r mono">${fmt(e.a13A)}</td>
+      <td><button class="btn btn-sm" onclick="resolveEditRequestFromEntry('${e.id}','approved')" style="font-size:9px;padding:2px 8px;background:rgba(52,211,153,0.15);color:var(--green);border:1px solid rgba(52,211,153,0.3);font-weight:700">Approve</button> <button class="btn btn-sm" onclick="resolveEditRequestFromEntry('${e.id}','rejected')" style="font-size:9px;padding:2px 8px;background:rgba(248,113,113,0.15);color:var(--red);border:1px solid rgba(248,113,113,0.3);font-weight:700">Reject</button></td>
+    </tr>`).join('')}</tbody></table></div></div>`;
+  })() : '';
+
+  el.innerHTML=`${anomalyBanner}${assignInfo}${editReqHtml}<div class="card"><div class="card-title">Workflow</div>
   <div class="flow-steps"><div class="flow-step"><div class="flow-dot done">\ud83c\udfd7\ufe0f</div><div class="flow-label">Contractor</div></div><div class="flow-line done"></div><div class="flow-step"><div class="flow-dot ${r==='consultant'?'current':'done'}">\ud83d\udccb</div><div class="flow-label">Consultant</div></div><div class="flow-line ${r==='client'||r==='consultant'?'done':''}"></div><div class="flow-step"><div class="flow-dot ${r==='client'?'current':(r==='consultant'?'done':'')}">\ud83d\udc54</div><div class="flow-label">Client</div></div></div></div>
   <div class="card"><div class="card-title">${items.length} Items</div><div class="tbl-wrap"><table><thead><tr><th>Project</th><th>Month</th><th>Material</th><th>Type</th><th>By</th><th>Org</th><th class="r">Baseline</th><th class="r">Actual</th><th class="r">Reduction</th><th>Status</th>${r!=='contractor'?'<th>Actions</th>':''}</tr></thead><tbody>${items.length?items.map(e=>{const _bl=e.baselineEF||e.baseline||0;const _ac=e.actualEF||e.actual||0;const _suspect=_bl>0&&_ac>0&&_ac/_bl>10;return`<tr${_suspect?' style="background:rgba(248,113,113,0.06)"':''}>
   <td style="font-weight:600;color:var(--blue);font-size:11px">${e.projectName||'--'}</td><td>${e.monthLabel}</td><td>${e.category}</td><td>${e.type}</td><td>${e.submittedBy||'\u2014'}</td><td style="font-size:11px;color:var(--slate5)">${e.organizationName||'\u2014'}</td><td class="r mono">${fmt(e.a13B)}</td><td class="r mono"${_suspect?' style="color:var(--red);font-weight:700"':''}>${fmt(e.a13A)}${_suspect?' !!':''}</td><td class="r mono" style="color:${e.pct>20?'var(--green)':'var(--orange)'};font-weight:700">${fmt(e.pct)}%</td><td><span class="badge ${e.status}">${e.status}</span></td>${r==='consultant'?`<td>${e.status==='pending'?`<button class="btn btn-approve btn-sm" onclick="appr('${e.id}','review')">\u2713 Forward</button> `:''}${e.status==='pending'||e.status==='review'?`<button class="btn btn-primary btn-sm" onclick="appr('${e.id}','approved')">\u2713 Approve</button> `:''}<button class="btn btn-danger btn-sm" onclick="appr('${e.id}','rejected')">\u2715 Reject</button>${_suspect?` <button class="btn btn-sm anomaly-fix-btn" onclick="showCorrectModal('${e.id}')">Fix</button>`:''} <button class="btn btn-sm force-del-btn" onclick="forceDeleteEntry('${e.id}')">Del</button></td>`:''}${r==='client'?`<td><button class="btn btn-approve btn-sm" onclick="appr('${e.id}','approved')">\u2713 Approve</button> <button class="btn btn-danger btn-sm" onclick="appr('${e.id}','rejected')">\u2715 Reject</button>${_suspect?` <button class="btn btn-sm anomaly-fix-btn" onclick="showCorrectModal('${e.id}')">Fix</button>`:''} <button class="btn btn-sm force-del-btn" onclick="forceDeleteEntry('${e.id}')">Del</button></td>`:''}</tr>`}).join(''):'<tr><td colspan="11" class="empty">No pending items</td></tr>'}</tbody></table></div></div>`;
