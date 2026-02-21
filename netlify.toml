@@ -8,6 +8,9 @@
 [functions."parse-boq"]
   timeout = 26
 
+[functions."carbon-advisor"]
+  timeout = 26
+
 [[redirects]]
   from = "/api/*"
   to = "/.netlify/functions/:splat"

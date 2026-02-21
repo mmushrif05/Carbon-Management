@@ -268,4 +268,10 @@ td.mono{font-family:'Courier New',monospace;font-size:11px}
 /* ===== PROJECT CARD BADGE ===== */
 .pcard-red-badge{font-size:11px;font-weight:800;padding:1px 6px;border-radius:4px;flex-shrink:0}
 
+/* ===== AI ADVISOR ===== */
+.ai-advisor-panel{padding:4px 0}
+.ai-result-card{padding:16px;background:var(--bg3);border:1px solid rgba(167,139,250,0.15);border-radius:12px}
+.ai-result-body{font-size:11px;line-height:1.7;color:var(--slate3)}
+.ai-result-body strong{color:var(--text)}
+
 @media(max-width:768px){.pm-sheet{max-width:100%}.pm-scroll{padding:8px 14px 24px}.pcard-grid{grid-template-columns:repeat(auto-fill,minmax(160px,1fr))}.dash-decision-row{grid-template-columns:1fr 1fr}.dash-kpi-row{gap:8px}.dash-kpi-v{font-size:16px}}

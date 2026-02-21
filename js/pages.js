@@ -253,8 +253,56 @@ function openProjectModal(idx, opts) {
           <button class="pm-tab ${activeTab==='contractors'?'active':''}" onclick="_switchTab('contractors')">Contractors</button>
           <button class="pm-tab ${activeTab==='materials'?'active':''}" onclick="_switchTab('materials')">Materials</button>
           <button class="pm-tab ${activeTab==='contributors'?'active':''}" onclick="_switchTab('contributors')">Contributors</button>
+          ${r==='consultant'?`<button class="pm-tab ${activeTab==='advisor'?'active':''}" onclick="_switchTab('advisor')" style="color:var(--purple)">AI Advisor</button>`:''}
         </div>
         ${tabOv}${tabCon}${tabMat}${tabCtb}
+        ${r==='consultant'?`<div class="pm-tab-pane" data-tab="advisor" style="display:${activeTab==='advisor'?'block':'none'}">
+          <div class="ai-advisor-panel">
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+              <div style="width:36px;height:36px;border-radius:10px;background:rgba(167,139,250,0.15);display:flex;align-items:center;justify-content:center;font-size:18px">&#x1F9E0;</div>
+              <div>
+                <div style="font-size:14px;font-weight:800;color:var(--text)">Carbon Reduction Advisor</div>
+                <div style="font-size:10px;color:var(--slate5)">AI-powered analysis of emission contributors and reduction strategies</div>
+              </div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:14px">
+              <div style="padding:10px;background:var(--bg3);border-radius:8px;text-align:center">
+                <div style="font-size:16px;font-weight:800;color:var(--blue)">${fmt(pTotal)}</div>
+                <div style="font-size:8px;color:var(--slate5)">Total tCO\u2082</div>
+              </div>
+              <div style="padding:10px;background:var(--bg3);border-radius:8px;text-align:center">
+                <div style="font-size:16px;font-weight:800;color:${rc}">${fmt(pRed)}%</div>
+                <div style="font-size:8px;color:var(--slate5)">Current Reduction</div>
+              </div>
+              <div style="padding:10px;background:var(--bg3);border-radius:8px;text-align:center">
+                <div style="font-size:16px;font-weight:800;color:var(--red)">${target}%</div>
+                <div style="font-size:8px;color:var(--slate5)">Target</div>
+              </div>
+            </div>
+            <div style="margin-bottom:14px">
+              <div style="font-size:10px;font-weight:700;letter-spacing:1px;color:var(--text3);text-transform:uppercase;margin-bottom:6px">Contribution Breakdown</div>
+              ${materials.map(m=>{const mPct=pA>0?(m.a/pA)*100:0;const mRed=m.b>0?((m.b-m.a)/m.b)*100:0;const cl=MATCOLS[m.name]||'var(--slate4)';return`<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+                <div style="width:80px;font-size:11px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${m.name.replace('_',' ')}</div>
+                <div style="flex:1;height:16px;background:var(--bg3);border-radius:4px;overflow:hidden;position:relative">
+                  <div style="height:100%;width:${Math.min(mPct,100)}%;background:${cl};opacity:0.5;border-radius:4px"></div>
+                  <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:var(--text)">${fmt(mPct)}%</div>
+                </div>
+                <div style="font-size:10px;font-weight:700;color:${_rc(mRed,target)};width:50px;text-align:right">${fmt(mRed)}%</div>
+              </div>`;}).join('')}
+            </div>
+            ${contractors.length>0?`<div style="margin-bottom:14px">
+              <div style="font-size:10px;font-weight:700;letter-spacing:1px;color:var(--text3);text-transform:uppercase;margin-bottom:6px">Contractor Performance Gap</div>
+              ${contractors.filter(c=>c.pct<target).map(c=>{const gap=target-c.pct;const needed=c.b>0?(c.b*target/100)-(c.b-c.a):0;return`<div style="padding:8px 10px;background:rgba(248,113,113,0.05);border:1px solid rgba(248,113,113,0.1);border-radius:8px;margin-bottom:4px;display:flex;justify-content:space-between;align-items:center">
+                <div><div style="font-size:11px;font-weight:700;color:var(--text)">${c.name}</div><div style="font-size:9px;color:var(--red)">Needs ${fmt(gap)}% more reduction (${fmt(Math.abs(needed))} tCO\u2082)</div></div>
+                <div style="font-size:12px;font-weight:800;color:var(--red)">${fmt(c.pct)}%</div>
+              </div>`;}).join('')||'<div style="font-size:11px;color:var(--green);padding:8px">All contractors meeting target</div>'}
+            </div>`:''}
+            <button class="btn btn-primary" onclick="runCarbonAdvisor(${idx})" id="aiAdvisorBtn" style="width:100%;display:flex;align-items:center;justify-content:center;gap:8px">
+              <span>&#x1F9E0;</span> Generate AI Reduction Strategy
+            </button>
+            <div id="aiAdvisorResult" style="margin-top:14px"></div>
+          </div>
+        </div>`:''}
       </div>
     </div>`;
   document.body.appendChild(ov);
@@ -267,7 +315,8 @@ function openProjectModal(idx, opts) {
 
 function _switchTab(tab) {
   document.querySelectorAll('.pm-tab-pane').forEach(el=>{el.style.display=el.getAttribute('data-tab')===tab?'block':'none';});
-  document.querySelectorAll('.pm-tab').forEach(btn=>{btn.classList.toggle('active',btn.textContent.toLowerCase()===tab);});
+  const tabMap={'Overview':'overview','Contractors':'contractors','Materials':'materials','Contributors':'contributors','AI Advisor':'advisor'};
+  document.querySelectorAll('.pm-tab').forEach(btn=>{btn.classList.toggle('active',(tabMap[btn.textContent]||btn.textContent.toLowerCase())===tab);});
 }
 
 function _filterCtb(val, field) {
@@ -279,6 +328,68 @@ function closeProjectModal() {
   const ov=document.getElementById('projectModalOverlay');if(!ov)return;
   const sh=document.getElementById('pmSheet');if(sh)sh.classList.remove('pm-sheet-visible');
   ov.classList.remove('pm-visible');setTimeout(()=>ov.remove(),350);
+}
+
+// ===== AI CARBON REDUCTION ADVISOR =====
+async function runCarbonAdvisor(idx) {
+  const btn = document.getElementById('aiAdvisorBtn');
+  const resultEl = document.getElementById('aiAdvisorResult');
+  if (!btn || !resultEl) return;
+  btn.disabled = true;
+  btn.innerHTML = '<span class="loading-spinner" style="width:16px;height:16px;border-width:2px;display:inline-block"></span> Analyzing with AI...';
+  resultEl.innerHTML = '<div style="padding:16px;text-align:center;color:var(--slate5);font-size:11px">Generating reduction strategy... This may take 15-20 seconds.</div>';
+
+  const projects = state.projects || [];
+  const p = projects[idx]; if (!p) { resultEl.innerHTML = '<div style="color:var(--red)">Project not found.</div>'; return; }
+  const pe = (state.entries || []).filter(e => e.projectId === p.id);
+  const pa5 = (state.a5entries || []).filter(e => e.projectId === p.id);
+  const target = state.reductionTarget || 20;
+
+  // Build analysis payload
+  const contractors = _aggContractors(pe);
+  const materials = _aggMaterials(pe);
+  let tB=0,tA=0; pe.forEach(e=>{tB+=e.a13B||0;tA+=e.a13A||0;});
+  let a5T=0; pa5.forEach(e=>{a5T+=e.emission||0;});
+  const reduction = tB>0?((tB-tA)/tB)*100:0;
+
+  const payload = {
+    project: { name: p.name, code: p.code || '' },
+    target,
+    totals: { baseline: tB, actual: tA, a5: a5T, reduction: +reduction.toFixed(2) },
+    materials: materials.map(m => ({ name: m.name, baseline: m.b, actual: m.a, entries: m.n, reduction: m.b>0?+((m.b-m.a)/m.b*100).toFixed(2):0 })),
+    contractors: contractors.map(c => ({ name: c.name, baseline: c.b, actual: c.a, entries: c.n, reduction: +c.pct.toFixed(2) }))
+  };
+
+  try {
+    const res = await apiCall('/carbon-advisor', { method: 'POST', body: JSON.stringify(payload) });
+    if (!res.ok) { const err = await res.text(); throw new Error(err); }
+    const data = await safeJsonParse(res);
+    if (!data.analysis) throw new Error('No analysis returned');
+
+    // Render AI response
+    resultEl.innerHTML = `<div class="ai-result-card">
+      <div style="font-size:10px;font-weight:700;letter-spacing:1px;color:var(--purple);text-transform:uppercase;margin-bottom:8px">AI Analysis Results</div>
+      <div class="ai-result-body">${_renderAdvisorMarkdown(data.analysis)}</div>
+      <div style="font-size:8px;color:var(--slate6);margin-top:10px;text-align:right">Powered by Claude AI</div>
+    </div>`;
+  } catch (e) {
+    resultEl.innerHTML = `<div style="padding:12px;background:rgba(248,113,113,0.08);border:1px solid rgba(248,113,113,0.2);border-radius:8px;color:var(--red);font-size:11px">Analysis failed: ${e.message||'Unknown error'}. Please try again.</div>`;
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<span>&#x1F9E0;</span> Generate AI Reduction Strategy';
+  }
+}
+
+function _renderAdvisorMarkdown(text) {
+  return text
+    .replace(/###\s*(.+)/g, '<div style="font-size:13px;font-weight:800;color:var(--text);margin:14px 0 6px">$1</div>')
+    .replace(/##\s*(.+)/g, '<div style="font-size:14px;font-weight:800;color:var(--green);margin:16px 0 8px;padding-bottom:4px;border-bottom:1px solid var(--border2)">$1</div>')
+    .replace(/\*\*(.+?)\*\*/g, '<strong style="color:var(--text)">$1</strong>')
+    .replace(/\n- /g, '\n<div style="display:flex;gap:6px;margin:3px 0;font-size:11px;color:var(--slate3)"><span style="color:var(--green);flex-shrink:0">&#x2022;</span><span>')
+    .replace(/\n(?=<div style="display:flex)/g, '</span></div>\n')
+    .replace(/\n/g, '<br>')
+    .replace(/([\d.]+%)/g, '<span style="font-weight:700;color:var(--blue)">$1</span>')
+    .replace(/([\d,.]+\s*tCO)/g, '<span style="font-weight:700">$1</span>');
 }
 
 function buildEntryTable(entries, a5entries) {
@@ -330,10 +441,25 @@ function buildContractorPerformance(entries, assignments, target) {
 // ===== PORTFOLIO DASHBOARD — one-screen command center =====
 function renderPortfolioDashboard(el, projects) {
   const r = state.role;
-  const d = state.entries || [];
-  const a5e = state.a5entries || [];
   const pa = state.projectAssignments || [];
   const target = state.reductionTarget || 20;
+
+  // Role-based data scoping
+  let d, a5e;
+  if (r === 'contractor' && state.organizationId) {
+    d = (state.entries || []).filter(e => e.organizationId === state.organizationId);
+    a5e = (state.a5entries || []).filter(e => e.organizationId === state.organizationId);
+    const myProjIds = new Set(d.map(e => e.projectId).concat(a5e.map(e => e.projectId)));
+    projects = projects.filter(p => myProjIds.has(p.id));
+  } else if (r === 'consultant') {
+    const myProjIds = new Set(pa.filter(a => a.userId === state.uid && a.userRole === 'consultant').map(a => a.projectId));
+    d = (state.entries || []).filter(e => myProjIds.has(e.projectId));
+    a5e = (state.a5entries || []).filter(e => myProjIds.has(e.projectId));
+    projects = projects.filter(p => myProjIds.has(p.id));
+  } else {
+    d = state.entries || [];
+    a5e = state.a5entries || [];
+  }
 
   // Totals
   let tB=0,tA=0,tA4=0; d.forEach(e=>{tB+=e.a13B||0;tA+=e.a13A||0;tA4+=e.a4||0;});
@@ -440,14 +566,18 @@ function renderPortfolioDashboard(el, projects) {
     </div>`:''}
     ${worstCon&&worstCon.pct<target?`<div class="dash-dcard dash-dcard-red" onclick="openProjectModal(0,{tab:'contractors'})">
       <div class="dash-dcard-icon" style="background:rgba(248,113,113,0.15);color:var(--red)">!</div>
-      <div><div class="dash-dcard-title">Worst Contractor</div><div class="dash-dcard-val">${worstCon.name}</div><div class="dash-dcard-sub">${fmt(worstCon.pct)}% reduction</div></div>
+      <div><div class="dash-dcard-title">Worst Contractor</div><div class="dash-dcard-val">${worstCon.name}</div>
+        <div class="dash-dcard-sub" style="color:var(--red);font-weight:600">${fmt(worstCon.pct)}% vs ${target}% target</div>
+        <div class="dash-dcard-sub">${fmt(worstCon.a)} tCO\u2082 | ${worstCon.n} entries</div>
+        ${allCon.filter(c=>c.pct<target).length>1?`<div class="dash-dcard-sub" style="color:var(--orange)">${allCon.filter(c=>c.pct<target).length} contractors below target</div>`:''}</div>
     </div>`:(allCon.length>0?`<div class="dash-dcard dash-dcard-green">
       <div class="dash-dcard-icon" style="background:rgba(52,211,153,0.15);color:var(--green)">\u2713</div>
       <div><div class="dash-dcard-title">Contractors</div><div class="dash-dcard-val" style="color:var(--green)">All on track</div><div class="dash-dcard-sub">${allCon.length} total</div></div>
     </div>`:'')}
-    ${bigMat?`<div class="dash-dcard">
+    ${bigMat?`<div class="dash-dcard" onclick="openProjectModal(0,{tab:'materials'})">
       <div class="dash-dcard-icon" style="background:rgba(96,165,250,0.15);color:var(--blue)">\u25CF</div>
-      <div><div class="dash-dcard-title">Material Hotspot</div><div class="dash-dcard-val">${bigMat.name.replace('_',' ')}</div><div class="dash-dcard-sub">${fmt(bigMat.a)} tCO\u2082 (${bigMat.n} entries)</div></div>
+      <div><div class="dash-dcard-title">Material Hotspot</div><div class="dash-dcard-val">${bigMat.name.replace('_',' ')}</div>
+        <div class="dash-dcard-sub">${fmt(bigMat.a)} tCO\u2082 (${bigMat.n} entries)</div></div>
     </div>`:''}
     <div class="dash-dcard ${belowTarget.length>0?'dash-dcard-amber':'dash-dcard-green'}">
       <div class="dash-dcard-icon" style="background:${belowTarget.length>0?'rgba(251,191,36,0.15)':'rgba(52,211,153,0.15)'};color:${belowTarget.length>0?'var(--yellow)':'var(--green)'}">${belowTarget.length>0?belowTarget.length:'\u2713'}</div>
