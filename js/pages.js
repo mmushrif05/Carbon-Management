@@ -132,6 +132,8 @@ function openProjectModal(idx, opts) {
     pa5 = a5e.filter(e => e.projectId === p.id);
   }
   const pAsgn = pa.filter(a => a.projectId === p.id);
+  const pOrgLinks = (state.projectOrgLinks || []).filter(l => l.projectId === p.id);
+  const pConsOrgs = pOrgLinks.filter(l => l.orgType === 'consultant_firm');
   let pB=0,pA=0,pA4=0; pe.forEach(e=>{pB+=e.a13B||0;pA+=e.a13A||0;pA4+=e.a4||0;});
   let pA5=0; pa5.forEach(e=>{pA5+=e.emission||0;});
   const pRed=pB>0?((pB-pA)/pB)*100:0, pTotal=pA+pA4+pA5, pSav=Math.max(pB-pA,0);
@@ -237,8 +239,9 @@ function openProjectModal(idx, opts) {
         <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:4px">
           <div>
             <div style="font-size:18px;font-weight:800;color:var(--text)">${p.name}</div>
-            <div style="display:flex;gap:8px;align-items:center;margin-top:2px">
+            <div style="display:flex;gap:8px;align-items:center;margin-top:2px;flex-wrap:wrap">
               ${p.code?`<span style="font-size:10px;color:var(--blue);font-family:monospace">${p.code}</span>`:''}
+              ${pConsOrgs.length>0?pConsOrgs.map(l=>`<span style="font-size:9px;padding:2px 6px;background:rgba(52,211,153,0.1);border:1px solid rgba(52,211,153,0.2);border-radius:4px;color:var(--green)">${l.orgName}</span>`).join(''):''}
               <span style="font-size:10px;color:var(--slate5)">${consC} cons, ${contC} contr</span>
               <span class="badge ${p.status==='active'?'approved':'review'}" style="font-size:9px;text-transform:capitalize">${p.status||'active'}</span>
             </div>
@@ -469,7 +472,11 @@ function renderPortfolioDashboard(el, projects) {
   const orc=_rc(rP,target), onTrack=rP>=target;
 
   // Aggregate per-project
-  const projData=projects.map((p,idx)=>{
+  const projOrgLinks = state.projectOrgLinks || [];
+  const allProjects = state.projects || [];
+  const projData=projects.map((p)=>{
+    // Use index in the ORIGINAL state.projects so openProjectModal resolves correctly
+    const idx = allProjects.findIndex(sp => sp.id === p.id);
     const pe=d.filter(e=>e.projectId===p.id);
     const pa5=a5e.filter(e=>e.projectId===p.id);
     let pB=0,pA=0,pA4=0;pe.forEach(e=>{pB+=e.a13B||0;pA+=e.a13A||0;pA4+=e.a4||0;});
@@ -478,7 +485,12 @@ function renderPortfolioDashboard(el, projects) {
     // Worst contractor per project
     const orgs=_aggContractors(pe);
     const worstOrg=orgs.length>0?orgs[0]:null;
-    return {p,idx,pe,pB,pA,pRed,pTotal,pSav,worstOrg};
+    // Materials breakdown per project
+    const mats=_aggMaterials(pe);
+    // Consultancy firm for this project
+    const consLinks=projOrgLinks.filter(l=>l.projectId===p.id&&l.orgType==='consultant_firm');
+    const consName=consLinks.length>0?consLinks[0].orgName:'Unassigned';
+    return {p,idx,pe,pB,pA,pA4,pRed,pTotal,pSav,worstOrg,mats,consName};
   });
 
   // Decision row data
@@ -498,30 +510,71 @@ function renderPortfolioDashboard(el, projects) {
     case'below':filtered.sort((a,b)=>a.pRed-b.pRed);break;
   }
 
-  // Build tiles
-  const tiles=filtered.map(pd=>{
-    const{p,idx,pe,pRed,pTotal,pSav,worstOrg}=pd;
+  // Build tile HTML for a single project
+  function _buildTile(pd) {
+    const{p,idx,pe,pB,pA,pRed,pTotal,pSav,worstOrg,mats,consName}=pd;
     const rc=_rc(pRed,target);const gw=Math.min(Math.max(pRed,0),100);
     const woC=worstOrg?_rc(worstOrg.pct,target):'';
+    // Material-wise mini breakdown (top 3)
+    const topMats=mats.slice(0,3);
+    const matHtml=topMats.map(m=>{const mRed=m.b>0?((m.b-m.a)/m.b)*100:0;const mc=_rc(mRed,target);const share=pA>0?((m.a/pA)*100):0;
+      return`<div style="display:flex;align-items:center;gap:4px;margin-bottom:2px">
+        <div style="width:4px;height:4px;border-radius:50%;background:${MATCOLS[m.name]||'var(--slate4)'};flex-shrink:0"></div>
+        <div style="font-size:8px;color:var(--slate5);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${m.name.replace('_',' ')}</div>
+        <div style="font-size:8px;font-weight:700;color:${mc}">${fmt(mRed)}%</div>
+      </div>`;
+    }).join('');
     return`<div class="pcard" onclick="openProjectModal(${idx})">
       <div class="pcard-top"><div style="display:flex;justify-content:space-between;align-items:flex-start">
         <div class="pcard-name">${p.name}</div>
         <span class="pcard-red-badge" style="background:${_rbg(pRed,target)};color:${rc}">${fmt(pRed)}%</span>
       </div>${p.code?`<div class="pcard-code">${p.code}</div>`:''}</div>
-      <div class="pcard-body"><div class="pcard-metric">
-        <div class="pcard-metric-val" style="color:var(--blue)">${fmt(pTotal)}</div>
-        <div class="pcard-metric-lbl">tCO\u2082 actual</div>
-      </div><div style="text-align:right">
-        <div style="font-size:11px;font-weight:700;color:var(--green)">${fmt(pSav)}</div>
-        <div style="font-size:8px;color:var(--slate5)">saved</div>
-      </div></div>
+      <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px">
+        <div style="font-size:9px;color:var(--slate5)"><span style="color:var(--slate4);font-weight:600">${fmt(pB)}</span> BL</div>
+        <div style="font-size:9px;color:var(--slate5)">\u2192</div>
+        <div style="font-size:9px;color:var(--blue);font-weight:600">${fmt(pA)} <span style="color:var(--slate5);font-weight:400">Act</span></div>
+      </div>
       <div class="pcard-gauge"><div class="pcard-gauge-track"><div class="pcard-gauge-fill" style="width:${gw}%;background:${rc}"></div></div></div>
+      ${matHtml?`<div style="margin:5px 0 3px">${matHtml}</div>`:''}
       <div class="pcard-footer">
         <div class="pcard-spark">${buildMiniSparkline(pe)}</div>
-        ${worstOrg?`<div style="font-size:8px;color:${woC};max-width:55%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${worstOrg.name}: ${fmt(worstOrg.pct)}%">${worstOrg.name}</div>`:`<span style="font-size:9px;color:var(--slate5)">${pe.length} entries</span>`}
+        ${r==='contractor'?`<span style="font-size:9px;color:var(--slate5)">${pe.length} entries</span>`
+         :worstOrg?`<div style="font-size:8px;color:${woC};max-width:55%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${worstOrg.name}: ${fmt(worstOrg.pct)}%">${worstOrg.name}</div>`:`<span style="font-size:9px;color:var(--slate5)">${pe.length} entries</span>`}
       </div>
     </div>`;
-  }).join('');
+  }
+
+  // Build tiles — for contractor: group by consultancy, others: flat grid
+  let tilesHtml;
+  if (r === 'contractor') {
+    const byConsultancy = {};
+    filtered.forEach(pd => {
+      const key = pd.consName;
+      if (!byConsultancy[key]) byConsultancy[key] = [];
+      byConsultancy[key].push(pd);
+    });
+    const groups = Object.entries(byConsultancy);
+    tilesHtml = groups.map(([cName, pds]) => {
+      // Group-level totals
+      let gB=0,gA=0;pds.forEach(pd=>{gB+=pd.pB;gA+=pd.pA;});
+      const gRed=gB>0?((gB-gA)/gB)*100:0;const grc=_rc(gRed,target);
+      return `<div style="margin-bottom:14px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;padding:6px 10px;background:var(--bg3);border-radius:8px;border-left:3px solid var(--green)">
+          <div>
+            <div style="font-size:11px;font-weight:800;color:var(--text)">${cName}</div>
+            <div style="font-size:8px;color:var(--slate5)">${pds.length} project${pds.length!==1?'s':''}</div>
+          </div>
+          <div style="text-align:right">
+            <div style="font-size:10px;color:var(--slate5)">${fmt(gB)} BL \u2192 <span style="color:var(--blue);font-weight:600">${fmt(gA)}</span> Act</div>
+            <div style="font-size:12px;font-weight:800;color:${grc}">${fmt(gRed)}% <span style="font-size:8px;font-weight:600">reduction</span></div>
+          </div>
+        </div>
+        <div class="pcard-grid">${pds.map(pd=>_buildTile(pd)).join('')}</div>
+      </div>`;
+    }).join('');
+  } else {
+    tilesHtml = filtered.map(pd=>_buildTile(pd)).join('');
+  }
 
   el.innerHTML=`
   <!-- Sticky Header -->
@@ -564,7 +617,7 @@ function renderPortfolioDashboard(el, projects) {
       <div class="dash-dcard-icon" style="background:rgba(248,113,113,0.15);color:var(--red)">!</div>
       <div><div class="dash-dcard-title">Worst Project</div><div class="dash-dcard-val">${worstProj.p.name}</div><div class="dash-dcard-sub">${fmt(worstProj.pA)} tCO\u2082</div></div>
     </div>`:''}
-    ${worstCon&&worstCon.pct<target?`<div class="dash-dcard dash-dcard-red" onclick="openProjectModal(0,{tab:'contractors'})">
+    ${worstCon&&worstCon.pct<target?`<div class="dash-dcard dash-dcard-red" onclick="openProjectModal(${worstProj?worstProj.idx:0},{tab:'contractors'})">
       <div class="dash-dcard-icon" style="background:rgba(248,113,113,0.15);color:var(--red)">!</div>
       <div><div class="dash-dcard-title">Worst Contractor</div><div class="dash-dcard-val">${worstCon.name}</div>
         <div class="dash-dcard-sub" style="color:var(--red);font-weight:600">${fmt(worstCon.pct)}% vs ${target}% target</div>
@@ -574,7 +627,7 @@ function renderPortfolioDashboard(el, projects) {
       <div class="dash-dcard-icon" style="background:rgba(52,211,153,0.15);color:var(--green)">\u2713</div>
       <div><div class="dash-dcard-title">Contractors</div><div class="dash-dcard-val" style="color:var(--green)">All on track</div><div class="dash-dcard-sub">${allCon.length} total</div></div>
     </div>`:'')}
-    ${bigMat?`<div class="dash-dcard" onclick="openProjectModal(0,{tab:'materials'})">
+    ${bigMat?`<div class="dash-dcard" onclick="openProjectModal(${worstProj?worstProj.idx:0},{tab:'materials'})">
       <div class="dash-dcard-icon" style="background:rgba(96,165,250,0.15);color:var(--blue)">\u25CF</div>
       <div><div class="dash-dcard-title">Material Hotspot</div><div class="dash-dcard-val">${bigMat.name.replace('_',' ')}</div>
         <div class="dash-dcard-sub">${fmt(bigMat.a)} tCO\u2082 (${bigMat.n} entries)</div></div>
@@ -590,7 +643,8 @@ function renderPortfolioDashboard(el, projects) {
     <div style="font-size:9px;font-weight:700;letter-spacing:1.5px;color:var(--text3);text-transform:uppercase">${r==='contractor'?'My Projects':r==='consultant'?'Assigned Projects':'All Projects'}</div>
     <div style="font-size:10px;color:var(--slate5)">${filtered.length} of ${projects.length} | Click to drill down</div>
   </div>
-  <div class="pcard-grid">${tiles||'<div style="padding:24px;text-align:center;color:var(--slate5);font-size:12px;grid-column:1/-1">No projects match your search.</div>'}</div>`;
+  ${r==='contractor'?tilesHtml||'<div style="padding:24px;text-align:center;color:var(--slate5);font-size:12px">No projects match your search.</div>'
+   :`<div class="pcard-grid">${tilesHtml||'<div style="padding:24px;text-align:center;color:var(--slate5);font-size:12px;grid-column:1/-1">No projects match your search.</div>'}</div>`}`;
 }
 
 async function saveReductionTarget() {
