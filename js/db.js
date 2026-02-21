@@ -500,12 +500,12 @@ const DB = {
     return data.projects || [];
   },
 
-  async createProject(name, description, code) {
+  async createProject(name, description, code, pkg) {
     await ensureDbConnected();
     console.log('[DB] Creating project:', name);
     const res = await apiCall('/projects', {
       method: 'POST',
-      body: JSON.stringify({ action: 'create', name, description, code })
+      body: JSON.stringify({ action: 'create', name, description, code, package: pkg })
     });
     const data = await safeJsonParse(res);
     if (!res.ok) {

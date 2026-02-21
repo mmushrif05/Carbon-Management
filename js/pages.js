@@ -1075,9 +1075,27 @@ async function renderProjects(el) {
         <input id="projCode" placeholder="e.g. PA-PH1, T2-EXP" />
       </div>
       <div class="fg">
+        <label>Package</label>
+        <select id="projPackage">
+          <option value="">Select package...</option>
+          <option value="Package 1">Package 1</option>
+          <option value="Package 2">Package 2</option>
+          <option value="Package 3">Package 3</option>
+          <option value="Package 4">Package 4</option>
+          <option value="Package 5">Package 5</option>
+          <option value="Package 6">Package 6</option>
+          <option value="Package 7">Package 7</option>
+          <option value="Package 8">Package 8</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-row c3" style="margin-top:0">
+      <div class="fg">
         <label>Description (optional)</label>
         <input id="projDesc" placeholder="Brief description of the project" />
       </div>
+      <div class="fg"></div>
+      <div class="fg"></div>
     </div>
     <div class="btn-row">
       <button class="btn btn-primary" id="projCreateBtn" onclick="createProject()">+ Create Project</button>
@@ -1204,7 +1222,7 @@ function renderProjectList(projects) {
     <button class="btn btn-sm" onclick="toggleAllProjects(false)" style="font-size:12px">Clear Selection</button>
   </div>` : ''}
   <div class="tbl-wrap"><table>
-    <thead><tr>${canManage ? '<th style="width:36px"><input type="checkbox" id="projSelectAll" onchange="toggleAllProjects(this.checked)" title="Select all" /></th>' : ''}<th>Project</th><th>Code</th><th>Description</th><th>Consultants</th><th>Contractors</th><th>Orgs</th><th>Status</th><th>Created</th>${canManage ? '<th>Actions</th>' : ''}</tr></thead>
+    <thead><tr>${canManage ? '<th style="width:36px"><input type="checkbox" id="projSelectAll" onchange="toggleAllProjects(this.checked)" title="Select all" /></th>' : ''}<th>Project</th><th>Code</th><th>Package</th><th>Description</th><th>Consultants</th><th>Contractors</th><th>Orgs</th><th>Status</th><th>Created</th>${canManage ? '<th>Actions</th>' : ''}</tr></thead>
     <tbody>${projects.map(p => {
       const pAssign = projAssignments.filter(a => a.projectId === p.id);
       const pOrgs = projOrgLinks.filter(l => l.projectId === p.id);
@@ -1215,6 +1233,7 @@ function renderProjectList(projects) {
         ${canManage ? `<td><input type="checkbox" class="proj-sel" value="${p.id}" onchange="updateProjSelection()" /></td>` : ''}
         <td style="font-weight:600">${p.name || ''}</td>
         <td style="color:var(--blue);font-family:monospace;font-size:12px">${p.code || '--'}</td>
+        <td><span class="badge" style="background:rgba(139,92,246,0.1);color:var(--purple);font-size:11px">${p.package || '--'}</span></td>
         <td style="color:var(--slate5);font-size:12px;max-width:200px;overflow:hidden;text-overflow:ellipsis">${p.description || '--'}</td>
         <td class="r"><span style="color:var(--green);font-weight:700">${consultantCount}</span></td>
         <td class="r"><span style="color:var(--blue);font-weight:700">${contractorCount}</span></td>
@@ -1306,20 +1325,22 @@ async function createProject() {
   const name = ($('projName') && $('projName').value || '').trim();
   const code = ($('projCode') && $('projCode').value || '').trim();
   const desc = ($('projDesc') && $('projDesc').value || '').trim();
+  const pkg = ($('projPackage') && $('projPackage').value || '').trim();
 
   if (!name) { showError('projError', 'Please enter a project name.'); return; }
 
   // Disable button and show loading state
   if (btn) { btn.disabled = true; btn.textContent = 'Creating...'; }
-  console.log('[PROJECT] Creating project:', name, code, desc);
+  console.log('[PROJECT] Creating project:', name, code, pkg, desc);
 
   try {
-    const result = await DB.createProject(name, desc, code);
+    const result = await DB.createProject(name, desc, code, pkg);
     console.log('[PROJECT] Create result:', result);
     showSuccess('projSuccess', 'Project "' + name + '" created successfully.');
     if ($('projName')) $('projName').value = '';
     if ($('projCode')) $('projCode').value = '';
     if ($('projDesc')) $('projDesc').value = '';
+    if ($('projPackage')) $('projPackage').value = '';
 
     // Immediately add to state for instant UI feedback
     if (result && result.project) {

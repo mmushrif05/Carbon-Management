@@ -13,7 +13,7 @@ async function getUserProfile(uid) {
 
 // === CREATE PROJECT ===
 async function handleCreateProject(body, decoded) {
-  const { name, description, code, status } = body;
+  const { name, description, code, status, package: pkg } = body;
 
   if (!name || !name.trim()) return respond(400, { error: 'Project name is required.' });
 
@@ -36,6 +36,7 @@ async function handleCreateProject(body, decoded) {
     name: name.trim(),
     description: (description || '').trim(),
     code: (code || '').trim(),
+    package: (pkg || '').trim(),
     status: status || 'active',
     createdBy: decoded.uid,
     createdByName: profile.name || profile.email,
@@ -58,6 +59,15 @@ async function handleListProjects(decoded) {
   const snap = await db.ref('projects').once('value');
   const data = snap.val() || {};
   let projects = Object.values(data);
+
+  // Clean up corrupted entries (missing name) — remove from DB in background
+  const corrupted = projects.filter(p => !p.name);
+  if (corrupted.length > 0) {
+    const cleanup = {};
+    corrupted.forEach(p => { if (p.id) cleanup['projects/' + p.id] = null; });
+    db.ref().update(cleanup).catch(e => console.warn('[PROJECT] Cleanup error:', e.message));
+    projects = projects.filter(p => p.name);
+  }
 
   // If consultant or contractor, show projects they are assigned to OR created
   if (profile.role === 'consultant' || profile.role === 'contractor') {
@@ -94,7 +104,7 @@ async function handleGetProject(body, decoded) {
 
 // === UPDATE PROJECT ===
 async function handleUpdateProject(body, decoded) {
-  const { projectId, name, description, code, status } = body;
+  const { projectId, name, description, code, status, package: pkg } = body;
   if (!projectId) return respond(400, { error: 'Project ID is required.' });
 
   const profile = await getUserProfile(decoded.uid);
@@ -112,6 +122,7 @@ async function handleUpdateProject(body, decoded) {
   if (name) updates.name = name.trim();
   if (description !== undefined) updates.description = (description || '').trim();
   if (code !== undefined) updates.code = (code || '').trim();
+  if (pkg !== undefined) updates.package = (pkg || '').trim();
   if (status) updates.status = status;
 
   await db.ref('projects/' + projectId).update(updates);
