@@ -14,8 +14,10 @@ function buildSidebar() {
   if(r==='consultant'||r==='client'){items.push({id:'organizations',icon:'\ud83c\udfe2',label:'Organizations'});}
   items.push({section:"Intelligence"},{id:'intelligence',icon:'\ud83e\udde0',label:'Doc Intelligence'});
   items.push({id:'certifications',icon:'\ud83c\udfc6',label:'Certifications'},{id:'integrations',icon:'\ud83d\udd0c',label:'API Hub'});
+  items.push({section:"Competition"},{id:'pitch_deck',icon:'\ud83c\udfc6',label:'Pitch Deck',href:'pitch.html'});
 
   $('sidebarNav').innerHTML = items.map(it => it.section ? `<div class="sb-section">${it.section}</div>` :
+    it.href ? `<div class="sb-item" onclick="window.open('${it.href}','_blank')"><span class="sb-icon">${it.icon}</span>${it.label}<span style="margin-left:auto;font-size:9px;opacity:0.4">↗</span></div>` :
     `<div class="sb-item${state.page===it.id?' active':''}" onclick="navigate('${it.id}')"><span class="sb-icon">${it.icon}</span>${it.label}${it.badge>0?`<span class="sb-badge">${it.badge}</span>`:''}</div>`
   ).join('');
 }
