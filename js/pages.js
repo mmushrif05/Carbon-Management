@@ -609,7 +609,7 @@ function renderPortfolioDashboard(el, projects) {
   // Decision row data
   const allCon=_aggContractors(d);const allMat=_aggMaterials(d);
   const belowTarget=projData.filter(pd=>pd.pRed<target&&pd.pe.length>0);
-  const worstProj=projData.filter(pd=>pd.pe.length>0).sort((a,b)=>b.pA-a.pA)[0];
+  const worstProj=projData.filter(pd=>pd.pe.length>0&&pd.pB>0).sort((a,b)=>a.pRed-b.pRed)[0]||null;
   const worstCon=allCon.length>0?allCon[0]:null;
   const bigMat=allMat.length>0?allMat[0]:null;
 
@@ -617,7 +617,7 @@ function renderPortfolioDashboard(el, projects) {
   let filtered=[...projData];
   if(_dashFilter.search){const q=_dashFilter.search.toLowerCase();filtered=filtered.filter(pd=>pd.p.name.toLowerCase().includes(q)||(pd.p.code||'').toLowerCase().includes(q));}
   switch(_dashFilter.sort){
-    case'worst':filtered.sort((a,b)=>b.pA-a.pA);break;
+    case'worst':filtered.sort((a,b)=>a.pRed-b.pRed);break;
     case'best':filtered.sort((a,b)=>b.pRed-a.pRed);break;
     case'alpha':filtered.sort((a,b)=>a.p.name.localeCompare(b.p.name));break;
     case'below':filtered.sort((a,b)=>a.pRed-b.pRed);break;
@@ -852,10 +852,20 @@ function renderPortfolioDashboard(el, projects) {
 
   <!-- Decision Row -->
   <div class="dash-decision-row">
-    ${worstProj?`<div class="dash-dcard dash-dcard-red" onclick="openProjectModal(${worstProj.idx})">
-      <div class="dash-dcard-icon" style="background:rgba(248,113,113,0.15);color:var(--red)">!</div>
-      <div><div class="dash-dcard-title">Worst Project</div><div class="dash-dcard-val">${worstProj.p.name}</div><div class="dash-dcard-sub">${fmt(worstProj.pA)} tCO\u2082</div></div>
-    </div>`:''}
+    ${worstProj?(worstProj.pRed<target
+      ?`<div class="dash-dcard dash-dcard-red" onclick="openProjectModal(${worstProj.idx})">
+        <div class="dash-dcard-icon" style="background:rgba(248,113,113,0.15);color:var(--red)">!</div>
+        <div><div class="dash-dcard-title">Needs Attention</div><div class="dash-dcard-val">${worstProj.p.name}</div>
+          <div class="dash-dcard-sub" style="color:var(--red);font-weight:600">${fmt(worstProj.pRed)}% vs ${target}% target</div>
+          <div class="dash-dcard-sub">${fmt(worstProj.pA)} tCO\u2082 | ${fmt(target-worstProj.pRed)}% gap to close</div></div>
+      </div>`
+      :`<div class="dash-dcard dash-dcard-green" onclick="openProjectModal(${worstProj.idx})">
+        <div class="dash-dcard-icon" style="background:rgba(52,211,153,0.15);color:var(--green)">\u2713</div>
+        <div><div class="dash-dcard-title">All On Track</div><div class="dash-dcard-val" style="color:var(--green)">${worstProj.p.name}</div>
+          <div class="dash-dcard-sub" style="color:var(--green)">${fmt(worstProj.pRed)}% vs ${target}% target</div>
+          <div class="dash-dcard-sub">Lowest margin | ${fmt(worstProj.pA)} tCO\u2082</div></div>
+      </div>`)
+    :''}
     ${worstCon&&worstCon.pct<target?`<div class="dash-dcard dash-dcard-red" onclick="openProjectModal(${worstProj?worstProj.idx:0},{tab:'contractors'})">
       <div class="dash-dcard-icon" style="background:rgba(248,113,113,0.15);color:var(--red)">!</div>
       <div><div class="dash-dcard-title">Worst Contractor</div><div class="dash-dcard-val">${worstCon.name}</div>
