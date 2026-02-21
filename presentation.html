@@ -37,7 +37,6 @@
     width: 100vw;
   }
 
-  /* ── SLIDE ENGINE ── */
   .deck { width: 100%; height: 100vh; position: relative; }
 
   .slide {
@@ -53,7 +52,6 @@
 
   @keyframes fadeIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
 
-  /* ── NAV ── */
   .nav {
     position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%);
     display: flex; align-items: center; gap: 16px;
@@ -69,183 +67,59 @@
   .nav button:hover { color: var(--green); background: var(--green-dim); }
   .nav-counter { font-size: 12px; color: var(--text3); min-width: 60px; text-align: center; font-weight: 600; }
   .nav-dots { display: flex; gap: 6px; }
-  .nav-dot {
-    width: 6px; height: 6px; border-radius: 50%;
-    background: var(--slate); cursor: pointer; transition: all 0.2s;
-  }
+  .nav-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--slate); cursor: pointer; transition: all 0.2s; }
   .nav-dot.active { background: var(--green); width: 18px; border-radius: 3px; }
 
-  .slide-num {
-    position: fixed; top: 24px; right: 32px;
-    font-size: 11px; color: var(--slate); font-weight: 600;
-    letter-spacing: 1px;
-  }
+  .slide-num { position: fixed; top: 24px; right: 32px; font-size: 11px; color: var(--slate); font-weight: 600; letter-spacing: 1px; }
 
-  /* ── BRAND MARK ── */
-  .brand {
-    position: fixed; top: 20px; left: 32px;
-    display: flex; align-items: center; gap: 10px;
-  }
-  .brand-icon {
-    width: 32px; height: 32px; border-radius: 8px;
-    background: linear-gradient(135deg, var(--green), #0d9488);
-    display: flex; align-items: center; justify-content: center;
-    font-size: 16px;
-  }
+  .brand { position: fixed; top: 20px; left: 32px; display: flex; align-items: center; gap: 10px; }
+  .brand-icon { width: 32px; height: 32px; border-radius: 8px; background: linear-gradient(135deg, var(--green), #0d9488); display: flex; align-items: center; justify-content: center; font-size: 16px; }
   .brand-name { font-size: 14px; font-weight: 800; color: var(--text); letter-spacing: 0.5px; }
   .brand-tag { font-size: 9px; color: var(--green); font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; }
 
-  /* ── TYPOGRAPHY ── */
-  .slide-label {
-    font-size: 10px; font-weight: 700; letter-spacing: 2.5px;
-    text-transform: uppercase; color: var(--green);
-    margin-bottom: 16px;
-  }
-  .slide-title {
-    font-size: clamp(28px, 4vw, 48px); font-weight: 900;
-    line-height: 1.1; text-align: center; color: var(--text);
-    margin-bottom: 16px;
-  }
+  .slide-label { font-size: 10px; font-weight: 700; letter-spacing: 2.5px; text-transform: uppercase; color: var(--green); margin-bottom: 14px; }
+  .slide-title { font-size: clamp(24px, 3.6vw, 44px); font-weight: 900; line-height: 1.1; text-align: center; color: var(--text); margin-bottom: 14px; }
   .slide-title span { color: var(--green); }
-  .slide-sub {
-    font-size: clamp(14px, 1.6vw, 18px); color: var(--text3);
-    text-align: center; line-height: 1.6; max-width: 740px;
-  }
+  .slide-sub { font-size: clamp(13px, 1.4vw, 16px); color: var(--text3); text-align: center; line-height: 1.6; max-width: 760px; }
 
-  /* ── COVER SLIDE ── */
+  /* Cover */
   #s1 { background: radial-gradient(ellipse 80% 60% at 50% 40%, rgba(34,197,94,0.07) 0%, transparent 70%), var(--bg); }
-  .cover-badge {
-    background: var(--green-dim); border: 1px solid rgba(34,197,94,0.3);
-    color: var(--green); font-size: 11px; font-weight: 700;
-    letter-spacing: 2px; text-transform: uppercase;
-    padding: 6px 18px; border-radius: 20px; margin-bottom: 32px;
-  }
-  .cover-title {
-    font-size: clamp(42px, 7vw, 80px); font-weight: 900;
-    line-height: 1.0; text-align: center; margin-bottom: 12px;
-  }
+  .cover-badge { background: var(--green-dim); border: 1px solid rgba(34,197,94,0.3); color: var(--green); font-size: 11px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; padding: 6px 18px; border-radius: 20px; margin-bottom: 28px; }
+  .cover-title { font-size: clamp(42px, 7vw, 80px); font-weight: 900; line-height: 1.0; text-align: center; margin-bottom: 12px; }
   .cover-title .word-carbon { color: var(--text); }
   .cover-title .word-iq { color: var(--green); }
-  .cover-tagline {
-    font-size: clamp(14px, 1.8vw, 20px); color: var(--text3);
-    text-align: center; max-width: 620px; line-height: 1.6;
-    margin-bottom: 40px;
-  }
-  .cover-stats {
-    display: flex; gap: 32px; flex-wrap: wrap; justify-content: center;
-  }
-  .cover-stat {
-    text-align: center; padding: 16px 24px;
-    background: var(--bg3); border: 1px solid var(--border);
-    border-radius: 12px; min-width: 120px;
-  }
-  .cover-stat-val { font-size: 28px; font-weight: 900; color: var(--green); }
+  .cover-tagline { font-size: clamp(14px, 1.7vw, 19px); color: var(--text3); text-align: center; max-width: 640px; line-height: 1.6; margin-bottom: 36px; }
+  .cover-stats { display: flex; gap: 24px; flex-wrap: wrap; justify-content: center; }
+  .cover-stat { text-align: center; padding: 14px 22px; background: var(--bg3); border: 1px solid var(--border); border-radius: 12px; min-width: 110px; }
+  .cover-stat-val { font-size: 24px; font-weight: 900; color: var(--green); }
   .cover-stat-label { font-size: 10px; color: var(--text3); font-weight: 600; margin-top: 4px; letter-spacing: 0.5px; }
 
-  /* ── GRID LAYOUTS ── */
-  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; width: 100%; max-width: 1000px; }
-  .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; width: 100%; max-width: 1000px; }
-  .grid-4 { display: grid; grid-template-columns: repeat(4,1fr); gap: 16px; width: 100%; max-width: 1100px; }
+  /* Grids */
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; width: 100%; max-width: 1000px; }
+  .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; width: 100%; max-width: 1000px; }
+  .grid-4 { display: grid; grid-template-columns: repeat(4,1fr); gap: 14px; width: 100%; max-width: 1060px; }
 
-  /* ── CARD ── */
-  .card {
-    background: var(--bg3); border: 1px solid var(--border);
-    border-radius: 16px; padding: 24px;
-  }
+  /* Cards */
+  .card { background: var(--bg3); border: 1px solid var(--border); border-radius: 16px; padding: 20px; }
   .card-accent { border-top: 3px solid var(--green); }
-  .card-blue { border-top: 3px solid var(--blue); }
+  .card-blue   { border-top: 3px solid var(--blue); }
   .card-purple { border-top: 3px solid var(--purple); }
   .card-orange { border-top: 3px solid var(--orange); }
-  .card-cyan { border-top: 3px solid var(--cyan); }
+  .card-cyan   { border-top: 3px solid var(--cyan); }
+  .card-title { font-size: 13px; font-weight: 800; color: var(--text); margin-bottom: 8px; }
+  .card-body  { font-size: 11.5px; color: var(--text3); line-height: 1.6; }
 
-  .card-icon { font-size: 28px; margin-bottom: 12px; }
-  .card-title { font-size: 14px; font-weight: 800; color: var(--text); margin-bottom: 8px; }
-  .card-body { font-size: 12px; color: var(--text3); line-height: 1.6; }
-
-  /* ── PROBLEM SLIDE ── */
-  .problem-stat {
-    text-align: center; padding: 20px;
-    background: rgba(248,113,113,0.06); border: 1px solid rgba(248,113,113,0.15);
-    border-radius: 14px;
-  }
-  .problem-stat-val { font-size: 36px; font-weight: 900; color: #f87171; }
+  /* Problem stats */
+  .problem-stat { text-align: center; padding: 18px 14px; background: rgba(248,113,113,0.06); border: 1px solid rgba(248,113,113,0.15); border-radius: 14px; }
+  .problem-stat-val { font-size: 32px; font-weight: 900; color: #f87171; }
   .problem-stat-label { font-size: 11px; color: var(--text3); margin-top: 6px; line-height: 1.4; }
 
-  /* ── PILL ── */
-  .pill {
-    display: inline-flex; align-items: center; gap: 6px;
-    background: var(--green-dim); border: 1px solid rgba(34,197,94,0.2);
-    color: var(--green); font-size: 11px; font-weight: 700;
-    padding: 4px 12px; border-radius: 20px;
-  }
-  .pill-blue { background: rgba(96,165,250,0.1); border-color: rgba(96,165,250,0.2); color: var(--blue); }
-  .pill-purple { background: rgba(167,139,250,0.1); border-color: rgba(167,139,250,0.2); color: var(--purple); }
-  .pill-orange { background: rgba(251,146,60,0.1); border-color: rgba(251,146,60,0.2); color: var(--orange); }
-
-  /* ── ROLE CARDS ── */
-  .role-card {
-    padding: 24px; border-radius: 16px;
-    border: 1px solid var(--border); background: var(--bg3);
-    position: relative; overflow: hidden;
-  }
-  .role-card::before {
-    content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
-  }
-  .role-client::before { background: var(--green); }
-  .role-consultant::before { background: var(--purple); }
-  .role-contractor::before { background: var(--blue); }
-
-  .role-badge {
-    font-size: 9px; font-weight: 700; letter-spacing: 1.5px;
-    text-transform: uppercase; padding: 3px 10px; border-radius: 10px;
-    margin-bottom: 12px; display: inline-block;
-  }
-  .role-badge-client { background: rgba(34,197,94,0.12); color: var(--green); }
-  .role-badge-consultant { background: rgba(167,139,250,0.12); color: var(--purple); }
-  .role-badge-contractor { background: rgba(96,165,250,0.12); color: var(--blue); }
-
-  .role-title { font-size: 16px; font-weight: 800; margin-bottom: 8px; }
+  /* Role list */
   .role-list { list-style: none; }
   .role-list li { font-size: 11px; color: var(--text3); padding: 4px 0; display: flex; align-items: flex-start; gap: 8px; line-height: 1.4; }
   .role-list li::before { content: '→'; color: var(--green); flex-shrink: 0; font-weight: 700; margin-top: 1px; }
 
-  /* ── AI FEATURE CARDS ── */
-  .ai-card {
-    background: var(--bg3); border: 1px solid var(--border);
-    border-radius: 16px; padding: 28px; position: relative;
-    overflow: hidden;
-  }
-  .ai-card::after {
-    content: 'AI'; position: absolute; bottom: 16px; right: 20px;
-    font-size: 48px; font-weight: 900; color: rgba(34,197,94,0.04);
-    letter-spacing: -2px;
-  }
-  .ai-icon { font-size: 32px; margin-bottom: 14px; }
-  .ai-title { font-size: 15px; font-weight: 800; margin-bottom: 6px; }
-  .ai-subtitle { font-size: 11px; color: var(--green); font-weight: 700; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 10px; }
-  .ai-body { font-size: 12px; color: var(--text3); line-height: 1.6; }
-  .ai-tag { font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--green); background: var(--green-dim); border-radius: 4px; padding: 2px 7px; margin-top: 12px; display: inline-block; }
-
-  /* ── LIFECYCLE BAR ── */
-  .lifecycle {
-    display: flex; gap: 0; width: 100%; max-width: 900px;
-    border-radius: 12px; overflow: hidden; margin: 24px 0;
-  }
-  .lc-phase {
-    padding: 16px 12px; display: flex; flex-direction: column;
-    align-items: center; gap: 4px; flex: 1; position: relative;
-  }
-  .lc-phase-label { font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; }
-  .lc-phase-sub { font-size: 9px; color: rgba(255,255,255,0.5); text-align: center; line-height: 1.3; }
-  .lc-a13 { background: rgba(34,197,94,0.18); border-top: 3px solid var(--green); }
-  .lc-a4 { background: rgba(96,165,250,0.1); border-top: 3px solid var(--blue); }
-  .lc-a5 { background: rgba(251,146,60,0.1); border-top: 3px solid var(--orange); }
-  .lc-future { background: rgba(100,116,139,0.08); border-top: 3px solid var(--slate); }
-  .lc-badge {
-    font-size: 16px; font-weight: 900; margin-bottom: 4px;
-  }
-
-  /* ── COMPARISON TABLE ── */
+  /* Comparison table */
   .comp-table { width: 100%; max-width: 900px; border-collapse: collapse; }
   .comp-table th { font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--text3); padding: 10px 16px; text-align: left; border-bottom: 1px solid var(--border); }
   .comp-table td { font-size: 12px; padding: 10px 16px; border-bottom: 1px solid rgba(255,255,255,0.04); color: var(--text2); }
@@ -255,110 +129,30 @@
   .comp-no { color: var(--slate); }
   .comp-ours { background: rgba(34,197,94,0.04); }
 
-  /* ── IOT ROADMAP ── */
-  .roadmap {
-    display: flex; gap: 0; align-items: stretch;
-    width: 100%; max-width: 950px;
-  }
-  .roadmap-phase {
-    flex: 1; padding: 24px 20px;
-    border: 1px solid var(--border); background: var(--bg3);
-    position: relative;
-  }
-  .roadmap-phase:first-child { border-radius: 16px 0 0 16px; }
-  .roadmap-phase:last-child { border-radius: 0 16px 16px 0; border-left: none; }
-  .roadmap-phase:not(:first-child):not(:last-child) { border-left: none; }
-  .rp-label { font-size: 9px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; margin-bottom: 8px; }
-  .rp-title { font-size: 14px; font-weight: 800; margin-bottom: 10px; }
-  .rp-list { list-style: none; }
-  .rp-list li { font-size: 11px; color: var(--text3); padding: 3px 0; display: flex; gap: 6px; }
-  .rp-list li::before { content: '▸'; color: inherit; flex-shrink: 0; }
-  .rp-now .rp-label { color: var(--green); }
-  .rp-now .rp-list li::before { color: var(--green); }
-  .rp-next .rp-label { color: var(--orange); }
-  .rp-next .rp-list li::before { color: var(--orange); }
-  .rp-future .rp-label { color: var(--purple); }
-  .rp-future .rp-list li::before { color: var(--purple); }
+  /* Quote */
+  .quote-block { background: rgba(34,197,94,0.06); border-left: 3px solid var(--green); border-radius: 0 12px 12px 0; padding: 14px 20px; max-width: 820px; width: 100%; }
+  .quote-text { font-size: 15px; font-weight: 700; color: var(--text); line-height: 1.4; font-style: italic; }
 
-  /* ── IMPACT NUMBERS ── */
-  .impact-grid {
-    display: grid; grid-template-columns: repeat(3,1fr);
-    gap: 20px; width: 100%; max-width: 860px;
-  }
-  .impact-card {
-    padding: 28px 20px; text-align: center;
-    background: var(--bg3); border: 1px solid var(--border); border-radius: 16px;
-  }
-  .impact-val { font-size: 42px; font-weight: 900; color: var(--green); line-height: 1; }
-  .impact-unit { font-size: 14px; color: var(--text3); font-weight: 600; margin: 4px 0; }
-  .impact-desc { font-size: 11px; color: var(--slate); line-height: 1.4; }
-
-  /* ── CTA SLIDE ── */
-  #s13 { background: radial-gradient(ellipse 70% 50% at 50% 50%, rgba(34,197,94,0.1) 0%, transparent 70%), var(--bg); }
-  .cta-title { font-size: clamp(32px,5vw,60px); font-weight: 900; text-align: center; line-height: 1.1; margin-bottom: 16px; }
-  .cta-sub { font-size: 18px; color: var(--text3); text-align: center; max-width: 580px; margin-bottom: 40px; line-height: 1.6; }
-  .cta-btn {
-    display: inline-flex; align-items: center; gap: 10px;
-    background: var(--green); color: #000; font-size: 14px; font-weight: 800;
-    padding: 14px 32px; border-radius: 40px; border: none; cursor: pointer;
-    letter-spacing: 0.5px; text-decoration: none;
-  }
-  .cta-secondary {
-    display: inline-flex; align-items: center; gap: 8px;
-    color: var(--text3); font-size: 13px; font-weight: 600;
-    background: var(--bg3); border: 1px solid var(--border);
-    padding: 14px 28px; border-radius: 40px; cursor: pointer;
-    text-decoration: none;
-  }
+  /* CTA */
+  #s11 { background: radial-gradient(ellipse 70% 50% at 50% 50%, rgba(34,197,94,0.1) 0%, transparent 70%), var(--bg); }
+  .cta-title { font-size: clamp(30px,5vw,56px); font-weight: 900; text-align: center; line-height: 1.1; margin-bottom: 14px; }
+  .cta-sub { font-size: 16px; color: var(--text3); text-align: center; max-width: 580px; margin-bottom: 32px; line-height: 1.6; }
+  .cta-btn { display: inline-flex; align-items: center; gap: 10px; background: var(--green); color: #000; font-size: 14px; font-weight: 800; padding: 14px 32px; border-radius: 40px; border: none; cursor: pointer; letter-spacing: 0.5px; text-decoration: none; }
+  .cta-secondary { display: inline-flex; align-items: center; gap: 8px; color: var(--text3); font-size: 13px; font-weight: 600; background: var(--bg3); border: 1px solid var(--border); padding: 14px 28px; border-radius: 40px; cursor: pointer; text-decoration: none; }
   .cta-row { display: flex; gap: 16px; flex-wrap: wrap; justify-content: center; }
 
-  /* ── CERT STRIP ── */
-  .cert-strip { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; margin-top: 16px; }
-  .cert-chip {
-    display: flex; align-items: center; gap: 6px;
-    background: var(--bg4); border: 1px solid var(--border);
-    border-radius: 8px; padding: 8px 14px; font-size: 11px; font-weight: 700;
-  }
-
-  /* ── DIVIDER LINE ── */
-  .h-line { width: 60px; height: 3px; background: var(--green); border-radius: 2px; margin: 12px auto; }
-
-  /* ── QUOTE BLOCK ── */
-  .quote-block {
-    background: rgba(34,197,94,0.06); border-left: 3px solid var(--green);
-    border-radius: 0 12px 12px 0; padding: 20px 24px;
-    max-width: 700px; margin: 20px auto;
-  }
-  .quote-text { font-size: 18px; font-weight: 700; color: var(--text); line-height: 1.4; font-style: italic; }
-  .quote-attr { font-size: 11px; color: var(--slate); margin-top: 8px; }
-
-  /* ── FLOW DIAGRAM ── */
-  .flow { display: flex; align-items: center; gap: 0; max-width: 900px; width: 100%; flex-wrap: wrap; justify-content: center; }
-  .flow-box {
-    padding: 16px 18px; border-radius: 12px; text-align: center;
-    font-size: 12px; font-weight: 700; flex-shrink: 0;
-  }
-  .flow-arrow { font-size: 18px; color: var(--slate); flex-shrink: 0; padding: 0 4px; }
-  .fb-green { background: rgba(34,197,94,0.12); border: 1px solid rgba(34,197,94,0.25); color: var(--green); }
-  .fb-blue { background: rgba(96,165,250,0.1); border: 1px solid rgba(96,165,250,0.2); color: var(--blue); }
-  .fb-purple { background: rgba(167,139,250,0.1); border: 1px solid rgba(167,139,250,0.2); color: var(--purple); }
-  .fb-orange { background: rgba(251,146,60,0.1); border: 1px solid rgba(251,146,60,0.2); color: var(--orange); }
-  .fb-sub { font-size: 9px; color: var(--text3); font-weight: 500; margin-top: 4px; }
-
-  /* ── PRINT ── */
   @media print {
     body { overflow: auto; height: auto; background: #fff; color: #000; }
-    .slide { position: relative; display: flex !important; page-break-after: always; height: 100vh; background: #fff; }
+    .slide { position: relative; display: flex !important; page-break-after: always; height: 100vh; }
     .nav, .brand, .slide-num { display: none; }
     .slide-title, .cover-title { color: #000; }
-    .slide-sub, .card-body, .role-list li, .ai-body { color: #444; }
-    .card, .role-card, .ai-card, .impact-card, .problem-stat { border-color: #ddd; background: #f9f9f9; }
+    .slide-sub, .card-body, .role-list li { color: #444; }
+    .card { border-color: #ddd; background: #f9f9f9; }
   }
 </style>
 </head>
 <body>
 
-<!-- Brand -->
 <div class="brand">
   <div class="brand-icon">🌿</div>
   <div>
@@ -367,20 +161,18 @@
   </div>
 </div>
 
-<div class="slide-num" id="slideNum">1 / 13</div>
+<div class="slide-num" id="slideNum">1 / 11</div>
 
 <div class="deck" id="deck">
 
-  <!-- ══════════════════════════════════════════════════════
-       SLIDE 1 — COVER
-  ══════════════════════════════════════════════════════ -->
+  <!-- ══════════ SLIDE 1 — COVER ══════════ -->
   <div class="slide active" id="s1">
-    <div class="cover-badge">🏆 Competition Submission 2026</div>
+    <div class="cover-badge">🏆 Mega Project Carbon Intelligence Platform</div>
     <div class="cover-title">
       <span class="word-carbon">Carbon</span><span class="word-iq">IQ</span>
     </div>
     <div class="cover-tagline">
-      Just as a hospital tracks every patient's vitals in real time, CarbonIQ tracks every building's carbon footprint — from the first material manufactured to the last nail driven on site.
+      Carbon accountability for the construction industry — built for mega projects and large-scale buildings. Every emission tracked, attributed, and reported: from the first tendered material to the last day on site.
     </div>
     <div class="cover-stats">
       <div class="cover-stat">
@@ -388,324 +180,237 @@
         <div class="cover-stat-label">of Global CO₂<br>from Construction</div>
       </div>
       <div class="cover-stat">
-        <div class="cover-stat-val">3 AI</div>
-        <div class="cover-stat-label">Intelligence Engines<br>Live Today</div>
-      </div>
-      <div class="cover-stat">
         <div class="cover-stat-val">$15.5T</div>
         <div class="cover-stat-label">Global Construction<br>Market by 2030</div>
       </div>
       <div class="cover-stat">
+        <div class="cover-stat-val">3 AI</div>
+        <div class="cover-stat-label">Engines Live<br>Today</div>
+      </div>
+      <div class="cover-stat">
         <div class="cover-stat-val">IoT+</div>
-        <div class="cover-stat-label">4th AI Engine<br>on the Horizon</div>
+        <div class="cover-stat-label">Oil & Gas<br>Phase 2 Ready</div>
       </div>
     </div>
   </div>
 
-  <!-- ══════════════════════════════════════════════════════
-       SLIDE 2 — THE PROBLEM
-  ══════════════════════════════════════════════════════ -->
+  <!-- ══════════ SLIDE 2 — PROBLEM / MARKET NEED ══════════ -->
   <div class="slide" id="s2">
-    <div class="slide-label">The Problem</div>
-    <div class="slide-title">Construction carbon is <span>invisible</span></div>
-    <div class="slide-sub" style="margin-bottom:20px">Think of it like a restaurant where the chef, the supplier, and the owner each track food costs in separate notebooks — and never compare. That's exactly how construction carbon is managed today: every party holds a piece of the puzzle, but nobody sees the full picture in time to act.</div>
+    <div class="slide-label">Problem / Market Need</div>
+    <div class="slide-title">Mega projects are the <span>world's largest carbon emitters.</span><br>None of them have a system to prove it.</div>
 
-    <div class="grid-4" style="max-width:860px">
+    <div class="grid-4" style="max-width:960px; margin:18px 0">
       <div class="problem-stat">
         <div class="problem-stat-val">38%</div>
-        <div class="problem-stat-label">of global CO₂ emissions come from construction & buildings</div>
+        <div class="problem-stat-label">of global CO₂ comes from construction & buildings — the single largest source on earth</div>
       </div>
       <div class="problem-stat">
         <div class="problem-stat-val">80%</div>
-        <div class="problem-stat-label">of carbon decisions are locked in at design & procurement — before any tracking begins</div>
+        <div class="problem-stat-label">of embodied carbon locked in at design & procurement — before any measurement begins</div>
       </div>
       <div class="problem-stat">
-        <div class="problem-stat-val">3–6wk</div>
-        <div class="problem-stat-label">average time to manually calculate carbon from a single project document</div>
+        <div class="problem-stat-val">Zero</div>
+        <div class="problem-stat-label">unified carbon accountability systems across owners, engineers and contractors on mega projects today</div>
       </div>
       <div class="problem-stat">
-        <div class="problem-stat-val">0</div>
-        <div class="problem-stat-label">shared accountability systems exist across owner, engineer & builder today</div>
+        <div class="problem-stat-val">2027</div>
+        <div class="problem-stat-label">EU mandatory embodied carbon reporting deadline — Gulf and KSA regulations are following now</div>
       </div>
     </div>
 
-    <div class="quote-block" style="margin-top:24px">
-      <div class="quote-text">"You cannot manage what you cannot measure — and in construction, nobody is measuring in time to act."</div>
+    <div style="background:rgba(248,113,113,0.06);border:1px solid rgba(248,113,113,0.15);border-radius:14px;padding:16px 28px;max-width:920px;width:100%;text-align:center">
+      <div style="font-size:13px;color:var(--text2);line-height:1.7">
+        <strong style="color:var(--text)">Who is affected:</strong> Mega project owners — governments, national developers, Aramco — cannot prove their carbon commitments. Engineering consultants make multi-billion-dollar material decisions without carbon visibility. Contractors face mounting regulatory exposure with no compliant reporting tool.
+        <strong style="color:#f87171"> The problem is not lack of awareness. It is the complete absence of infrastructure to act on it.</strong>
+      </div>
     </div>
   </div>
 
-  <!-- ══════════════════════════════════════════════════════
-       SLIDE 3 — ROOT CAUSES
-  ══════════════════════════════════════════════════════ -->
+  <!-- ══════════ SLIDE 3 — MARKET SIZE / OPPORTUNITY ══════════ -->
   <div class="slide" id="s3">
-    <div class="slide-label">Root Causes</div>
-    <div class="slide-title">Three failures that <span>block progress</span></div>
-    <div class="h-line"></div>
+    <div class="slide-label">Market Size / Opportunity</div>
+    <div class="slide-title">A <span>$15.5 Trillion industry</span> forced to act — starting now</div>
+    <div class="slide-sub" style="margin-bottom:18px">Construction carbon accountability is no longer optional. Regulation, investor pressure and national commitments are converging to create mandatory, inescapable demand for exactly what CarbonIQ provides.</div>
 
-    <div class="grid-3" style="margin-top:24px; max-width:900px">
-      <div class="card card-accent">
-        <div class="card-icon">📄</div>
-        <div class="card-title">Data Locked in Documents</div>
-        <div class="card-body">Carbon quantities sit inside project quantity documents and tender PDFs — like a patient's medical history scattered across paper files in different clinics. Extracting them requires weeks of specialist work, so it rarely happens before procurement decisions are made.</div>
-      </div>
-      <div class="card card-accent">
-        <div class="card-icon">🔒</div>
-        <div class="card-title">No Shared Accountability</div>
-        <div class="card-body">The project owner, the engineer, and the builder each hold a piece of the puzzle — but no shared system connects them. Like three doctors treating the same patient without access to each other's notes. Data is siloed, unverified, and submitted after the fact.</div>
-      </div>
-      <div class="card card-accent">
-        <div class="card-icon">⏱️</div>
-        <div class="card-title">Action Always Too Late</div>
-        <div class="card-body">By the time carbon is calculated, concrete is already poured and steel is ordered. It's like reading a car's fuel report only after the road trip is over — accurate information, but completely useless for making better decisions.</div>
-      </div>
-    </div>
-  </div>
-
-  <!-- ══════════════════════════════════════════════════════
-       SLIDE 4 — OUR SOLUTION
-  ══════════════════════════════════════════════════════ -->
-  <div class="slide" id="s4">
-    <div class="slide-label">The Solution</div>
-    <div class="slide-title">A <span>Construction Carbon Accountability</span> System</div>
-    <div class="slide-sub" style="margin-bottom:28px">Not a calculator. Not a spreadsheet plugin. A living, AI-powered platform that connects every stakeholder, automates data collection, and enforces accountability from tender through construction.</div>
-
-    <div class="flow">
-      <div class="flow-box fb-green">
-        📄 Project Document<br>
-        <div class="fb-sub">Quantities & Materials</div>
-      </div>
-      <div class="flow-arrow">→</div>
-      <div class="flow-box fb-purple">
-        🤖 AI Reads It<br>
-        <div class="fb-sub">Quantities Extracted</div>
-      </div>
-      <div class="flow-arrow">→</div>
-      <div class="flow-box fb-blue">
-        ⚖️ Carbon Calculated<br>
-        <div class="fb-sub">Global Carbon Database</div>
-      </div>
-      <div class="flow-arrow">→</div>
-      <div class="flow-box fb-green">
-        ✅ Engineer Approves<br>
-        <div class="fb-sub">Workflow Enforced</div>
-      </div>
-      <div class="flow-arrow">→</div>
-      <div class="flow-box fb-orange">
-        📊 Owner Sees All<br>
-        <div class="fb-sub">Live Dashboard</div>
-      </div>
-    </div>
-
-    <div class="grid-4" style="margin-top:28px; max-width:1000px">
-      <div class="card" style="text-align:center">
-        <div style="font-size:22px;margin-bottom:8px">🤖</div>
-        <div class="card-title" style="font-size:12px">AI Data Extraction</div>
-        <div class="card-body">Project documents → carbon data in seconds, not weeks</div>
-      </div>
-      <div class="card" style="text-align:center">
-        <div style="font-size:22px;margin-bottom:8px">🔗</div>
-        <div class="card-title" style="font-size:12px">Multi-Stakeholder</div>
-        <div class="card-body">Owner → Engineer → Builder — all on one system</div>
-      </div>
-      <div class="card" style="text-align:center">
-        <div style="font-size:22px;margin-bottom:8px">🏗️</div>
-        <div class="card-title" style="font-size:12px">Three Carbon Chapters</div>
-        <div class="card-body">Making materials · Delivering them · Building on site</div>
-      </div>
-      <div class="card" style="text-align:center">
-        <div style="font-size:22px;margin-bottom:8px">🏆</div>
-        <div class="card-title" style="font-size:12px">Certification-Ready</div>
-        <div class="card-body">LEED, BREEAM, Mostadam and more — built in</div>
-      </div>
-    </div>
-  </div>
-
-  <!-- ══════════════════════════════════════════════════════
-       SLIDE 5 — THREE ROLES
-  ══════════════════════════════════════════════════════ -->
-  <div class="slide" id="s5">
-    <div class="slide-label">Platform Design</div>
-    <div class="slide-title">One platform. <span>Three roles.</span> One truth.</div>
-    <div class="slide-sub" style="margin-bottom:28px">Carbon accountability only works when every party operates from the same data. Like a shared electronic medical record that every specialist can see — and must update. No more siloed notebooks.</div>
-
-    <div class="grid-3" style="max-width:960px">
-      <div class="role-card role-client">
-        <div class="role-badge role-badge-client">Owner / Client</div>
-        <div class="role-title" style="color:var(--green)">Executive Oversight</div>
-        <ul class="role-list">
-          <li>Portfolio-wide carbon dashboard across all projects</li>
-          <li>Live planned vs. actual carbon at every stage</li>
-          <li>Builder performance ranking & alerts</li>
-          <li>Green certification progress tracking</li>
-          <li>Invite and manage engineers & builders</li>
-          <li>Organisation-level carbon reporting</li>
-        </ul>
-      </div>
-      <div class="role-card role-consultant">
-        <div class="role-badge role-badge-consultant">Engineer / Consultant</div>
-        <div class="role-title" style="color:var(--purple)">Project Intelligence</div>
-        <ul class="role-list">
-          <li>Review & approve builder submissions</li>
-          <li>AI Advisor: reduction recommendations per builder</li>
-          <li>Document Intelligence with source citations</li>
-          <li>Carbon forecasting at tender stage</li>
-          <li>Approval & change request workflow management</li>
-          <li>Cross-project material analysis</li>
-        </ul>
-      </div>
-      <div class="role-card role-contractor">
-        <div class="role-badge role-badge-contractor">Builder / Contractor</div>
-        <div class="role-title" style="color:var(--blue)">Compliant Reporting</div>
-        <ul class="role-list">
-          <li>Material tracking: planned vs. actual quantities</li>
-          <li>Delivery transport emissions (road, sea, rail)</li>
-          <li>On-site energy, fuel & water consumption</li>
-          <li>Batch submission to engineer for approval</li>
-          <li>Edit/delete requests with full audit trail</li>
-          <li>Own organisation's data view</li>
-        </ul>
-      </div>
-    </div>
-  </div>
-
-  <!-- ══════════════════════════════════════════════════════
-       SLIDE 6 — MARKET OPPORTUNITY
-  ══════════════════════════════════════════════════════ -->
-  <div class="slide" id="s6">
-    <div class="slide-label">Market Opportunity</div>
-    <div class="slide-title">A <span>$15.5 Trillion Industry</span> at a Carbon Crossroads</div>
-    <div class="slide-sub" style="margin-bottom:24px">Construction is the world's largest industry — and the one furthest behind on carbon accountability. New regulations are arriving fast. Every major developer has a net-zero commitment. The market for CarbonIQ has never been larger or more urgent.</div>
-
-    <div class="grid-3" style="max-width:960px; margin-bottom:16px">
+    <div class="grid-3" style="max-width:980px; margin-bottom:12px">
       <div class="card card-accent" style="text-align:center">
-        <div style="font-size:36px;font-weight:900;color:var(--green);margin-bottom:8px">$15.5T</div>
+        <div style="font-size:32px;font-weight:900;color:var(--green);margin-bottom:8px">$15.5T</div>
         <div class="card-title">Global Construction Market</div>
-        <div class="card-body">Expected market size by 2030. Every project is a potential CarbonIQ client — from a single contractor to a multi-project national developer.</div>
-      </div>
-      <div class="card card-blue" style="text-align:center">
-        <div style="font-size:36px;font-weight:900;color:var(--blue);margin-bottom:8px">12%</div>
-        <div class="card-title">Green Building CAGR</div>
-        <div class="card-body">The green building market is growing at 12% per year — driven by regulation, investor ESG pressure and public procurement requirements.</div>
+        <div class="card-body">Market size by 2030. Primary target: mega projects and large-scale buildings above $100M capex in Gulf and EU markets — every one of which needs a carbon accountability system by law or by commitment.</div>
       </div>
       <div class="card card-orange" style="text-align:center">
-        <div style="font-size:36px;font-weight:900;color:var(--orange);margin-bottom:8px">2027</div>
+        <div style="font-size:32px;font-weight:900;color:var(--orange);margin-bottom:8px">12%</div>
+        <div class="card-title">Green Building Market CAGR</div>
+        <div class="card-body">The fastest-growing segment in construction. Driven by regulation, ESG requirements and government procurement mandates. CarbonIQ is the infrastructure layer this growth legally requires.</div>
+      </div>
+      <div class="card card-blue" style="text-align:center">
+        <div style="font-size:32px;font-weight:900;color:var(--blue);margin-bottom:8px">2027</div>
         <div class="card-title">EU Mandatory Reporting</div>
-        <div class="card-body">The EU mandates embodied carbon reporting in construction from 2027. UK, UAE and Saudi Arabia are following with similar requirements.</div>
+        <div class="card-body">Embodied carbon reporting becomes legally required. UK, UAE and Saudi Arabia are introducing equivalent mandates. Regulation does not create demand — it makes demand inescapable.</div>
       </div>
     </div>
-
-    <div class="grid-3" style="max-width:960px">
-      <div class="card" style="padding:16px">
-        <div class="card-icon" style="font-size:20px">🇦🇪</div>
-        <div class="card-title" style="font-size:12px">Gulf Region Mandates</div>
-        <div class="card-body">Mostadam, Saudi Vision 2030 and Expo legacy projects all require embodied carbon accountability. The region is a primary target market.</div>
-      </div>
-      <div class="card" style="padding:16px">
-        <div class="card-icon" style="font-size:20px">🏢</div>
-        <div class="card-title" style="font-size:12px">Corporate Net-Zero Targets</div>
-        <div class="card-body">Every major developer, contractor and asset manager has committed to net-zero. They need the data to prove it — and face real consequences if they cannot.</div>
-      </div>
-      <div class="card" style="padding:16px">
-        <div class="card-icon" style="font-size:20px">🔍</div>
-        <div class="card-title" style="font-size:12px">No Credible Competitor</div>
-        <div class="card-body">No platform today offers multi-stakeholder, AI-powered, full-lifecycle carbon accountability for construction at project scale. CarbonIQ is first.</div>
-      </div>
-    </div>
-  </div>
-
-  <!-- ══════════════════════════════════════════════════════
-       SLIDE 7 — AI FEATURES
-  ══════════════════════════════════════════════════════ -->
-  <div class="slide" id="s7">
-    <div class="slide-label">AI Intelligence Layer</div>
-    <div class="slide-title">AI that <span>eliminates the data gap</span></div>
-    <div class="slide-sub" style="margin-bottom:28px">AI is not a feature — it is the engine that makes carbon accountability possible at scale without an army of specialists. CarbonIQ runs three AI engines today, with a fourth powered by live IoT sensor data arriving in Phase 2.</div>
 
     <div class="grid-3" style="max-width:980px">
-      <div class="ai-card">
-        <div class="ai-icon">📋</div>
-        <div class="ai-subtitle">AI Engine 1</div>
-        <div class="ai-title">Document Parser</div>
-        <div class="ai-body">Reads project quantity documents, PDFs and spreadsheets the same way a skilled accountant would — but in seconds, not weeks. Extracts materials, quantities and units, then maps each one to a carbon value automatically.</div>
-        <div class="ai-tag">Carbon at Point of Procurement</div>
+      <div style="background:rgba(251,146,60,0.06);border:1px solid rgba(251,146,60,0.15);border-radius:12px;padding:14px 16px">
+        <div style="font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--orange);margin-bottom:6px">🇸🇦 Primary Market — Gulf Region</div>
+        <div style="font-size:11.5px;color:var(--text3);line-height:1.6">Saudi Vision 2030, NEOM, Aramco's $100B+ active project pipeline, UAE net-zero targets. The Gulf is the world's largest active mega project market — and has zero carbon accountability infrastructure today.</div>
       </div>
-      <div class="ai-card">
-        <div class="ai-icon">🔍</div>
-        <div class="ai-subtitle">AI Engine 2</div>
-        <div class="ai-title">Document Intelligence</div>
-        <div class="ai-body">Upload any project report, sustainability plan or material document. The AI reads it, understands it, and answers questions across five analysis dimensions — citing the exact page for every finding, like a research analyst who never misses a footnote.</div>
-        <div class="ai-tag">Source-Cited Findings</div>
+      <div style="background:rgba(34,197,94,0.06);border:1px solid rgba(34,197,94,0.15);border-radius:12px;padding:14px 16px">
+        <div style="font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--green);margin-bottom:6px">📋 Regulatory Tailwind</div>
+        <div style="font-size:11.5px;color:var(--text3);line-height:1.6">Every new regulation passed is a forced acquisition event for CarbonIQ. Mostadam certification required on KSA government projects. CSRD mandates carbon disclosure across EU supply chains.</div>
       </div>
-      <div class="ai-card">
-        <div class="ai-icon">🧠</div>
-        <div class="ai-subtitle">AI Engine 3</div>
-        <div class="ai-title">Carbon Advisor</div>
-        <div class="ai-body">A per-project AI strategist that reads live data, identifies which builders are below their carbon targets, and generates prioritised recommendations — like a doctor reviewing test results and prescribing treatment before the condition worsens.</div>
-        <div class="ai-tag">Proactive Reduction Strategy</div>
+      <div style="background:rgba(96,165,250,0.06);border:1px solid rgba(96,165,250,0.15);border-radius:12px;padding:14px 16px">
+        <div style="font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--blue);margin-bottom:6px">🏢 Target Customer Profile</div>
+        <div style="font-size:11.5px;color:var(--text3);line-height:1.6">Government mega project owners. National real estate developers. Aramco and energy companies building infrastructure. Engineering consultancies. Main contractors managing multi-billion-dollar portfolios.</div>
       </div>
     </div>
   </div>
 
-  <!-- ══════════════════════════════════════════════════════
-       SLIDE 8 — AI ANALYSIS DIMENSIONS
-  ══════════════════════════════════════════════════════ -->
-  <div class="slide" id="s8">
-    <div class="slide-label">Document Intelligence</div>
-    <div class="slide-title">Five analysis dimensions. <span>Every finding cited.</span></div>
-    <div class="slide-sub" style="margin-bottom:28px">Upload a project document once. The AI reads it like an expert reviewer — analysing across five structured dimensions and tracing every finding back to its source page, so every conclusion is verifiable, not just trusted.</div>
+  <!-- ══════════ SLIDE 4 — SOLUTION & VALUE PROPOSITION ══════════ -->
+  <div class="slide" id="s4">
+    <div class="slide-label">Solution & Value Proposition</div>
+    <div class="slide-title">CarbonIQ: the <span>carbon accountability platform</span> for mega projects</div>
+    <div class="slide-sub" style="margin-bottom:16px">Not a calculator. Not a reporting plug-in. A platform that enforces carbon accountability across every stakeholder — from first material in the tender through the last day on site.</div>
 
-    <div style="display:flex;flex-direction:column;gap:12px;max-width:820px;width:100%">
-      <div style="display:flex;align-items:center;gap:16px;background:var(--bg3);border:1px solid var(--border);border-radius:12px;padding:16px 20px">
-        <span style="font-size:24px">🧱</span>
-        <div style="flex:1">
-          <div style="font-size:13px;font-weight:800">Material Compliance</div>
-          <div style="font-size:11px;color:var(--text3)">Checks whether specified materials meet carbon targets and sustainability requirements — with a citation to the exact document section so findings are always verifiable</div>
-        </div>
-        <span class="pill" style="flex-shrink:0">Severity Rated</span>
+    <div class="grid-3" style="max-width:980px; margin-bottom:12px">
+      <div class="card card-accent">
+        <div style="font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--green);margin-bottom:8px">For Owners / Developers</div>
+        <div style="font-size:14px;font-weight:800;margin-bottom:8px">Portfolio-wide carbon control</div>
+        <div class="card-body">Real-time carbon visibility across every project. Carbon targets enforced before procurement closes. Green certification compliance tracked automatically. Every contractor's carbon performance — ranked and transparent. One dashboard. Every project.</div>
       </div>
-      <div style="display:flex;align-items:center;gap:16px;background:var(--bg3);border:1px solid var(--border);border-radius:12px;padding:16px 20px">
-        <span style="font-size:24px">📉</span>
-        <div style="flex:1">
-          <div style="font-size:13px;font-weight:800">Reduction Opportunities</div>
-          <div style="font-size:11px;color:var(--text3)">Identifies the highest-impact material swaps and procurement changes that cut carbon — ranked by impact so teams know exactly where to act first</div>
-        </div>
-        <span class="pill" style="flex-shrink:0">Impact Scored</span>
+      <div class="card card-purple">
+        <div style="font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--purple);margin-bottom:8px">For Engineers / Consultants</div>
+        <div style="font-size:14px;font-weight:800;margin-bottom:8px">AI intelligence at procurement</div>
+        <div class="card-body">AI reads project documents and surfaces carbon data in seconds — not weeks. Identifies reduction opportunities before material orders are placed. Structured approval workflows replace manual chasing. Every decision auditable and source-cited.</div>
       </div>
-      <div style="display:flex;align-items:center;gap:16px;background:var(--bg3);border:1px solid var(--border);border-radius:12px;padding:16px 20px">
-        <span style="font-size:24px">🔎</span>
-        <div style="flex:1">
-          <div style="font-size:13px;font-weight:800">Cross-Document Consistency</div>
-          <div style="font-size:11px;color:var(--text3)">Detects conflicts and contradictions across multiple project documents — like a proofreader who has read every file simultaneously and flags every discrepancy</div>
-        </div>
-        <span class="pill" style="flex-shrink:0">Multi-Doc</span>
+      <div class="card card-blue">
+        <div style="font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--blue);margin-bottom:8px">For Builders / Contractors</div>
+        <div style="font-size:14px;font-weight:800;margin-bottom:8px">Compliant, audit-ready reporting</div>
+        <div class="card-body">Structured carbon reporting that protects contractors from regulatory exposure. Materials, delivery transport and site energy tracked in one place. Submissions reviewed by engineers with a full audit trail. Certification-ready records from day one.</div>
       </div>
-      <div style="display:flex;align-items:center;gap:16px;background:var(--bg3);border:1px solid var(--border);border-radius:12px;padding:16px 20px">
-        <span style="font-size:24px">📜</span>
-        <div style="flex:1">
-          <div style="font-size:13px;font-weight:800">Certification Gap Analysis</div>
-          <div style="font-size:11px;color:var(--text3)">Maps the project against LEED, BREEAM, Mostadam, Envision and WELL — showing exactly what gaps must close to qualify for each green certification</div>
-        </div>
-        <span class="pill" style="flex-shrink:0">Cert-Mapped</span>
+    </div>
+
+    <div class="grid-4" style="max-width:980px">
+      <div style="background:var(--bg3);border:1px solid var(--border);border-radius:12px;padding:12px;text-align:center">
+        <div style="font-size:18px;margin-bottom:5px">🔗</div>
+        <div style="font-size:11px;font-weight:800">Accountability Chain</div>
+        <div style="font-size:10px;color:var(--text3);margin-top:3px">Owner → Engineer → Builder: one connected system</div>
       </div>
-      <div style="display:flex;align-items:center;gap:16px;background:var(--bg3);border:1px solid var(--border);border-radius:12px;padding:16px 20px">
-        <span style="font-size:24px">✅</span>
-        <div style="flex:1">
-          <div style="font-size:13px;font-weight:800">Actionable Recommendations</div>
-          <div style="font-size:11px;color:var(--text3)">Prioritised next steps by role — what the owner, engineer and builder should each do first, in plain language, to reduce carbon and meet targets</div>
-        </div>
-        <span class="pill" style="flex-shrink:0">Role-Specific</span>
+      <div style="background:var(--bg3);border:1px solid var(--border);border-radius:12px;padding:12px;text-align:center">
+        <div style="font-size:18px;margin-bottom:5px">🤖</div>
+        <div style="font-size:11px;font-weight:800">AI at Procurement</div>
+        <div style="font-size:10px;color:var(--text3);margin-top:3px">Project documents → carbon data before orders are placed</div>
+      </div>
+      <div style="background:var(--bg3);border:1px solid var(--border);border-radius:12px;padding:12px;text-align:center">
+        <div style="font-size:18px;margin-bottom:5px">🏆</div>
+        <div style="font-size:11px;font-weight:800">Certification-Ready</div>
+        <div style="font-size:10px;color:var(--text3);margin-top:3px">LEED, BREEAM, Mostadam, Envision, WELL — built in</div>
+      </div>
+      <div style="background:var(--bg3);border:1px solid var(--border);border-radius:12px;padding:12px;text-align:center">
+        <div style="font-size:18px;margin-bottom:5px">📡</div>
+        <div style="font-size:11px;font-weight:800">IoT-Ready</div>
+        <div style="font-size:10px;color:var(--text3);margin-top:3px">Live sensor architecture — extending to oil & gas in Phase 2</div>
       </div>
     </div>
   </div>
 
-  <!-- ══════════════════════════════════════════════════════
-       SLIDE 9 — COMPETITIVE DIFFERENTIATION
-  ══════════════════════════════════════════════════════ -->
-  <div class="slide" id="s9">
+  <!-- ══════════ SLIDE 5 — BUSINESS MODEL ══════════ -->
+  <div class="slide" id="s5">
+    <div class="slide-label">Business Model (Revenue)</div>
+    <div class="slide-title">Three payers. <span>Recurring revenue.</span> A platform that compounds with every project.</div>
+
+    <div style="display:flex;gap:18px;max-width:980px;width:100%;margin-bottom:12px;flex-wrap:wrap">
+      <div style="flex:1.1;min-width:280px;display:flex;flex-direction:column;gap:9px">
+        <div style="font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--green);margin-bottom:2px">SaaS Revenue Tiers</div>
+        <div style="background:rgba(34,197,94,0.06);border:1px solid rgba(34,197,94,0.15);border-radius:12px;padding:13px 16px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px">
+            <span style="font-size:12px;font-weight:800">Tier 1 — Owner / Developer</span>
+            <span style="font-size:9px;font-weight:700;background:var(--green-dim);color:var(--green);padding:2px 8px;border-radius:10px">ANNUAL PORTFOLIO</span>
+          </div>
+          <div style="font-size:11px;color:var(--text3);line-height:1.5">Annual organisation subscription. Unlimited projects. Executive dashboard, certification tracking, contractor performance reporting. Highest value — lowest churn.</div>
+        </div>
+        <div style="background:rgba(167,139,250,0.06);border:1px solid rgba(167,139,250,0.15);border-radius:12px;padding:13px 16px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px">
+            <span style="font-size:12px;font-weight:800">Tier 2 — Engineer / Consultant</span>
+            <span style="font-size:9px;font-weight:700;background:rgba(167,139,250,0.12);color:var(--purple);padding:2px 8px;border-radius:10px">PER PROJECT</span>
+          </div>
+          <div style="font-size:11px;color:var(--text3);line-height:1.5">Subscription per active project. AI document analysis, Carbon Advisor, approval and workflow tools. Scales directly with project volume.</div>
+        </div>
+        <div style="background:rgba(96,165,250,0.06);border:1px solid rgba(96,165,250,0.15);border-radius:12px;padding:13px 16px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px">
+            <span style="font-size:12px;font-weight:800">Tier 3 — Builder / Contractor</span>
+            <span style="font-size:9px;font-weight:700;background:rgba(96,165,250,0.1);color:var(--blue);padding:2px 8px;border-radius:10px">PER SEAT</span>
+          </div>
+          <div style="font-size:11px;color:var(--text3);line-height:1.5">Per-organisation seat licence. Material tracking, delivery logging, site energy submission and compliant reporting to engineers. Grows with contractor headcount.</div>
+        </div>
+      </div>
+
+      <div style="flex:1;min-width:240px;display:flex;flex-direction:column;gap:9px">
+        <div style="font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--orange);margin-bottom:2px">Growth Mechanics</div>
+        <div style="background:var(--bg3);border:1px solid var(--border);border-radius:12px;padding:12px 16px;display:flex;gap:10px;align-items:flex-start">
+          <span style="font-size:18px;flex-shrink:0">📈</span>
+          <div><div style="font-size:12px;font-weight:800;margin-bottom:3px">Network Effects</div><div style="font-size:11px;color:var(--text3);line-height:1.5">Every project enriches the AI benchmark database — making CarbonIQ more accurate for all users at no added cost. The platform improves itself.</div></div>
+        </div>
+        <div style="background:var(--bg3);border:1px solid var(--border);border-radius:12px;padding:12px 16px;display:flex;gap:10px;align-items:flex-start">
+          <span style="font-size:18px;flex-shrink:0">🔒</span>
+          <div><div style="font-size:12px;font-weight:800;margin-bottom:3px">Data Moat</div><div style="font-size:11px;color:var(--text3);line-height:1.5">Accumulated project carbon data is a proprietary asset no competitor can replicate. The longer clients stay, the harder it is to leave.</div></div>
+        </div>
+        <div style="background:var(--bg3);border:1px solid var(--border);border-radius:12px;padding:12px 16px;display:flex;gap:10px;align-items:flex-start">
+          <span style="font-size:18px;flex-shrink:0">⚖️</span>
+          <div><div style="font-size:12px;font-weight:800;margin-bottom:3px">Regulatory Tailwind</div><div style="font-size:11px;color:var(--text3);line-height:1.5">Every new mandatory reporting law is a forced acquisition event. Regulation converts every project owner into a required CarbonIQ customer.</div></div>
+        </div>
+        <div style="background:var(--bg3);border:1px solid var(--border);border-radius:12px;padding:12px 16px;display:flex;gap:10px;align-items:flex-start">
+          <span style="font-size:18px;flex-shrink:0">🔌</span>
+          <div><div style="font-size:12px;font-weight:800;margin-bottom:3px">API Integration Revenue</div><div style="font-size:11px;color:var(--text3);line-height:1.5">Integration fees for BIM, ERP and procurement systems — embedding CarbonIQ into existing workflows and adding a secondary revenue stream.</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════ SLIDE 6 — TECHNOLOGY EDGE ══════════ -->
+  <div class="slide" id="s6">
+    <div class="slide-label">Technology Advantage</div>
+    <div class="slide-title">AI that works at <span>mega-project scale</span> — without a team of specialists</div>
+    <div class="slide-sub" style="margin-bottom:18px">AI removes the specialist bottleneck that makes carbon accountability impossible today. Data that required 3–6 weeks of manual analysis now flows automatically — at the moment decisions are still reversible.</div>
+
+    <div class="grid-4" style="max-width:1040px; margin-bottom:14px">
+      <div class="card card-accent">
+        <div style="font-size:22px;margin-bottom:8px">📋</div>
+        <div style="font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--green);margin-bottom:5px">AI Engine 1</div>
+        <div style="font-size:13px;font-weight:800;margin-bottom:6px">Document Parser</div>
+        <div class="card-body">Reads BOQs, specs and project PDFs. Extracts material quantities and maps each to a carbon value automatically. What took weeks now takes seconds — at procurement, not after the concrete is poured.</div>
+      </div>
+      <div class="card card-purple">
+        <div style="font-size:22px;margin-bottom:8px">🔍</div>
+        <div style="font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--purple);margin-bottom:5px">AI Engine 2</div>
+        <div style="font-size:13px;font-weight:800;margin-bottom:6px">Document Intelligence</div>
+        <div class="card-body">Upload any project document. AI analyses across 5 dimensions: material compliance, reduction opportunities, cross-document conflicts, certification gaps, role-specific actions — every finding cited to the exact source page.</div>
+      </div>
+      <div class="card card-blue">
+        <div style="font-size:22px;margin-bottom:8px">🧠</div>
+        <div style="font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--blue);margin-bottom:5px">AI Engine 3</div>
+        <div style="font-size:13px;font-weight:800;margin-bottom:6px">Carbon Advisor</div>
+        <div class="card-body">Per-project AI strategist. Reads live project data, identifies contractors approaching their targets, generates prioritised reduction actions — before the window to change procurement decisions closes.</div>
+      </div>
+      <div class="card card-orange">
+        <div style="font-size:22px;margin-bottom:8px">📡</div>
+        <div style="font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--orange);margin-bottom:5px">Phase 2 — IoT Engine</div>
+        <div style="font-size:13px;font-weight:800;margin-bottom:6px">Real-Time Site Sensors</div>
+        <div class="card-body">Architecture designed for live IoT sensor data — fuel meters, electricity sub-meters, water sensors on construction sites. The same infrastructure extends directly to oil fields and pipelines in Phase 2.</div>
+      </div>
+    </div>
+
+    <div class="quote-block">
+      <div class="quote-text">"These are not product features — they are the technical foundation that makes carbon accountability possible at mega-project scale without requiring a specialist for every document."</div>
+    </div>
+  </div>
+
+  <!-- ══════════ SLIDE 7 — COMPETITIVE ADVANTAGE ══════════ -->
+  <div class="slide" id="s7">
     <div class="slide-label">Competitive Landscape</div>
-    <div class="slide-title">Where <span>CarbonIQ stands alone</span></div>
+    <div class="slide-title">No competitor <span>connects the full chain.</span> CarbonIQ does.</div>
 
-    <table class="comp-table" style="margin-top:24px">
+    <table class="comp-table" style="margin-top:18px">
       <thead>
         <tr>
           <th>Capability</th>
@@ -716,6 +421,12 @@
       </thead>
       <tbody>
         <tr>
+          <td>Built specifically for mega projects</td>
+          <td class="comp-no">✗ Generic</td>
+          <td class="comp-no">✗ Generic</td>
+          <td class="comp-yes comp-ours">✓ Designed for mega project scale</td>
+        </tr>
+        <tr>
           <td>Multi-stakeholder accountability chain</td>
           <td class="comp-no">✗ None</td>
           <td class="comp-no">✗ Single-user</td>
@@ -723,242 +434,216 @@
         </tr>
         <tr>
           <td>AI project document parser</td>
-          <td class="comp-no">✗ Manual</td>
+          <td class="comp-no">✗ Manual entry</td>
           <td class="comp-no">✗ Manual entry</td>
           <td class="comp-yes comp-ours">✓ PDF, Excel, CSV auto-parsed</td>
         </tr>
         <tr>
-          <td>Document Intelligence with citations</td>
+          <td>Document Intelligence with source citations</td>
           <td class="comp-no">✗ None</td>
           <td class="comp-no">✗ None</td>
           <td class="comp-yes comp-ours">✓ AI analysis, page-level citations</td>
         </tr>
         <tr>
-          <td>Full construction lifecycle tracking</td>
-          <td class="comp-no">✗ Partial</td>
-          <td class="comp-no">◑ Materials only</td>
-          <td class="comp-yes comp-ours">✓ Materials, Delivery & Site — all tracked</td>
-        </tr>
-        <tr>
           <td>Pre-procurement carbon forecasting</td>
           <td class="comp-no">✗ Post-project</td>
           <td class="comp-no">✗ Post-design</td>
-          <td class="comp-yes comp-ours">✓ Tender stage scenario builder</td>
+          <td class="comp-yes comp-ours">✓ Tender-stage scenario builder</td>
         </tr>
         <tr>
-          <td>IoT real-time site integration</td>
+          <td>IoT real-time sensor integration</td>
           <td class="comp-no">✗ None</td>
           <td class="comp-no">✗ None</td>
-          <td class="comp-yes comp-ours">✓ Phase 2 — 4th AI Engine</td>
+          <td class="comp-yes comp-ours">✓ Architecture ready — Phase 2</td>
         </tr>
         <tr>
           <td>Green certification tracking (LEED, Mostadam…)</td>
           <td class="comp-no">✗ Manual</td>
           <td class="comp-no">◑ Limited</td>
-          <td class="comp-yes comp-ours">✓ 5 certifications built-in</td>
+          <td class="comp-yes comp-ours">✓ 5 certifications built in</td>
         </tr>
       </tbody>
     </table>
   </div>
 
-  <!-- ══════════════════════════════════════════════════════
-       SLIDE 10 — THE 4th AI ENGINE (IoT)
-  ══════════════════════════════════════════════════════ -->
-  <div class="slide" id="s10">
-    <div class="slide-label">Phase 2 — The 4th AI Engine</div>
-    <div class="slide-title">IoT: From <span>reporting to real-time control</span></div>
-    <div class="slide-sub" style="margin-bottom:28px">CarbonIQ's first three AI engines work on documents and data. The fourth will work on the physical world — reading live sensor data from the construction site itself. Think of it like upgrading from a weekly weigh-in to a continuous heart rate monitor.</div>
+  <!-- ══════════ SLIDE 8 — SCALABILITY & GROWTH ══════════ -->
+  <div class="slide" id="s8">
+    <div class="slide-label">Scalability & Growth Potential</div>
+    <div class="slide-title">Starts in construction. <span>Scales to every industry</span> that emits.</div>
+    <div class="slide-sub" style="margin-bottom:14px">CarbonIQ's IoT architecture, AI engines and accountability framework are industry-agnostic. Construction mega projects are the entry point. Oil and gas — including fugitive emissions from pipelines and wellheads — is the natural Phase 2 expansion.</div>
 
-    <div class="roadmap">
-      <div class="roadmap-phase rp-now">
-        <div class="rp-label">Today — 3 AI Engines</div>
-        <div class="rp-title">Document-Driven Intelligence</div>
-        <ul class="rp-list">
-          <li>AI reads project documents automatically</li>
-          <li>Site data submitted manually by teams</li>
-          <li>Multi-stakeholder approval workflows</li>
-          <li>Document AI with source citations</li>
-          <li>AI Advisor with carbon reduction targets</li>
-          <li>5 green certification programmes</li>
-        </ul>
-      </div>
-      <div class="roadmap-phase rp-next">
-        <div class="rp-label">Phase 2 — 4th AI Engine</div>
-        <div class="rp-title">Real-time Site Intelligence</div>
-        <ul class="rp-list">
-          <li>IoT sensors: fuel flow meters on-site</li>
-          <li>Smart electricity sub-metering</li>
-          <li>Water consumption sensors</li>
-          <li>Live carbon dashboard from site</li>
-          <li>Alerts before carbon targets are breached</li>
-          <li>Automated anomaly detection</li>
-        </ul>
-      </div>
-      <div class="roadmap-phase rp-future">
-        <div class="rp-label">Phase 3 — Carbon Control Room</div>
-        <div class="rp-title">Predictive & Autonomous</div>
-        <ul class="rp-list">
-          <li>Machine learning forecasts end-project carbon</li>
-          <li>Automated procurement recommendations</li>
-          <li>Digital twin integration</li>
-          <li>Operational & end-of-life phase tracking</li>
-          <li>Blockchain-backed carbon audit trail</li>
-          <li>Regulatory auto-reporting</li>
-        </ul>
-      </div>
-    </div>
-
-    <div class="quote-block" style="margin-top:24px">
-      <div class="quote-text">"A smoke detector doesn't wait for a fire to report the damage — it alerts you while there's still time to act. That's what IoT does for CarbonIQ."</div>
-    </div>
-  </div>
-
-  <!-- ══════════════════════════════════════════════════════
-       SLIDE 11 — BUSINESS MODEL & SCALABILITY
-  ══════════════════════════════════════════════════════ -->
-  <div class="slide" id="s11">
-    <div class="slide-label">Business Model & Scalability</div>
-    <div class="slide-title">Starts in construction. <span>Scales everywhere.</span></div>
-    <div class="slide-sub" style="margin-bottom:18px">CarbonIQ's revenue model is SaaS. Its growth model is vertical expansion. The same IoT architecture built for construction sites is the infrastructure needed to monitor fugitive emissions in oil fields, pipelines, and refineries.</div>
-
-    <div class="grid-3" style="max-width:980px; margin-bottom:14px">
+    <div class="grid-3" style="max-width:980px; margin-bottom:12px">
       <div class="card card-accent">
-        <div class="card-icon">🏗️</div>
+        <div style="font-size:22px;margin-bottom:8px">🏗️</div>
         <div class="card-title">Phase 1 — Construction</div>
-        <div class="card-body">SaaS subscriptions: owners pay for portfolio oversight, engineers per project, builders per seat. Network effects: every project enriches the AI benchmark database. Recurring revenue from day one.</div>
+        <div class="card-body">Mega projects and large-scale buildings. SaaS subscriptions across all three stakeholder tiers. Network effects compound as project data grows. Gulf region first, EU and global expansion to follow.</div>
       </div>
       <div class="card card-orange">
-        <div class="card-icon">🛢️</div>
+        <div style="font-size:22px;margin-bottom:8px">🛢️</div>
         <div class="card-title">Phase 2 — Oil & Gas</div>
-        <div class="card-body">The IoT sensor network built for construction sites deploys directly to oil fields and pipelines. Fugitive methane detection. Oil leak alerts in real time. Carbon accounting for entire operations — not just projects.</div>
+        <div class="card-body">The IoT sensor network built for construction sites deploys directly to oil fields, pipelines and refineries. Fugitive methane detection. Oil leak alerts in real time. Carbon accounting for entire operations — not just individual projects.</div>
       </div>
       <div class="card card-blue">
-        <div class="card-icon">🌐</div>
+        <div style="font-size:22px;margin-bottom:8px">🌐</div>
         <div class="card-title">Phase 3 — Any Industry</div>
-        <div class="card-body">API-first architecture enables deployment across any sector with emissions obligations: manufacturing, logistics, mining. One accountability engine. Unlimited verticals.</div>
+        <div class="card-body">API-first architecture enables deployment across manufacturing, logistics and mining. Any sector with emissions obligations. One accountability engine. Unlimited verticals. White-label potential for national regulators.</div>
       </div>
     </div>
 
-    <div style="background:rgba(251,146,60,0.06);border:1px solid rgba(251,146,60,0.2);border-radius:16px;padding:18px 24px;max-width:980px;width:100%">
-      <div style="display:flex;align-items:flex-start;gap:20px;flex-wrap:wrap">
+    <div style="background:rgba(251,146,60,0.06);border:1px solid rgba(251,146,60,0.2);border-radius:14px;padding:14px 22px;max-width:980px;width:100%">
+      <div style="display:flex;align-items:flex-start;gap:18px;flex-wrap:wrap">
         <div style="flex:1;min-width:220px">
-          <div style="font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--orange);margin-bottom:8px">🇸🇦 KSA / Aramco Opportunity</div>
-          <div style="font-size:12px;color:var(--text3);line-height:1.7">Saudi Aramco has committed to net-zero by 2050 and runs one of the world's largest industrial decarbonization programmes. Fugitive emissions — methane leaking silently from pipelines, wellheads and storage tanks — are a primary accountability gap. CarbonIQ's IoT engine, built for construction sites, is the exact same technology needed to detect and account for these leaks in real time. The platform enters through Aramco's construction projects and naturally grows into operational emissions monitoring across the entire enterprise.</div>
+          <div style="font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--orange);margin-bottom:6px">🇸🇦 KSA / Aramco Opportunity</div>
+          <div style="font-size:12px;color:var(--text3);line-height:1.7">Saudi Aramco has committed to net-zero by 2050 and runs one of the world's largest industrial decarbonization programmes. Fugitive emissions — methane leaking silently from pipelines, wellheads and storage — are a primary accountability gap. CarbonIQ's IoT engine enters through Aramco's construction projects and grows naturally into full operational emissions monitoring. This is not a distant ambition. It is the logical next step for a system already tracking construction carbon at mega-project scale.</div>
         </div>
-        <div style="display:flex;flex-direction:column;gap:8px;min-width:160px">
-          <div style="background:var(--bg4);border:1px solid var(--border);border-radius:10px;padding:12px 16px;text-align:center">
-            <div style="font-size:22px;font-weight:900;color:var(--orange)">15%</div>
-            <div style="font-size:9px;color:var(--slate);margin-top:2px;line-height:1.4">of global greenhouse gas from oil & gas operations</div>
+        <div style="display:flex;flex-direction:column;gap:7px;min-width:140px">
+          <div style="background:var(--bg4);border:1px solid var(--border);border-radius:10px;padding:10px 14px;text-align:center">
+            <div style="font-size:20px;font-weight:900;color:var(--orange)">15%</div>
+            <div style="font-size:9px;color:var(--slate);margin-top:2px;line-height:1.4">of global GHG from oil & gas operations</div>
           </div>
-          <div style="background:var(--bg4);border:1px solid var(--border);border-radius:10px;padding:12px 16px;text-align:center">
-            <div style="font-size:22px;font-weight:900;color:var(--orange)">80×</div>
-            <div style="font-size:9px;color:var(--slate);margin-top:2px;line-height:1.4">more potent than CO₂ — methane's short-term climate impact</div>
+          <div style="background:var(--bg4);border:1px solid var(--border);border-radius:10px;padding:10px 14px;text-align:center">
+            <div style="font-size:20px;font-weight:900;color:var(--orange)">80×</div>
+            <div style="font-size:9px;color:var(--slate);margin-top:2px;line-height:1.4">more potent than CO₂: methane's climate impact</div>
           </div>
-          <div style="background:var(--bg4);border:1px solid var(--border);border-radius:10px;padding:12px 16px;text-align:center">
-            <div style="font-size:22px;font-weight:900;color:var(--green)">2050</div>
-            <div style="font-size:9px;color:var(--slate);margin-top:2px;line-height:1.4">Aramco net-zero target — accountability infrastructure needed now</div>
+          <div style="background:var(--bg4);border:1px solid var(--border);border-radius:10px;padding:10px 14px;text-align:center">
+            <div style="font-size:20px;font-weight:900;color:var(--green)">2050</div>
+            <div style="font-size:9px;color:var(--slate);margin-top:2px;line-height:1.4">Aramco net-zero target — accountability needed now</div>
           </div>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- ══════════════════════════════════════════════════════
-       SLIDE 12 — TRACTION, VALIDATION & IMPACT
-  ══════════════════════════════════════════════════════ -->
-  <div class="slide" id="s12">
-    <div class="slide-label">Traction, Validation & Impact</div>
-    <div class="slide-title">Not a concept. <span>A working platform.</span></div>
-    <div class="slide-sub" style="margin-bottom:18px">CarbonIQ is not a prototype deck — it is a fully operational platform with three live AI engines, a complete multi-stakeholder workflow, and a working demo available right now for every feature shown in this presentation.</div>
+  <!-- ══════════ SLIDE 9 — TRACTION / VALIDATION ══════════ -->
+  <div class="slide" id="s9">
+    <div class="slide-label">Traction / Validation</div>
+    <div class="slide-title">Not a concept. <span>A fully working platform.</span></div>
+    <div class="slide-sub" style="margin-bottom:16px">CarbonIQ is not a prototype or a pitch deck with wireframes. It is a fully operational platform — every feature can be demonstrated live, right now.</div>
 
-    <div class="grid-2" style="max-width:920px; gap:16px; margin-bottom:14px">
+    <div class="grid-2" style="max-width:900px; gap:14px">
       <div class="card card-accent">
-        <div style="font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--green);margin-bottom:12px">✓ Validation & Traction</div>
+        <div style="font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--green);margin-bottom:10px">Platform Validation</div>
         <ul class="role-list">
           <li>Three AI engines built, tested and live in production</li>
-          <li>Full multi-stakeholder workflows fully operational</li>
-          <li>Document Intelligence with AI analysis working end-to-end</li>
-          <li>AI document parser validated on real project files</li>
-          <li>5 certification frameworks integrated with live progress tracking</li>
-          <li>Every feature can be demonstrated live — no mock-ups</li>
-          <li>Platform architecture designed for real-world deployment at scale</li>
+          <li>Full multi-stakeholder workflow: Owner → Engineer → Builder fully operational</li>
+          <li>AI document parser validated on real project BOQs and specifications</li>
+          <li>Document Intelligence with RAG pipeline — AI analysis with page-level source citations</li>
+          <li>5 green certification frameworks integrated with live progress tracking</li>
+          <li>Carbon Advisor generating prioritised reduction recommendations per project</li>
+          <li>Complete audit trail: every submission, approval and change request logged</li>
+          <li>Live demo available — every capability demonstrable today</li>
         </ul>
       </div>
-      <div class="card card-blue">
-        <div style="font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--blue);margin-bottom:12px">🌍 Climate & Business Impact</div>
-        <div style="display:flex;flex-direction:column;gap:10px">
-          <div style="background:var(--bg4);border-radius:10px;padding:12px 16px;display:flex;align-items:center;gap:12px">
-            <div style="font-size:22px;font-weight:900;color:var(--green);flex-shrink:0">38%</div>
-            <div style="font-size:11px;color:var(--text3)">of global CO₂ is directly addressable through construction carbon accountability</div>
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <div class="card card-blue">
+          <div style="font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--blue);margin-bottom:10px">Market Validation</div>
+          <div style="display:flex;flex-direction:column;gap:7px">
+            <div style="background:var(--bg4);border-radius:8px;padding:10px 14px;display:flex;align-items:center;gap:12px">
+              <div style="font-size:14px;font-weight:900;color:var(--green);flex-shrink:0;white-space:nowrap">2027 Law</div>
+              <div style="font-size:11px;color:var(--text3)">EU mandatory embodied carbon reporting — legislation already passed, demand already locked in</div>
+            </div>
+            <div style="background:var(--bg4);border-radius:8px;padding:10px 14px;display:flex;align-items:center;gap:12px">
+              <div style="font-size:14px;font-weight:900;color:var(--orange);flex-shrink:0;white-space:nowrap">Vision 2030</div>
+              <div style="font-size:11px;color:var(--text3)">KSA Mostadam certification required on government projects — active regulatory enforcement</div>
+            </div>
+            <div style="background:var(--bg4);border-radius:8px;padding:10px 14px;display:flex;align-items:center;gap:12px">
+              <div style="font-size:14px;font-weight:900;color:var(--purple);flex-shrink:0;white-space:nowrap">$100B+</div>
+              <div style="font-size:11px;color:var(--text3)">Aramco active construction pipeline — all requiring embodied carbon accountability</div>
+            </div>
           </div>
-          <div style="background:var(--bg4);border-radius:10px;padding:12px 16px;display:flex;align-items:center;gap:12px">
-            <div style="font-size:16px;font-weight:900;color:var(--blue);flex-shrink:0;white-space:nowrap">Weeks → Sec</div>
-            <div style="font-size:11px;color:var(--text3)">Time to process a project document — enabling carbon decisions before procurement closes</div>
-          </div>
-          <div style="background:var(--bg4);border-radius:10px;padding:12px 16px;display:flex;align-items:center;gap:12px">
-            <div style="font-size:22px;font-weight:900;color:var(--orange);flex-shrink:0">$0</div>
-            <div style="font-size:11px;color:var(--text3)">Regulatory fine risk: every project on CarbonIQ produces audit-ready carbon records — proof, not promises</div>
-          </div>
-          <div style="background:var(--bg4);border-radius:10px;padding:12px 16px;display:flex;align-items:center;gap:12px">
-            <div style="font-size:16px;font-weight:900;color:var(--purple);flex-shrink:0;white-space:nowrap">AI + Domain</div>
-            <div style="font-size:11px;color:var(--text3)">Team combining AI/ML engineering with construction and sustainability domain expertise</div>
-          </div>
+        </div>
+        <div style="background:rgba(34,197,94,0.06);border:1px solid rgba(34,197,94,0.15);border-radius:12px;padding:14px 16px;text-align:center">
+          <div style="font-size:11px;color:var(--text3);line-height:1.6"><strong style="color:var(--text)">Team capability:</strong> AI/ML engineering combined with construction domain expertise and sustainability frameworks — built end-to-end and ready for real-world deployment at scale today.</div>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- ══════════════════════════════════════════════════════
-       SLIDE 13 — CLOSING / CTA
-  ══════════════════════════════════════════════════════ -->
-  <div class="slide" id="s13">
-    <div class="cover-badge" style="background:var(--green-dim);color:var(--green)">Construction Carbon Accountability Platform</div>
-    <div class="cta-title">
-      Make construction carbon<br><span style="color:var(--green)">visible, accountable,</span><br>and actionable.
+  <!-- ══════════ SLIDE 10 — IMPACT ══════════ -->
+  <div class="slide" id="s10">
+    <div class="slide-label">Impact — Sustainability & Climate</div>
+    <div class="slide-title">Every project on CarbonIQ is a <span>measurable climate contribution.</span></div>
+    <div class="slide-sub" style="margin-bottom:18px">CarbonIQ does not just help organisations report carbon — it creates the conditions for carbon to actually be reduced. Accountability is the prerequisite for reduction. Without knowing what you emit, you cannot cut it.</div>
+
+    <div class="grid-3" style="max-width:980px; margin-bottom:12px">
+      <div style="background:rgba(34,197,94,0.06);border:1px solid rgba(34,197,94,0.15);border-radius:16px;padding:22px;text-align:center">
+        <div style="font-size:40px;font-weight:900;color:var(--green);line-height:1">38%</div>
+        <div style="font-size:11.5px;color:var(--text3);margin-top:8px;line-height:1.5">of global CO₂ directly addressable by making construction carbon visible and accountable. The single largest climate lever available today.</div>
+      </div>
+      <div style="background:rgba(96,165,250,0.06);border:1px solid rgba(96,165,250,0.15);border-radius:16px;padding:22px;text-align:center">
+        <div style="font-size:30px;font-weight:900;color:var(--blue);line-height:1.1">Weeks<br>→ Seconds</div>
+        <div style="font-size:11.5px;color:var(--text3);margin-top:8px;line-height:1.5">Time saved per project document. Faster insight means carbon decisions are made before procurement — when lower-carbon alternatives can still be chosen.</div>
+      </div>
+      <div style="background:rgba(251,146,60,0.06);border:1px solid rgba(251,146,60,0.15);border-radius:16px;padding:22px;text-align:center">
+        <div style="font-size:40px;font-weight:900;color:var(--orange);line-height:1">Proof</div>
+        <div style="font-size:11.5px;color:var(--text3);margin-top:8px;line-height:1.5">Every project produces auditable, certification-ready records. Not estimates. Not promises. Verifiable proof aligned with LEED, BREEAM, Mostadam and regulatory requirements.</div>
+      </div>
     </div>
-    <div class="cta-sub">CarbonIQ connects every stakeholder, automates every data gap, and ensures every carbon decision is made before — not after — it matters.</div>
+
+    <div class="grid-3" style="max-width:980px">
+      <div style="background:var(--bg3);border:1px solid var(--border);border-radius:12px;padding:14px 16px">
+        <div style="font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--green);margin-bottom:6px">Vision 2030 Alignment</div>
+        <div style="font-size:11.5px;color:var(--text3);line-height:1.6">CarbonIQ directly enables Saudi Arabia's green building commitments, Mostadam certification requirements and net-zero construction targets — making Vision 2030 carbon goals provable, not just stated.</div>
+      </div>
+      <div style="background:var(--bg3);border:1px solid var(--border);border-radius:12px;padding:14px 16px">
+        <div style="font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--orange);margin-bottom:6px">Aramco Net-Zero 2050</div>
+        <div style="font-size:11.5px;color:var(--text3);line-height:1.6">Aramco's construction programme represents billions of tonnes of embodied carbon. CarbonIQ provides the accountability infrastructure that makes their net-zero commitment actionable and provable — not just a commitment.</div>
+      </div>
+      <div style="background:var(--bg3);border:1px solid var(--border);border-radius:12px;padding:14px 16px">
+        <div style="font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--blue);margin-bottom:6px">The Climate Multiplier</div>
+        <div style="font-size:11.5px;color:var(--text3);line-height:1.6">At scale — 1,000 mega projects using CarbonIQ — the platform becomes one of the most significant pieces of climate infrastructure on the planet. Accountability at this scale changes industry behaviour permanently.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════ SLIDE 11 — CTA ══════════ -->
+  <div class="slide" id="s11">
+    <div class="cover-badge" style="background:var(--green-dim);color:var(--green)">Mega Project Carbon Intelligence Platform</div>
+    <div class="cta-title">
+      Make mega project carbon<br><span style="color:var(--green)">visible, accountable,</span><br>and provable.
+    </div>
+    <div class="cta-sub">CarbonIQ connects every stakeholder in the construction chain, eliminates the data bottleneck with AI, and ensures every carbon decision is made before it becomes irreversible.</div>
 
     <div class="cta-row">
-      <a class="cta-btn" href="walkthrough.html">📖 View Walkthrough →</a>
+      <a class="cta-btn" href="walkthrough.html">📖 View Platform Walkthrough →</a>
       <a class="cta-secondary" href="index.html">🚀 Launch Platform</a>
     </div>
 
-    <div style="margin-top:36px;display:flex;gap:32px;flex-wrap:wrap;justify-content:center">
+    <div style="margin-top:30px;display:flex;gap:24px;flex-wrap:wrap;justify-content:center">
       <div style="text-align:center">
-        <div style="font-size:28px;font-weight:900;color:var(--green)">38%</div>
-        <div style="font-size:10px;color:var(--slate);margin-top:2px">of Global CO₂<br>Addressable</div>
+        <div style="font-size:24px;font-weight:900;color:var(--green)">38%</div>
+        <div style="font-size:10px;color:var(--slate);margin-top:2px">Global CO₂<br>Addressable</div>
       </div>
       <div style="text-align:center">
-        <div style="font-size:28px;font-weight:900;color:var(--blue)">3 AI</div>
-        <div style="font-size:10px;color:var(--slate);margin-top:2px">Engines Live Today</div>
+        <div style="font-size:24px;font-weight:900;color:var(--blue)">$15.5T</div>
+        <div style="font-size:10px;color:var(--slate);margin-top:2px">Market<br>Opportunity</div>
       </div>
       <div style="text-align:center">
-        <div style="font-size:28px;font-weight:900;color:var(--purple)">3 Roles</div>
-        <div style="font-size:10px;color:var(--slate);margin-top:2px">Stakeholder Accountability</div>
+        <div style="font-size:24px;font-weight:900;color:var(--purple)">3 AI</div>
+        <div style="font-size:10px;color:var(--slate);margin-top:2px">Engines<br>Live Today</div>
       </div>
       <div style="text-align:center">
-        <div style="font-size:28px;font-weight:900;color:var(--orange)">IoT+</div>
-        <div style="font-size:10px;color:var(--slate);margin-top:2px">4th AI Engine<br>Phase 2</div>
+        <div style="font-size:24px;font-weight:900;color:var(--orange)">IoT+</div>
+        <div style="font-size:10px;color:var(--slate);margin-top:2px">Oil & Gas<br>Phase 2</div>
       </div>
       <div style="text-align:center">
-        <div style="font-size:28px;font-weight:900;color:var(--cyan)">$15.5T</div>
-        <div style="font-size:10px;color:var(--slate);margin-top:2px">Market Opportunity</div>
+        <div style="font-size:24px;font-weight:900;color:var(--cyan)">2050</div>
+        <div style="font-size:10px;color:var(--slate);margin-top:2px">Aramco<br>Net-Zero Target</div>
       </div>
     </div>
   </div>
 
 </div><!-- /deck -->
 
-<!-- Navigation -->
 <div class="nav">
   <button onclick="prevSlide()" title="Previous (←)">←</button>
   <div class="nav-dots" id="navDots"></div>
-  <span class="nav-counter" id="navCounter">1 / 13</span>
+  <span class="nav-counter" id="navCounter">1 / 11</span>
   <button onclick="nextSlide()" title="Next (→)">→</button>
 </div>
 
 <script>
-  const TOTAL = 13;
+  const TOTAL = 11;
   let current = 1;
 
   function goTo(n) {
@@ -991,7 +676,6 @@
     if (e.key >= '1' && e.key <= '9') goTo(+e.key);
   });
 
-  // Touch/swipe support
   let touchX = 0;
   document.addEventListener('touchstart', e => { touchX = e.touches[0].clientX; });
   document.addEventListener('touchend', e => {
