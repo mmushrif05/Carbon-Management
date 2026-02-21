@@ -18,6 +18,26 @@ var _analysisDimensions = [
 function renderIntelligence(el) {
   var pid = state.selectedProjectId;
   var projects = state.projects || [];
+  var role = state.role || '';
+
+  // No projects assigned — show permission message
+  if (projects.length === 0) {
+    el.innerHTML = '<div class="empty"><div class="empty-icon">\u{1F512}</div>' +
+      '<div style="font-size:14px;font-weight:700;margin-bottom:6px">No Projects Assigned</div>' +
+      '<div style="font-size:12px;color:var(--slate4)">' +
+        (role === 'contractor' ? 'Your consultant needs to assign you to a project before you can upload documents.' :
+         role === 'consultant' ? 'Create a project first in the Projects page, then return here.' :
+         'No projects available. Create one in the Projects page.') +
+      '</div></div>';
+    return;
+  }
+
+  // Role-specific hint
+  var roleHint = role === 'contractor'
+    ? 'Upload your BOQ, material submittals, or EPDs for AI carbon analysis'
+    : role === 'consultant'
+    ? 'Upload CIA, CEAP, technical reports, or BOQ specs for RAG-powered analysis'
+    : 'Review document intelligence across your projects';
 
   el.innerHTML =
     '<div class="intel-header">' +
@@ -28,7 +48,7 @@ function renderIntelligence(el) {
       '</div>' +
       '<div class="intel-project-select">' +
         '<select id="intelProjectSelect" onchange="intelSelectProject(this.value)">' +
-          '<option value="">-- Select Project --</option>' +
+          '<option value="">-- Select Project (' + projects.length + ' available) --</option>' +
           projects.map(function(p) {
             return '<option value="' + p.id + '"' + (pid === p.id ? ' selected' : '') + '>' + (p.name || 'Unnamed') + '</option>';
           }).join('') +
@@ -38,7 +58,9 @@ function renderIntelligence(el) {
     '<div id="intelContent"></div>';
 
   if (!pid) {
-    $('intelContent').innerHTML = '<div class="empty"><div class="empty-icon">\u{1F4C2}</div>Select a project to manage documents and run AI analysis</div>';
+    $('intelContent').innerHTML = '<div class="empty"><div class="empty-icon">\u{1F4C2}</div>' +
+      '<div style="font-size:13px;font-weight:600;margin-bottom:4px">Select a project above</div>' +
+      '<div style="font-size:11px;color:var(--slate4)">' + roleHint + '</div></div>';
     return;
   }
 

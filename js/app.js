@@ -12,7 +12,8 @@ function buildSidebar() {
   items.push({section:"Manage"},{id:'team',icon:'\ud83d\udc65',label:'Team'});
   items.push({id:'projects',icon:'\ud83d\udccb',label:'Projects'});
   if(r==='consultant'||r==='client'){items.push({id:'organizations',icon:'\ud83c\udfe2',label:'Organizations'});}
-  items.push({section:"Intelligence"},{id:'intelligence',icon:'\ud83e\udde0',label:'Doc Intelligence'});
+  const _projCount=(state.projects||[]).length;
+  if(_projCount>0){items.push({section:"Intelligence"},{id:'intelligence',icon:'\ud83e\udde0',label:'Doc Intelligence',badge:_projCount});}
   items.push({id:'certifications',icon:'\ud83c\udfc6',label:'Certifications'},{id:'integrations',icon:'\ud83d\udd0c',label:'API Hub'});
   items.push({section:"Competition"},{id:'pitch_deck',icon:'\ud83c\udfc6',label:'Pitch Deck',href:'pitch.html'});
 
