@@ -643,6 +643,42 @@ async function handleGetConsultantPermissions(body, decoded) {
   return respond(200, { permissions: result });
 }
 
+// === TENANT SETTINGS ===
+async function handleGetSettings(body, decoded) {
+  const profile = await getUserProfile(decoded.uid);
+  if (!profile) return respond(403, { error: 'Profile not found.' });
+
+  const db = getDb();
+  const snap = await db.ref('tenantSettings').once('value');
+  const settings = snap.val() || {};
+
+  return respond(200, { settings: { reductionTarget: settings.reductionTarget || 20 } });
+}
+
+async function handleSetSettings(body, decoded) {
+  const profile = await getUserProfile(decoded.uid);
+  if (!profile) return respond(403, { error: 'Profile not found.' });
+
+  if (profile.role !== 'client') {
+    return respond(403, { error: 'Only clients can modify tenant settings.' });
+  }
+
+  const db = getDb();
+  const updates = {};
+  if (body.reductionTarget !== undefined) {
+    const val = parseFloat(body.reductionTarget);
+    if (isNaN(val) || val < 0 || val > 100) return respond(400, { error: 'Reduction target must be between 0 and 100.' });
+    updates.reductionTarget = val;
+  }
+  updates.updatedAt = new Date().toISOString();
+  updates.updatedBy = decoded.uid;
+
+  await db.ref('tenantSettings').update(updates);
+  console.log('[SETTINGS] Updated tenant settings:', updates);
+
+  return respond(200, { success: true, settings: updates });
+}
+
 // === GET PROJECT SUMMARY (for dashboard) ===
 async function handleGetProjectSummary(body, decoded) {
   const { projectId } = body;
@@ -718,6 +754,10 @@ exports.handler = async (event) => {
       // Consultant permissions
       case 'set-consultant-perms': return await handleSetConsultantPermissions(body, decoded);
       case 'get-consultant-perms': return await handleGetConsultantPermissions(body, decoded);
+
+      // Tenant settings
+      case 'get-settings':        return await handleGetSettings(body, decoded);
+      case 'set-settings':        return await handleSetSettings(body, decoded);
 
       // Dashboard summary
       case 'summary':             return await handleGetProjectSummary(body, decoded);

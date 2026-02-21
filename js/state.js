@@ -1,5 +1,5 @@
 // ===== APPLICATION STATE & UTILITIES =====
-let state = { role:null, name:'', uid:null, organizationId:null, organizationName:null, page:'dashboard', entries:[], a5entries:[], invitations:[], tenderScenarios:[], organizations:[], orgLinks:[], assignments:[], users:[], projects:[], projectAssignments:[], projectOrgLinks:[], packageTemplates:[], consultantPermissions:{}, selectedProjectId:null };
+let state = { role:null, name:'', uid:null, organizationId:null, organizationName:null, page:'dashboard', entries:[], a5entries:[], invitations:[], tenderScenarios:[], organizations:[], orgLinks:[], assignments:[], users:[], projects:[], projectAssignments:[], projectOrgLinks:[], packageTemplates:[], consultantPermissions:{}, selectedProjectId:null, reductionTarget:20 };
 
 const fmt=v=>(v==null||isNaN(v))?"\u2014":v.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});
 const fmtI=v=>(v==null||isNaN(v))?"\u2014":Math.round(v).toLocaleString();
@@ -24,7 +24,7 @@ async function loadAllData() {
     state.assignments = [];
   }
 
-  // Load projects and project assignments
+  // Load projects, project assignments, and tenant settings
   try {
     state.projects = await DB.getProjects();
   } catch (e) {
@@ -34,6 +34,12 @@ async function loadAllData() {
     state.projectAssignments = await DB.getProjectAssignments();
   } catch (e) {
     state.projectAssignments = [];
+  }
+  try {
+    const settings = await DB.getSettings();
+    state.reductionTarget = settings.reductionTarget || 20;
+  } catch (e) {
+    state.reductionTarget = 20;
   }
 
   // Setup real-time listeners

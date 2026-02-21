@@ -707,5 +707,30 @@ const DB = {
     const data = await safeJsonParse(res);
     if (!res.ok) throw new Error(data.error || 'Failed to run package migration.');
     return data;
+  },
+
+  // === TENANT SETTINGS ===
+  async getSettings() {
+    if (!dbConnected) return { reductionTarget: 20 };
+    try {
+      const res = await apiCall('/projects', {
+        method: 'POST',
+        body: JSON.stringify({ action: 'get-settings' })
+      });
+      const data = await safeJsonParse(res);
+      if (res.ok) return data.settings || { reductionTarget: 20 };
+    } catch (e) { console.warn('API error (getSettings):', e); }
+    return { reductionTarget: 20 };
+  },
+
+  async setSettings(settings) {
+    await ensureDbConnected();
+    const res = await apiCall('/projects', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'set-settings', ...settings })
+    });
+    const data = await safeJsonParse(res);
+    if (!res.ok) throw new Error(data.error || 'Failed to save settings.');
+    return data;
   }
 };
