@@ -267,11 +267,15 @@ async function handleRequestChange(event, body) {
 
     await db.ref('projects/ksia/editRequests/' + requestId).set(request);
 
-    // Also mark the entry with a pending request flag
+    // Mark the entry with a pending request flag — store enough info on the entry itself
+    // so consultants can see and act on requests directly from the entry list
     await db.ref('projects/ksia/entries/' + String(entryId)).update({
       editRequestId: requestId,
       editRequestType: requestType,
-      editRequestStatus: 'pending'
+      editRequestStatus: 'pending',
+      editRequestReason: reason || '',
+      editRequestBy: decoded.name || decoded.email,
+      editRequestByOrg: profile ? (profile.organizationName || null) : null
     });
 
     return respond(200, { success: true, requestId });
@@ -385,7 +389,10 @@ async function handleResolveRequest(event, body) {
         await entryRef.update({
           editRequestId: null,
           editRequestType: null,
-          editRequestStatus: null
+          editRequestStatus: null,
+          editRequestReason: null,
+          editRequestBy: null,
+          editRequestByOrg: null
         });
       }
     }
@@ -433,6 +440,9 @@ async function handleApplyEdit(event, body) {
     safeChanges.editRequestId = null;
     safeChanges.editRequestType = null;
     safeChanges.editRequestStatus = null;
+    safeChanges.editRequestReason = null;
+    safeChanges.editRequestBy = null;
+    safeChanges.editRequestByOrg = null;
     safeChanges.editApprovedBy = null;
     safeChanges.editApprovedAt = null;
     safeChanges.status = 'pending';
