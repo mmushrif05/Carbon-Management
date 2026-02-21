@@ -500,12 +500,12 @@ const DB = {
     return data.projects || [];
   },
 
-  async createProject(name, description, code) {
+  async createProject(name, description, code, pkg) {
     await ensureDbConnected();
     console.log('[DB] Creating project:', name);
     const res = await apiCall('/projects', {
       method: 'POST',
-      body: JSON.stringify({ action: 'create', name, description, code })
+      body: JSON.stringify({ action: 'create', name, description, code, package: pkg })
     });
     const data = await safeJsonParse(res);
     if (!res.ok) {
@@ -538,11 +538,22 @@ const DB = {
     return data;
   },
 
-  async assignUserToProject(userId, projectId) {
+  async bulkDeleteProjects(projectIds) {
     await ensureDbConnected();
     const res = await apiCall('/projects', {
       method: 'POST',
-      body: JSON.stringify({ action: 'assign-user', userId, projectId })
+      body: JSON.stringify({ action: 'bulk-delete', projectIds })
+    });
+    const data = await safeJsonParse(res);
+    if (!res.ok) throw new Error(data.error || 'Failed to delete projects.');
+    return data;
+  },
+
+  async assignUserToProject(userId, projectId, designation) {
+    await ensureDbConnected();
+    const res = await apiCall('/projects', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'assign-user', userId, projectId, designation: designation || 'team_member' })
     });
     const data = await safeJsonParse(res);
     if (!res.ok) throw new Error(data.error || 'Failed to assign user to project.');
@@ -576,11 +587,11 @@ const DB = {
     return data.assignments || [];
   },
 
-  async linkOrgToProject(orgId, projectId) {
+  async linkOrgToProject(orgId, projectId, role) {
     await ensureDbConnected();
     const res = await apiCall('/projects', {
       method: 'POST',
-      body: JSON.stringify({ action: 'link-org', orgId, projectId })
+      body: JSON.stringify({ action: 'link-org', orgId, projectId, role: role || '' })
     });
     const data = await safeJsonParse(res);
     if (!res.ok) throw new Error(data.error || 'Failed to link organization to project.');

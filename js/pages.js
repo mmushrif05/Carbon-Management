@@ -1075,9 +1075,27 @@ async function renderProjects(el) {
         <input id="projCode" placeholder="e.g. PA-PH1, T2-EXP" />
       </div>
       <div class="fg">
+        <label>Package</label>
+        <select id="projPackage">
+          <option value="">Select package...</option>
+          <option value="Package 1">Package 1</option>
+          <option value="Package 2">Package 2</option>
+          <option value="Package 3">Package 3</option>
+          <option value="Package 4">Package 4</option>
+          <option value="Package 5">Package 5</option>
+          <option value="Package 6">Package 6</option>
+          <option value="Package 7">Package 7</option>
+          <option value="Package 8">Package 8</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-row c3" style="margin-top:0">
+      <div class="fg">
         <label>Description (optional)</label>
         <input id="projDesc" placeholder="Brief description of the project" />
       </div>
+      <div class="fg"></div>
+      <div class="fg"></div>
     </div>
     <div class="btn-row">
       <button class="btn btn-primary" id="projCreateBtn" onclick="createProject()">+ Create Project</button>
@@ -1095,37 +1113,72 @@ async function renderProjects(el) {
     <div id="projList"><div class="empty"><div class="empty-icon">...</div>Loading projects...</div></div>
   </div>
 
-  ${canManage ? `
-  <!-- Assign Organization to Project -->
-  <div class="card">
-    <div class="card-title">Link Organization to Project</div>
+  ${canManage || state.role === 'consultant' || state.role === 'contractor' ? `
+
+  <!-- Link Consultant / PMC / Delivery Partner / Engineer to Project -->
+  ${canManage ? `<div class="card">
+    <div class="card-title">Link Consultant / PMC / Delivery Partner / Engineer</div>
     <div style="padding:10px 14px;background:rgba(52,211,153,0.06);border:1px solid rgba(52,211,153,0.15);border-radius:10px;margin-bottom:14px;font-size:13px;color:var(--green)">
-      Associate a consultant firm or contractor company with a specific project.
+      Assign a consultant firm to a project in a specific capacity. The consultant in-charge will have authority to manage their team and link contractors.
+    </div>
+    <div class="form-row" style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr auto;gap:12px">
+      <div class="fg">
+        <label>Project</label>
+        <select id="projConsProject"><option value="">Select project...</option></select>
+      </div>
+      <div class="fg">
+        <label>Consultant Firm</label>
+        <select id="projConsOrg"><option value="">Select consultant firm...</option></select>
+      </div>
+      <div class="fg">
+        <label>Role</label>
+        <select id="projConsRole">
+          <option value="Consultant">Consultant</option>
+          <option value="PMC">PMC</option>
+          <option value="Delivery Partner">Delivery Partner</option>
+          <option value="Engineer">Engineer</option>
+        </select>
+      </div>
+      <div class="fg" style="display:flex;align-items:flex-end">
+        <button class="btn btn-primary" onclick="linkConsultantToProject()">Link</button>
+      </div>
+    </div>
+    <div class="login-error" id="projConsError" style="margin-top:12px"></div>
+    <div id="projConsOrgList" style="margin-top:12px"></div>
+  </div>` : ''}
+
+  <!-- Link Contractor to Project -->
+  ${canManage || state.role === 'consultant' ? `<div class="card">
+    <div class="card-title">Link Contractor to Project</div>
+    <div style="padding:10px 14px;background:rgba(96,165,250,0.06);border:1px solid rgba(96,165,250,0.15);border-radius:10px;margin-bottom:14px;font-size:13px;color:var(--blue)">
+      ${canManage ? 'Link a contractor company directly to a project, or let the assigned consultant in-charge handle this.' : 'As consultant in-charge, link contractor companies to projects you manage.'}
     </div>
     <div class="form-row c3">
       <div class="fg">
         <label>Project</label>
-        <select id="projOrgProject"><option value="">Select project...</option></select>
+        <select id="projContProject"><option value="">Select project...</option></select>
       </div>
       <div class="fg">
-        <label>Organization</label>
-        <select id="projOrgOrg"><option value="">Select organization...</option></select>
+        <label>Contractor Company</label>
+        <select id="projContOrg"><option value="">Select contractor company...</option></select>
       </div>
       <div class="fg" style="display:flex;align-items:flex-end">
-        <button class="btn btn-primary" onclick="linkOrgToProject()">Link</button>
+        <button class="btn btn-primary" onclick="linkContractorToProject()">Link</button>
       </div>
     </div>
-    <div class="login-error" id="projOrgError" style="margin-top:12px"></div>
-    <div id="projOrgList" style="margin-top:12px"></div>
-  </div>
+    <div class="login-error" id="projContError" style="margin-top:12px"></div>
+    <div id="projContOrgList" style="margin-top:12px"></div>
+  </div>` : ''}
 
   <!-- Assign User to Project -->
   <div class="card">
     <div class="card-title">Assign User to Project</div>
     <div style="padding:10px 14px;background:rgba(251,191,36,0.06);border:1px solid rgba(251,191,36,0.15);border-radius:10px;margin-bottom:14px;font-size:13px;color:var(--yellow)">
-      Assign a consultant or contractor to a specific project. One person can be assigned to many projects.
+      ${canManage ? 'Assign an in-charge or team member to a project. The in-charge can then manage their own team assignments.' :
+        state.role === 'consultant' ? 'As consultant in-charge, assign your team members or contractor representatives to projects you manage.' :
+        'As contractor in-charge, assign your team members to projects you manage.'}
     </div>
-    <div class="form-row c3">
+    <div class="form-row" style="display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:12px">
       <div class="fg">
         <label>Project</label>
         <select id="projUserProject"><option value="">Select project...</option></select>
@@ -1133,6 +1186,13 @@ async function renderProjects(el) {
       <div class="fg">
         <label>User</label>
         <select id="projUserUser"><option value="">Select user...</option></select>
+      </div>
+      <div class="fg">
+        <label>Designation</label>
+        <select id="projUserDesignation">
+          <option value="in_charge">In-Charge</option>
+          <option value="team_member">Team Member</option>
+        </select>
       </div>
       <div class="fg" style="display:flex;align-items:flex-end">
         <button class="btn btn-primary" onclick="assignUserToProject()">Assign</button>
@@ -1198,21 +1258,33 @@ function renderProjectList(projects) {
   const projAssignments = state.projectAssignments || [];
   const projOrgLinks = state.projectOrgLinks || [];
 
-  el.innerHTML = `<div class="tbl-wrap"><table>
-    <thead><tr><th>Project</th><th>Code</th><th>Description</th><th>Consultants</th><th>Contractors</th><th>Orgs</th><th>Status</th><th>Created</th>${canManage ? '<th>Actions</th>' : ''}</tr></thead>
+  el.innerHTML = `${canManage ? `<div id="projBulkBar" style="display:none;padding:10px 14px;margin-bottom:10px;background:rgba(248,113,113,0.08);border:1px solid rgba(248,113,113,0.2);border-radius:10px;display:none;align-items:center;gap:10px">
+    <span id="projSelCount" style="font-size:13px;color:var(--red);font-weight:600"></span>
+    <button class="btn btn-danger btn-sm" onclick="bulkDeleteProjects()">Delete Selected</button>
+    <button class="btn btn-sm" onclick="toggleAllProjects(false)" style="font-size:12px">Clear Selection</button>
+  </div>` : ''}
+  <div class="tbl-wrap"><table>
+    <thead><tr>${canManage ? '<th style="width:36px"><input type="checkbox" id="projSelectAll" onchange="toggleAllProjects(this.checked)" title="Select all" /></th>' : ''}<th>Project</th><th>Code</th><th>Package</th><th>Description</th><th>Consultant Firms</th><th>Contractor Companies</th><th>In-Charge</th><th>Team</th><th>Status</th><th>Created</th>${canManage ? '<th>Actions</th>' : ''}</tr></thead>
     <tbody>${projects.map(p => {
       const pAssign = projAssignments.filter(a => a.projectId === p.id);
       const pOrgs = projOrgLinks.filter(l => l.projectId === p.id);
-      const consultantCount = pAssign.filter(a => a.userRole === 'consultant').length;
-      const contractorCount = pAssign.filter(a => a.userRole === 'contractor').length;
+      const consOrgs = pOrgs.filter(l => l.orgType === 'consultant_firm');
+      const contOrgs = pOrgs.filter(l => l.orgType === 'contractor_company');
+      const inChargeCount = pAssign.filter(a => a.designation === 'in_charge').length;
+      const teamCount = pAssign.filter(a => a.designation !== 'in_charge').length;
       const statusClass = p.status === 'active' ? 'approved' : p.status === 'completed' ? 'review' : 'pending';
+      const consOrgNames = consOrgs.map(l => '<span class="badge approved" style="font-size:10px;margin:1px">' + l.orgName + ' (' + (l.role || 'Consultant') + ')</span>').join(' ') || '<span style="color:var(--slate5);font-size:11px">--</span>';
+      const contOrgNames = contOrgs.map(l => '<span class="badge review" style="font-size:10px;margin:1px">' + l.orgName + '</span>').join(' ') || '<span style="color:var(--slate5);font-size:11px">--</span>';
       return `<tr>
-        <td style="font-weight:600">${p.name}</td>
+        ${canManage ? `<td><input type="checkbox" class="proj-sel" value="${p.id}" onchange="updateProjSelection()" /></td>` : ''}
+        <td style="font-weight:600">${p.name || ''}</td>
         <td style="color:var(--blue);font-family:monospace;font-size:12px">${p.code || '--'}</td>
+        <td><span class="badge" style="background:rgba(139,92,246,0.1);color:var(--purple);font-size:11px">${p.package || '--'}</span></td>
         <td style="color:var(--slate5);font-size:12px;max-width:200px;overflow:hidden;text-overflow:ellipsis">${p.description || '--'}</td>
-        <td class="r"><span style="color:var(--green);font-weight:700">${consultantCount}</span></td>
-        <td class="r"><span style="color:var(--blue);font-weight:700">${contractorCount}</span></td>
-        <td class="r"><span style="color:var(--purple);font-weight:700">${pOrgs.length}</span></td>
+        <td style="font-size:11px">${consOrgNames}</td>
+        <td style="font-size:11px">${contOrgNames}</td>
+        <td class="r"><span style="color:var(--yellow);font-weight:700" title="In-Charge personnel">${inChargeCount}</span></td>
+        <td class="r"><span style="color:var(--green);font-weight:700" title="Team members">${teamCount}</span></td>
         <td><span class="badge ${statusClass}" style="text-transform:capitalize">${p.status || 'active'}</span></td>
         <td style="color:var(--slate5);font-size:11px">${new Date(p.createdAt).toLocaleDateString()}</td>
         ${canManage ? `<td><button class="btn btn-danger btn-sm" onclick="deleteProject('${p.id}')">Delete</button></td>` : ''}
@@ -1222,23 +1294,48 @@ function renderProjectList(projects) {
 }
 
 function renderProjectOrgLinks(links) {
-  const el = $('projOrgList');
-  if (!el) return;
+  const consultantLinks = links.filter(l => l.orgType === 'consultant_firm');
+  const contractorLinks = links.filter(l => l.orgType === 'contractor_company');
 
-  if (!links.length) {
-    el.innerHTML = '<div style="font-size:12px;color:var(--slate5);text-align:center;padding:8px">No organizations linked to projects yet.</div>';
-    return;
+  const canUnlinkConsultant = state.role === 'client';
+  const canUnlinkContractor = state.role === 'client' || state.role === 'consultant';
+
+  // Render consultant org links
+  const consEl = $('projConsOrgList');
+  if (consEl) {
+    if (!consultantLinks.length) {
+      consEl.innerHTML = '<div style="font-size:12px;color:var(--slate5);text-align:center;padding:8px">No consultant firms linked yet.</div>';
+    } else {
+      consEl.innerHTML = `<div class="tbl-wrap"><table>
+        <thead><tr><th>Project</th><th>Consultant Firm</th><th>Role</th><th>Linked By</th>${canUnlinkConsultant ? '<th>Actions</th>' : ''}</tr></thead>
+        <tbody>${consultantLinks.map(l => `<tr>
+          <td style="font-weight:600;color:var(--blue)">${l.projectName}</td>
+          <td style="font-weight:600">${l.orgName}</td>
+          <td><span class="badge approved">${l.role || 'Consultant'}</span></td>
+          <td style="color:var(--slate5);font-size:12px">${l.createdByName || '--'}</td>
+          ${canUnlinkConsultant ? `<td><button class="btn btn-danger btn-sm" onclick="unlinkOrgFromProject('${l.id}')">Unlink</button></td>` : ''}
+        </tr>`).join('')}</tbody>
+      </table></div>`;
+    }
   }
 
-  el.innerHTML = `<div class="tbl-wrap"><table>
-    <thead><tr><th>Project</th><th>Organization</th><th>Type</th><th>Actions</th></tr></thead>
-    <tbody>${links.map(l => `<tr>
-      <td style="font-weight:600;color:var(--blue)">${l.projectName}</td>
-      <td style="font-weight:600">${l.orgName}</td>
-      <td><span class="badge ${l.orgType === 'consultant_firm' ? 'approved' : 'review'}" style="text-transform:capitalize">${(l.orgType || '').replace('_', ' ')}</span></td>
-      <td><button class="btn btn-danger btn-sm" onclick="unlinkOrgFromProject('${l.id}')">Unlink</button></td>
-    </tr>`).join('')}</tbody>
-  </table></div>`;
+  // Render contractor org links
+  const contEl = $('projContOrgList');
+  if (contEl) {
+    if (!contractorLinks.length) {
+      contEl.innerHTML = '<div style="font-size:12px;color:var(--slate5);text-align:center;padding:8px">No contractor companies linked yet.</div>';
+    } else {
+      contEl.innerHTML = `<div class="tbl-wrap"><table>
+        <thead><tr><th>Project</th><th>Contractor Company</th><th>Linked By</th>${canUnlinkContractor ? '<th>Actions</th>' : ''}</tr></thead>
+        <tbody>${contractorLinks.map(l => `<tr>
+          <td style="font-weight:600;color:var(--blue)">${l.projectName}</td>
+          <td style="font-weight:600">${l.orgName}</td>
+          <td style="color:var(--slate5);font-size:12px">${l.createdByName || '--'} <span class="badge ${l.createdByRole === 'client' ? 'approved' : 'review'}" style="font-size:10px">${l.createdByRole || ''}</span></td>
+          ${canUnlinkContractor ? `<td><button class="btn btn-danger btn-sm" onclick="unlinkOrgFromProject('${l.id}')">Unlink</button></td>` : ''}
+        </tr>`).join('')}</tbody>
+      </table></div>`;
+    }
+  }
 }
 
 function renderProjectUserAssignments(assignments) {
@@ -1250,6 +1347,8 @@ function renderProjectUserAssignments(assignments) {
     return;
   }
 
+  const canRemove = state.role === 'client' || state.role === 'consultant' || state.role === 'contractor';
+
   // Group by project for clarity
   const byProject = {};
   assignments.forEach(a => {
@@ -1259,16 +1358,28 @@ function renderProjectUserAssignments(assignments) {
 
   let html = '';
   Object.values(byProject).forEach(group => {
+    // Sort: in-charge first, then team members
+    group.items.sort((a, b) => {
+      if (a.designation === 'in_charge' && b.designation !== 'in_charge') return -1;
+      if (b.designation === 'in_charge' && a.designation !== 'in_charge') return 1;
+      return (a.userName || '').localeCompare(b.userName || '');
+    });
     html += `<div style="margin-bottom:12px">
       <div style="font-size:11px;font-weight:700;color:var(--blue);text-transform:uppercase;letter-spacing:1px;padding:6px 0">${group.name}</div>
       <div class="tbl-wrap"><table>
-        <thead><tr><th>User</th><th>Role</th><th>Organization</th><th>Actions</th></tr></thead>
-        <tbody>${group.items.map(a => `<tr>
+        <thead><tr><th>User</th><th>Designation</th><th>Role</th><th>Organization</th><th>Assigned By</th>${canRemove ? '<th>Actions</th>' : ''}</tr></thead>
+        <tbody>${group.items.map(a => {
+          const desigBadge = a.designation === 'in_charge'
+            ? '<span class="badge" style="background:rgba(251,191,36,0.15);color:var(--yellow);font-weight:700">In-Charge</span>'
+            : '<span class="badge" style="background:rgba(148,163,184,0.12);color:var(--slate5)">Team Member</span>';
+          return `<tr>
           <td style="font-weight:600">${a.userName}</td>
+          <td>${desigBadge}</td>
           <td><span class="badge ${a.userRole === 'consultant' ? 'approved' : a.userRole === 'contractor' ? 'review' : 'pending'}" style="text-transform:capitalize">${a.userRole}</span></td>
           <td style="color:var(--slate5);font-size:12px">${a.userOrgName || '--'}</td>
-          <td><button class="btn btn-danger btn-sm" onclick="removeUserFromProject('${a.id}')">Remove</button></td>
-        </tr>`).join('')}</tbody>
+          <td style="color:var(--slate5);font-size:12px">${a.createdByName || '--'} <span class="badge" style="font-size:10px;background:rgba(148,163,184,0.08);color:var(--slate5)">${a.createdByRole || ''}</span></td>
+          ${canRemove ? `<td><button class="btn btn-danger btn-sm" onclick="removeUserFromProject('${a.id}')">Remove</button></td>` : ''}
+        </tr>`; }).join('')}</tbody>
       </table></div>
     </div>`;
   });
@@ -1277,17 +1388,38 @@ function renderProjectUserAssignments(assignments) {
 }
 
 function populateProjectDropdowns(projects, users, orgs) {
-  // Org-to-project dropdowns
-  const ppEl = $('projOrgProject');
-  const poEl = $('projOrgOrg');
-  if (ppEl) ppEl.innerHTML = '<option value="">Select project...</option>' + projects.map(p => `<option value="${p.id}">${p.name}${p.code ? ' (' + p.code + ')' : ''}</option>`).join('');
-  if (poEl) poEl.innerHTML = '<option value="">Select organization...</option>' + orgs.map(o => `<option value="${o.id}">${o.name} (${o.type.replace('_', ' ')})</option>`).join('');
+  const projOpts = '<option value="">Select project...</option>' + projects.map(p => `<option value="${p.id}">${p.name}${p.code ? ' (' + p.code + ')' : ''}</option>`).join('');
 
-  // User-to-project dropdowns
+  const consultantOrgs = orgs.filter(o => o.type === 'consultant_firm');
+  const contractorOrgs = orgs.filter(o => o.type === 'contractor_company');
+
+  // Consultant linking dropdowns
+  const cpEl = $('projConsProject');
+  const coEl = $('projConsOrg');
+  if (cpEl) cpEl.innerHTML = projOpts;
+  if (coEl) coEl.innerHTML = '<option value="">Select consultant firm...</option>' + consultantOrgs.map(o => `<option value="${o.id}">${o.name}</option>`).join('');
+
+  // Contractor linking dropdowns
+  const ctpEl = $('projContProject');
+  const ctoEl = $('projContOrg');
+  if (ctpEl) ctpEl.innerHTML = projOpts;
+  if (ctoEl) ctoEl.innerHTML = '<option value="">Select contractor company...</option>' + contractorOrgs.map(o => `<option value="${o.id}">${o.name}</option>`).join('');
+
+  // User assignment dropdowns
   const upEl = $('projUserProject');
   const uuEl = $('projUserUser');
-  if (upEl) upEl.innerHTML = '<option value="">Select project...</option>' + projects.map(p => `<option value="${p.id}">${p.name}${p.code ? ' (' + p.code + ')' : ''}</option>`).join('');
-  if (uuEl) uuEl.innerHTML = '<option value="">Select user...</option>' + users.filter(u => u.role !== 'client').map(u => `<option value="${u.uid}">${u.name} (${u.role})${u.organizationName ? ' - ' + u.organizationName : ''}</option>`).join('');
+  if (upEl) upEl.innerHTML = projOpts;
+
+  // Filter users based on current user's role
+  let availableUsers = users.filter(u => u.role !== 'client');
+  if (state.role === 'contractor') {
+    // Contractor in-charge can only assign own org members
+    availableUsers = availableUsers.filter(u => u.organizationId === state.organizationId);
+  } else if (state.role === 'consultant') {
+    // Consultant in-charge can assign own org members + contractor users
+    availableUsers = availableUsers.filter(u => u.role === 'consultant' || u.role === 'contractor');
+  }
+  if (uuEl) uuEl.innerHTML = '<option value="">Select user...</option>' + availableUsers.map(u => `<option value="${u.uid}">${u.name} (${u.role})${u.organizationName ? ' - ' + u.organizationName : ''}</option>`).join('');
 }
 
 async function createProject() {
@@ -1300,20 +1432,22 @@ async function createProject() {
   const name = ($('projName') && $('projName').value || '').trim();
   const code = ($('projCode') && $('projCode').value || '').trim();
   const desc = ($('projDesc') && $('projDesc').value || '').trim();
+  const pkg = ($('projPackage') && $('projPackage').value || '').trim();
 
   if (!name) { showError('projError', 'Please enter a project name.'); return; }
 
   // Disable button and show loading state
   if (btn) { btn.disabled = true; btn.textContent = 'Creating...'; }
-  console.log('[PROJECT] Creating project:', name, code, desc);
+  console.log('[PROJECT] Creating project:', name, code, pkg, desc);
 
   try {
-    const result = await DB.createProject(name, desc, code);
+    const result = await DB.createProject(name, desc, code, pkg);
     console.log('[PROJECT] Create result:', result);
     showSuccess('projSuccess', 'Project "' + name + '" created successfully.');
     if ($('projName')) $('projName').value = '';
     if ($('projCode')) $('projCode').value = '';
     if ($('projDesc')) $('projDesc').value = '';
+    if ($('projPackage')) $('projPackage').value = '';
 
     // Immediately add to state for instant UI feedback
     if (result && result.project) {
@@ -1344,21 +1478,71 @@ async function deleteProject(projectId) {
   }
 }
 
-async function linkOrgToProject() {
-  const errEl = $('projOrgError');
-  if (errEl) errEl.style.display = 'none';
+function toggleAllProjects(checked) {
+  document.querySelectorAll('.proj-sel').forEach(cb => { cb.checked = checked; });
+  const selectAll = $('projSelectAll');
+  if (selectAll) selectAll.checked = checked;
+  updateProjSelection();
+}
 
-  const projectId = $('projOrgProject') && $('projOrgProject').value;
-  const orgId = $('projOrgOrg') && $('projOrgOrg').value;
+function updateProjSelection() {
+  const checked = document.querySelectorAll('.proj-sel:checked');
+  const bar = $('projBulkBar');
+  const countEl = $('projSelCount');
+  const selectAll = $('projSelectAll');
+  const total = document.querySelectorAll('.proj-sel');
+  if (bar) bar.style.display = checked.length > 0 ? 'flex' : 'none';
+  if (countEl) countEl.textContent = checked.length + ' project' + (checked.length === 1 ? '' : 's') + ' selected';
+  if (selectAll) selectAll.checked = total.length > 0 && checked.length === total.length;
+}
 
-  if (!projectId || !orgId) { showError('projOrgError', 'Select both a project and an organization.'); return; }
-
+async function bulkDeleteProjects() {
+  const ids = Array.from(document.querySelectorAll('.proj-sel:checked')).map(cb => cb.value);
+  if (!ids.length) return;
+  if (!confirm('Delete ' + ids.length + ' project' + (ids.length === 1 ? '' : 's') + '? All assignments and org links for these projects will also be removed.')) return;
   try {
-    await DB.linkOrgToProject(orgId, projectId);
+    await DB.bulkDeleteProjects(ids);
     await loadProjectData();
   } catch (e) {
-    console.error('[PROJECT] Link org failed:', e);
-    showError('projOrgError', e.message || 'Failed to link organization to project.');
+    console.error('[PROJECT] Bulk delete failed:', e);
+    alert(e.message || 'Failed to delete projects.');
+  }
+}
+
+async function linkConsultantToProject() {
+  const errEl = $('projConsError');
+  if (errEl) errEl.style.display = 'none';
+
+  const projectId = $('projConsProject') && $('projConsProject').value;
+  const orgId = $('projConsOrg') && $('projConsOrg').value;
+  const role = $('projConsRole') && $('projConsRole').value;
+
+  if (!projectId || !orgId) { showError('projConsError', 'Select both a project and a consultant firm.'); return; }
+
+  try {
+    await DB.linkOrgToProject(orgId, projectId, role || 'Consultant');
+    await loadProjectData();
+  } catch (e) {
+    console.error('[PROJECT] Link consultant failed:', e);
+    showError('projConsError', e.message || 'Failed to link consultant firm to project.');
+  }
+}
+
+async function linkContractorToProject() {
+  const errEl = $('projContError');
+  if (errEl) errEl.style.display = 'none';
+
+  const projectId = $('projContProject') && $('projContProject').value;
+  const orgId = $('projContOrg') && $('projContOrg').value;
+
+  if (!projectId || !orgId) { showError('projContError', 'Select both a project and a contractor company.'); return; }
+
+  try {
+    await DB.linkOrgToProject(orgId, projectId, 'Contractor');
+    await loadProjectData();
+  } catch (e) {
+    console.error('[PROJECT] Link contractor failed:', e);
+    showError('projContError', e.message || 'Failed to link contractor company to project.');
   }
 }
 
@@ -1379,11 +1563,12 @@ async function assignUserToProject() {
 
   const projectId = $('projUserProject') && $('projUserProject').value;
   const userId = $('projUserUser') && $('projUserUser').value;
+  const designation = $('projUserDesignation') && $('projUserDesignation').value;
 
   if (!projectId || !userId) { showError('projUserError', 'Select both a project and a user.'); return; }
 
   try {
-    await DB.assignUserToProject(userId, projectId);
+    await DB.assignUserToProject(userId, projectId, designation || 'team_member');
     showSuccess('projUserError', 'User assigned to project.');
     await loadProjectData();
   } catch (e) {
