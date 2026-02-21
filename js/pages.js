@@ -1,8 +1,6 @@
 // ===== DASHBOARD =====
 function renderDashboard(el) {
   const projects = state.projects || [];
-
-  // If user has projects, show portfolio view first
   if (projects.length > 0) {
     renderPortfolioDashboard(el, projects);
   } else {
@@ -10,103 +8,196 @@ function renderDashboard(el) {
   }
 }
 
-// Portfolio Dashboard — shows all projects as cards
+// ===== CHART HELPERS =====
+const MATCOLS={Concrete:'var(--slate4)',Steel:'var(--blue)',Asphalt:'var(--orange)',Aluminum:'var(--purple)',Glass:'var(--cyan)',Earth_Work:'#a3e635',Subgrade:'#facc15',Pipes:'var(--yellow)'};
+
+function buildBarChart(entries, chartId) {
+  const mMap={};entries.forEach(e=>{const k=e.monthKey;if(!mMap[k])mMap[k]={b:0,a:0,l:e.monthLabel};mMap[k].b+=e.a13B||0;mMap[k].a+=e.a13A||0;});
+  const mArr=Object.entries(mMap).sort((a,b)=>a[0].localeCompare(b[0]));
+  if(!mArr.length) return '<div class="empty" style="padding:20px"><div class="empty-icon">\ud83d\udcca</div>No entries yet</div>';
+  const mx=Math.max(...mArr.map(([k,v])=>Math.max(v.b,v.a)),1);
+  return `<div class="bar-chart" id="${chartId}">${mArr.map(([k,v])=>`<div class="bar-group"><div class="bar-pair"><div class="bar baseline" style="height:${(v.b/mx)*140}px"></div><div class="bar actual" style="height:${(v.a/mx)*140}px"></div></div><div class="bar-label">${v.l}</div></div>`).join('')}</div>
+  <div class="chart-legend"><span><span class="chart-legend-dot" style="background:rgba(148,163,184,0.4)"></span> BAU Baseline</span><span><span class="chart-legend-dot" style="background:rgba(96,165,250,0.5)"></span> Actual</span></div>`;
+}
+
+function buildDonutChart(entries, svgId, legendId) {
+  const matB={};entries.forEach(e=>{if(!matB[e.category])matB[e.category]={b:0,a:0};matB[e.category].b+=e.a13B||0;matB[e.category].a+=e.a13A||0;});
+  if(!Object.keys(matB).length) return '<div class="empty" style="padding:20px"><div class="empty-icon">\ud83e\uddf1</div>No data yet</div>';
+  return `<div class="donut-wrap"><svg class="donut-svg" viewBox="0 0 140 140" id="${svgId}"></svg><div class="donut-legend" id="${legendId}"></div></div>`;
+}
+
+function renderDonutSvg(entries, svgId, legendId) {
+  const matB={};entries.forEach(e=>{if(!matB[e.category])matB[e.category]={b:0,a:0};matB[e.category].b+=e.a13B||0;matB[e.category].a+=e.a13A||0;});
+  const svgEl=$(svgId),lgEl=$(legendId);if(!svgEl||!Object.keys(matB).length)return;
+  const tot=Object.values(matB).reduce((s,v)=>s+v.a,0)||1;let ang=0,sh='',lh='';
+  Object.entries(matB).forEach(([c,v])=>{const p=v.a/tot;const a1=ang;ang+=p*360;const lg=p>.5?1:0;const r=55,cx=70,cy=70;const x1=cx+r*Math.cos((a1-90)*Math.PI/180),y1=cy+r*Math.sin((a1-90)*Math.PI/180);const x2=cx+r*Math.cos((ang-90)*Math.PI/180),y2=cy+r*Math.sin((ang-90)*Math.PI/180);const cl=MATCOLS[c]||'var(--slate4)';if(p>.001)sh+=`<path d="M${cx},${cy} L${x1},${y1} A${r},${r} 0 ${lg},1 ${x2},${y2} Z" fill="${cl}" opacity="0.7" stroke="var(--bg2)" stroke-width="1.5"/>`;lh+=`<div class="donut-legend-item"><div class="donut-legend-dot" style="background:${cl}"></div>${c}: ${fmt(v.a)} tCO\u2082 (${(p*100).toFixed(1)}%)</div>`;});
+  svgEl.innerHTML=sh;if(lgEl)lgEl.innerHTML=lh;
+}
+
+function buildReductionGauge(actual, baseline, target) {
+  const pct = baseline > 0 ? ((baseline - actual) / baseline) * 100 : 0;
+  const meetsTarget = pct >= target;
+  const gaugeColor = meetsTarget ? 'var(--green)' : pct >= target * 0.5 ? 'var(--orange)' : 'var(--red)';
+  const gaugeWidth = Math.min(Math.max(pct, 0), 100);
+  return `<div style="position:relative;background:var(--bg3);border-radius:8px;height:28px;overflow:hidden;margin:8px 0">
+    <div style="height:100%;width:${gaugeWidth}%;background:${gaugeColor};opacity:0.3;border-radius:8px;transition:width 0.5s"></div>
+    <div style="position:absolute;left:${target}%;top:0;bottom:0;width:2px;background:var(--red);z-index:2" title="Target: ${target}%"></div>
+    <div style="position:absolute;left:${Math.max(target-4,0)}%;top:-2px;font-size:8px;color:var(--red);font-weight:700;z-index:3">${target}%</div>
+    <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;color:${gaugeColor};z-index:1">${fmt(pct)}% reduction</div>
+  </div>
+  <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--slate5)">
+    <span>BAU Baseline: ${fmt(baseline)} tCO\u2082</span>
+    <span style="color:${gaugeColor};font-weight:700">${meetsTarget ? 'Target Met' : 'Below Target'}</span>
+    <span>Actual: ${fmt(actual)} tCO\u2082</span>
+  </div>`;
+}
+
+function buildContractorPerformance(entries, assignments, target) {
+  // Group entries by submitting contractor (org)
+  const byOrg = {};
+  entries.forEach(e => {
+    const orgKey = e.organizationId || e.submittedByUid || 'unknown';
+    if (!byOrg[orgKey]) byOrg[orgKey] = { name: e.organizationName || e.submittedBy || 'Unknown', b: 0, a: 0, count: 0 };
+    byOrg[orgKey].b += e.a13B || 0;
+    byOrg[orgKey].a += e.a13A || 0;
+    byOrg[orgKey].count++;
+  });
+  const orgs = Object.values(byOrg).filter(o => o.count > 0).sort((a, b) => {
+    const pa = a.b > 0 ? ((a.b - a.a) / a.b) * 100 : 0;
+    const pb = b.b > 0 ? ((b.b - b.a) / b.b) * 100 : 0;
+    return pa - pb; // worst first
+  });
+  if (!orgs.length) return '';
+  return `<div class="tbl-wrap"><table>
+    <thead><tr><th>Contractor / Org</th><th class="r">Entries</th><th class="r">Baseline</th><th class="r">Actual</th><th class="r">Reduction</th><th>Status</th></tr></thead>
+    <tbody>${orgs.map(o => {
+      const pct = o.b > 0 ? ((o.b - o.a) / o.b) * 100 : 0;
+      const ok = pct >= target;
+      return `<tr style="${!ok ? 'background:rgba(248,113,113,0.06)' : ''}">
+        <td style="font-weight:600">${o.name}</td>
+        <td class="r">${o.count}</td>
+        <td class="r mono">${fmt(o.b)}</td>
+        <td class="r mono">${fmt(o.a)}</td>
+        <td class="r mono" style="font-weight:700;color:${ok ? 'var(--green)' : 'var(--red)'}">${fmt(pct)}%</td>
+        <td>${ok
+          ? '<span class="badge approved">On Track</span>'
+          : '<span class="badge" style="background:rgba(248,113,113,0.15);color:var(--red)">Below Target</span>'}</td>
+      </tr>`;
+    }).join('')}</tbody>
+  </table></div>`;
+}
+
+// ===== PORTFOLIO DASHBOARD =====
 function renderPortfolioDashboard(el, projects) {
   const r = state.role;
   const d = state.entries;
+  const a5e = state.a5entries || [];
   const projAssignments = state.projectAssignments || [];
+  const target = state.reductionTarget || 20;
 
   // Overall totals
-  let tB=0,tA=0,tA4=0; d.forEach(e=>{tB+=e.a13B||0;tA+=e.a13A||0;tA4+=e.a4||0});
-  let a5T=0; state.a5entries.forEach(e=>{a5T+=e.emission||0});
+  let tB=0,tA=0,tA4=0; d.forEach(e=>{tB+=e.a13B||0;tA+=e.a13A||0;tA4+=e.a4||0;});
+  let a5T=0; a5e.forEach(e=>{a5T+=e.emission||0;});
   const rP=tB>0?((tB-tA)/tB)*100:0;
 
-  // Build project cards with carbon data
-  const a5entries = state.a5entries || [];
-  const projectCards = projects.map(p => {
+  // Per-project data
+  const projectSections = projects.map((p, idx) => {
+    const pe = d.filter(e => e.projectId === p.id);
+    const pa5 = a5e.filter(e => e.projectId === p.id);
     const pAssign = projAssignments.filter(a => a.projectId === p.id);
-    const consultants = pAssign.filter(a => a.userRole === 'consultant');
-    const contractors = pAssign.filter(a => a.userRole === 'contractor');
-    const statusClass = p.status === 'active' ? 'approved' : p.status === 'completed' ? 'review' : 'pending';
-
-    // Per-project carbon data
-    const pEntries = d.filter(e => e.projectId === p.id);
-    const pA5 = a5entries.filter(e => e.projectId === p.id);
-    let pB=0,pA=0,pA4v=0; pEntries.forEach(e=>{pB+=e.a13B||0;pA+=e.a13A||0;pA4v+=e.a4||0});
-    let pA5T=0; pA5.forEach(e=>{pA5T+=e.emission||0});
+    let pB=0,pA=0,pA4=0; pe.forEach(e=>{pB+=e.a13B||0;pA+=e.a13A||0;pA4+=e.a4||0;});
+    let pA5=0; pa5.forEach(e=>{pA5+=e.emission||0;});
     const pRed = pB>0?((pB-pA)/pB)*100:0;
-    const pTotal = pA+pA4v+pA5T;
+    const pTotal = pA+pA4+pA5;
+    const statusClass = p.status === 'active' ? 'approved' : 'review';
+    const consCount = pAssign.filter(a=>a.userRole==='consultant').length;
+    const contCount = pAssign.filter(a=>a.userRole==='contractor').length;
+    const barId = 'projBar'+idx;
+    const svgId = 'projSvg'+idx;
+    const lgId = 'projLg'+idx;
 
-    return `<div class="card" style="cursor:pointer;transition:transform 0.15s;border:1px solid rgba(96,165,250,0.15)" onmouseover="this.style.transform='translateY(-2px)';this.style.borderColor='rgba(96,165,250,0.4)'" onmouseout="this.style.transform='';this.style.borderColor='rgba(96,165,250,0.15)'">
+    return `<div class="card" style="border-left:4px solid var(--blue)">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px">
         <div>
-          <div style="font-size:16px;font-weight:700;color:var(--slate2)">${p.name}</div>
+          <div style="font-size:18px;font-weight:700;color:var(--slate2)">${p.name}</div>
           ${p.code ? `<div style="font-size:11px;color:var(--blue);font-family:monospace;margin-top:2px">${p.code}</div>` : ''}
         </div>
-        <span class="badge ${statusClass}" style="text-transform:capitalize">${p.status || 'active'}</span>
+        <div style="display:flex;gap:8px;align-items:center">
+          <span style="font-size:11px;color:var(--slate5)">${consCount} consultants, ${contCount} contractors</span>
+          <span class="badge ${statusClass}" style="text-transform:capitalize">${p.status || 'active'}</span>
+        </div>
       </div>
-      ${p.description ? `<div style="font-size:12px;color:var(--slate5);margin-bottom:10px;line-height:1.5">${p.description}</div>` : ''}
-      ${pEntries.length > 0 || pA5.length > 0 ? `<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;text-align:center;padding:8px 0;border-top:1px solid var(--bg3);border-bottom:1px solid var(--bg3);margin-bottom:8px">
-        <div><div style="font-size:14px;font-weight:800;color:var(--green)">${fmt(pTotal)}</div><div style="font-size:9px;color:var(--slate5)">A1-A5 Total tCO\u2082</div></div>
-        <div><div style="font-size:14px;font-weight:800;color:${pRed>20?'var(--green)':'var(--orange)'}">${fmt(pRed)}%</div><div style="font-size:9px;color:var(--slate5)">Reduction</div></div>
-        <div><div style="font-size:14px;font-weight:800;color:var(--blue)">${pEntries.length + pA5.length}</div><div style="font-size:9px;color:var(--slate5)">Entries</div></div>
+
+      <!-- Stats row -->
+      <div class="stats-row" style="margin-bottom:12px">
+        <div class="stat-card slate" style="padding:8px 12px"><div class="sc-label" style="font-size:10px">A1-A3 Baseline (BAU)</div><div class="sc-value" style="font-size:16px">${fmt(pB)}</div><div class="sc-sub">tCO\u2082eq</div></div>
+        <div class="stat-card blue" style="padding:8px 12px"><div class="sc-label" style="font-size:10px">A1-A3 Actual</div><div class="sc-value" style="font-size:16px">${fmt(pA)}</div><div class="sc-sub">tCO\u2082eq</div></div>
+        <div class="stat-card orange" style="padding:8px 12px"><div class="sc-label" style="font-size:10px">A4 Transport</div><div class="sc-value" style="font-size:16px">${fmt(pA4)}</div><div class="sc-sub">tCO\u2082eq</div></div>
+        <div class="stat-card cyan" style="padding:8px 12px"><div class="sc-label" style="font-size:10px">A5 Site</div><div class="sc-value" style="font-size:16px">${fmt(pA5)}</div><div class="sc-sub">tCO\u2082eq</div></div>
+        <div class="stat-card green" style="padding:8px 12px"><div class="sc-label" style="font-size:10px">A1-A5 Total</div><div class="sc-value" style="font-size:16px">${fmt(pTotal)}</div><div class="sc-sub">tCO\u2082eq</div></div>
+      </div>
+
+      <!-- Reduction Gauge vs Target -->
+      ${buildReductionGauge(pA, pB, target)}
+
+      <!-- Charts row -->
+      ${pe.length > 0 ? `<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:14px">
+        <div><div style="font-size:12px;font-weight:700;color:var(--slate4);margin-bottom:6px">Monthly Trend</div>${buildBarChart(pe, barId)}</div>
+        <div><div style="font-size:12px;font-weight:700;color:var(--slate4);margin-bottom:6px">Materials Breakdown</div>${buildDonutChart(pe, svgId, lgId)}</div>
       </div>` : ''}
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;text-align:center;padding:10px 0">
-        <div>
-          <div style="font-size:18px;font-weight:800;color:var(--green)">${consultants.length}</div>
-          <div style="font-size:10px;color:var(--slate5)">Consultants</div>
-        </div>
-        <div>
-          <div style="font-size:18px;font-weight:800;color:var(--blue)">${contractors.length}</div>
-          <div style="font-size:10px;color:var(--slate5)">Contractors</div>
-        </div>
-        <div>
-          <div style="font-size:18px;font-weight:800;color:var(--purple)">${pAssign.length}</div>
-          <div style="font-size:10px;color:var(--slate5)">Total Users</div>
-        </div>
-      </div>
-      <div style="font-size:10px;color:var(--slate5);margin-top:6px">Created ${new Date(p.createdAt).toLocaleDateString()} by ${p.createdByName || '--'}</div>
+
+      <!-- Contractor Performance for this project -->
+      ${r !== 'contractor' && pe.length > 0 ? `<div style="margin-top:14px">
+        <div style="font-size:12px;font-weight:700;color:var(--slate4);margin-bottom:6px">Contractor Performance</div>
+        ${buildContractorPerformance(pe, pAssign, target)}
+      </div>` : ''}
     </div>`;
   }).join('');
 
   el.innerHTML = `
-  <!-- Portfolio Summary -->
+  <!-- Portfolio Header -->
   <div class="card" style="background:linear-gradient(135deg,rgba(96,165,250,0.08),rgba(167,139,250,0.06));border:1px solid rgba(96,165,250,0.15)">
-    <div class="card-title" style="color:var(--blue)">Project Portfolio</div>
-    <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:8px">
-      <div style="font-size:13px;color:var(--slate4)">
-        <strong style="color:var(--blue);font-size:28px">${projects.length}</strong>
-        <span style="margin-left:4px">Project${projects.length !== 1 ? 's' : ''}</span>
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px">
+      <div>
+        <div class="card-title" style="color:var(--blue);margin-bottom:4px">Project Portfolio</div>
+        <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+          <div style="font-size:13px;color:var(--slate4)">
+            <strong style="color:var(--blue);font-size:28px">${projects.length}</strong>
+            <span style="margin-left:4px">Project${projects.length !== 1 ? 's' : ''}</span>
+          </div>
+          <div style="width:1px;height:30px;background:var(--bg3)"></div>
+          <div style="font-size:13px;color:var(--slate4)">
+            Logged in as <strong style="color:${r === 'client' ? 'var(--purple)' : r === 'consultant' ? 'var(--green)' : 'var(--blue)'}">${state.name}</strong>
+            <span class="badge ${r === 'client' ? 'pending' : r === 'consultant' ? 'approved' : 'review'}" style="text-transform:capitalize;margin-left:6px">${r}</span>
+          </div>
+        </div>
       </div>
-      <div style="width:1px;height:30px;background:var(--bg3)"></div>
-      <div style="font-size:13px;color:var(--slate4)">
-        Logged in as <strong style="color:${r === 'client' ? 'var(--purple)' : r === 'consultant' ? 'var(--green)' : 'var(--blue)'}">${state.name}</strong>
-        <span class="badge ${r === 'client' ? 'pending' : r === 'consultant' ? 'approved' : 'review'}" style="text-transform:capitalize;margin-left:6px">${r}</span>
-      </div>
-    </div>
-    <div style="font-size:12px;color:var(--slate5);line-height:1.6">
-      ${r === 'client'
-        ? 'You have access to all projects. Below is your complete project portfolio with carbon performance metrics.'
-        : 'Showing projects assigned to you. Each project has its own team of consultants and contractors.'}
+      ${r === 'client' ? `<div style="display:flex;align-items:center;gap:8px;padding:8px 14px;background:var(--bg2);border-radius:10px;border:1px solid var(--border)">
+        <label style="font-size:11px;font-weight:700;color:var(--red);white-space:nowrap">Reduction Target:</label>
+        <input type="number" id="dashTarget" value="${target}" min="0" max="100" step="1" style="width:60px;font-size:14px;font-weight:700;text-align:center;padding:4px 6px" />
+        <span style="font-size:11px;color:var(--slate5)">%</span>
+        <button class="btn btn-sm" onclick="saveReductionTarget()" style="font-size:11px;white-space:nowrap">Save</button>
+      </div>` : `<div style="padding:8px 14px;background:rgba(248,113,113,0.06);border:1px solid rgba(248,113,113,0.15);border-radius:10px;font-size:12px;color:var(--red)">
+        Target: <strong>${target}% reduction</strong> (set by client)
+      </div>`}
     </div>
   </div>
 
-  <!-- Overall Summary Stats -->
-  <div class="stats-row">
-    <div class="stat-card slate"><div class="sc-label">A1-A3 Baseline</div><div class="sc-value">${fmt(tB)}</div><div class="sc-sub">ton CO\u2082eq</div></div>
-    <div class="stat-card blue"><div class="sc-label">A1-A3 Actual</div><div class="sc-value">${fmt(tA)}</div><div class="sc-sub">ton CO\u2082eq</div></div>
-    <div class="stat-card orange"><div class="sc-label">A4 Transport</div><div class="sc-value">${fmt(tA4)}</div><div class="sc-sub">ton CO\u2082eq</div></div>
-    <div class="stat-card cyan"><div class="sc-label">A5 Site</div><div class="sc-value">${fmt(a5T)}</div><div class="sc-sub">ton CO\u2082eq</div></div>
-    <div class="stat-card green"><div class="sc-label">A1-A5 Total</div><div class="sc-value">${fmt(tA+tA4+a5T)}</div><div class="sc-sub">ton CO\u2082eq</div></div>
-    <div class="stat-card ${rP>20?'green':rP>=10?'orange':'purple'}"><div class="sc-label">Reduction</div><div class="sc-value">${fmt(rP)}%</div><div class="sc-sub">${fmt(tB-tA)} saved</div></div>
-  </div>
-
-  <!-- Project Cards Grid -->
+  <!-- Overall Portfolio Totals -->
   <div class="card">
-    <div class="card-title">Your Projects</div>
-    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:16px">
-      ${projectCards || '<div class="empty"><div class="empty-icon">📋</div>No projects found.</div>'}
+    <div class="card-title">Portfolio Totals (All Projects)</div>
+    <div class="stats-row">
+      <div class="stat-card slate"><div class="sc-label">A1-A3 BAU Baseline</div><div class="sc-value">${fmt(tB)}</div><div class="sc-sub">tCO\u2082eq</div></div>
+      <div class="stat-card blue"><div class="sc-label">A1-A3 Actual</div><div class="sc-value">${fmt(tA)}</div><div class="sc-sub">tCO\u2082eq</div></div>
+      <div class="stat-card orange"><div class="sc-label">A4 Transport</div><div class="sc-value">${fmt(tA4)}</div><div class="sc-sub">tCO\u2082eq</div></div>
+      <div class="stat-card cyan"><div class="sc-label">A5 Site</div><div class="sc-value">${fmt(a5T)}</div><div class="sc-sub">tCO\u2082eq</div></div>
+      <div class="stat-card green"><div class="sc-label">A1-A5 Total</div><div class="sc-value">${fmt(tA+tA4+a5T)}</div><div class="sc-sub">tCO\u2082eq</div></div>
     </div>
+    ${buildReductionGauge(tA, tB, target)}
+    ${d.length > 0 ? `<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:14px">
+      <div><div style="font-size:12px;font-weight:700;color:var(--slate4);margin-bottom:6px">Overall Monthly Trend</div>${buildBarChart(d, 'overallBar')}</div>
+      <div><div style="font-size:12px;font-weight:700;color:var(--slate4);margin-bottom:6px">Overall Materials Breakdown</div>${buildDonutChart(d, 'overallSvg', 'overallLg')}</div>
+    </div>` : ''}
   </div>
 
   <!-- Approvals Summary -->
@@ -115,33 +206,61 @@ function renderPortfolioDashboard(el, projects) {
     <div><div style="font-size:24px;font-weight:800;color:var(--blue)">${d.filter(e=>e.status==='review').length}</div><div style="font-size:10px;color:var(--slate5)">Review</div></div>
     <div><div style="font-size:24px;font-weight:800;color:var(--green)">${d.filter(e=>e.status==='approved').length}</div><div style="font-size:10px;color:var(--slate5)">Approved</div></div>
     <div><div style="font-size:24px;font-weight:800;color:var(--red)">${d.filter(e=>e.status==='rejected').length}</div><div style="font-size:10px;color:var(--slate5)">Rejected</div></div>
-  </div></div>`;
+  </div></div>
+
+  ${r !== 'contractor' && d.length > 0 ? `<!-- Overall Contractor Performance -->
+  <div class="card">
+    <div class="card-title">Contractor Performance (All Projects)</div>
+    <div style="padding:8px 14px;background:rgba(248,113,113,0.06);border:1px solid rgba(248,113,113,0.15);border-radius:10px;font-size:12px;color:var(--red);margin-bottom:12px">
+      Contractors highlighted in red are below the <strong>${target}% reduction target</strong>. Review their material selections and EPD submissions.
+    </div>
+    ${buildContractorPerformance(d, projAssignments, target)}
+  </div>` : ''}
+
+  <!-- Per-Project Detail Sections -->
+  ${projectSections}`;
+
+  // Render SVG donut charts after DOM is ready
+  setTimeout(() => {
+    renderDonutSvg(d, 'overallSvg', 'overallLg');
+    projects.forEach((p, idx) => {
+      const pe = d.filter(e => e.projectId === p.id);
+      renderDonutSvg(pe, 'projSvg'+idx, 'projLg'+idx);
+    });
+  }, 50);
 }
 
-// Classic Dashboard — original view for when no projects are defined
+async function saveReductionTarget() {
+  const val = parseFloat($('dashTarget') && $('dashTarget').value);
+  if (isNaN(val) || val < 0 || val > 100) { alert('Target must be 0-100%'); return; }
+  try {
+    await DB.setSettings({ reductionTarget: val });
+    state.reductionTarget = val;
+    navigate('dashboard');
+  } catch (e) {
+    alert(e.message || 'Failed to save target.');
+  }
+}
+
+// Classic Dashboard — fallback when no projects defined
 function renderClassicDashboard(el) {
-  const d=getFilteredEntries(); let tB=0,tA=0,tA4=0;
-  d.forEach(e=>{tB+=e.a13B||0;tA+=e.a13A||0;tA4+=e.a4||0});
-  let a5T=0; state.a5entries.forEach(e=>{a5T+=e.emission||0});
-  const rP=tB>0?((tB-tA)/tB)*100:0;
-  const matB={}; d.forEach(e=>{if(!matB[e.category])matB[e.category]={b:0,a:0};matB[e.category].b+=e.a13B||0;matB[e.category].a+=e.a13A||0});
-  const mMap={}; d.forEach(e=>{const k=e.monthKey;if(!mMap[k])mMap[k]={b:0,a:0,l:e.monthLabel};mMap[k].b+=e.a13B||0;mMap[k].a+=e.a13A||0});
-  const mArr=Object.entries(mMap).sort((a,b)=>a[0].localeCompare(b[0]));
-  const cols={Concrete:'var(--slate4)',Steel:'var(--blue)',Asphalt:'var(--orange)',Aluminum:'var(--purple)',Glass:'var(--cyan)',Earth_Work:'#a3e635',Subgrade:'#facc15',Pipes:'var(--yellow)'};
+  const d=getFilteredEntries();const target=state.reductionTarget||20;
+  let tB=0,tA=0,tA4=0;d.forEach(e=>{tB+=e.a13B||0;tA+=e.a13A||0;tA4+=e.a4||0;});
+  let a5T=0;state.a5entries.forEach(e=>{a5T+=e.emission||0;});
 
   el.innerHTML=`
   <div class="stats-row">
-    <div class="stat-card slate"><div class="sc-label">A1-A3 Baseline</div><div class="sc-value">${fmt(tB)}</div><div class="sc-sub">ton CO\u2082eq</div></div>
-    <div class="stat-card blue"><div class="sc-label">A1-A3 Actual</div><div class="sc-value">${fmt(tA)}</div><div class="sc-sub">ton CO\u2082eq</div></div>
-    <div class="stat-card orange"><div class="sc-label">A4 Transport</div><div class="sc-value">${fmt(tA4)}</div><div class="sc-sub">ton CO\u2082eq</div></div>
-    <div class="stat-card cyan"><div class="sc-label">A5 Site</div><div class="sc-value">${fmt(a5T)}</div><div class="sc-sub">ton CO\u2082eq</div></div>
-    <div class="stat-card green"><div class="sc-label">A1-A5 Total</div><div class="sc-value">${fmt(tA+tA4+a5T)}</div><div class="sc-sub">ton CO\u2082eq</div></div>
-    <div class="stat-card ${rP>20?'green':rP>=10?'orange':'purple'}"><div class="sc-label">Reduction</div><div class="sc-value">${fmt(rP)}%</div><div class="sc-sub">${fmt(tB-tA)} saved</div></div>
+    <div class="stat-card slate"><div class="sc-label">A1-A3 BAU Baseline</div><div class="sc-value">${fmt(tB)}</div><div class="sc-sub">tCO\u2082eq</div></div>
+    <div class="stat-card blue"><div class="sc-label">A1-A3 Actual</div><div class="sc-value">${fmt(tA)}</div><div class="sc-sub">tCO\u2082eq</div></div>
+    <div class="stat-card orange"><div class="sc-label">A4 Transport</div><div class="sc-value">${fmt(tA4)}</div><div class="sc-sub">tCO\u2082eq</div></div>
+    <div class="stat-card cyan"><div class="sc-label">A5 Site</div><div class="sc-value">${fmt(a5T)}</div><div class="sc-sub">tCO\u2082eq</div></div>
+    <div class="stat-card green"><div class="sc-label">A1-A5 Total</div><div class="sc-value">${fmt(tA+tA4+a5T)}</div><div class="sc-sub">tCO\u2082eq</div></div>
   </div>
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
-    <div class="card"><div class="card-title">Monthly Trend</div>${mArr.length?`<div class="bar-chart" id="dc"></div><div class="chart-legend"><span><span class="chart-legend-dot" style="background:rgba(148,163,184,0.4)"></span> Baseline</span><span><span class="chart-legend-dot" style="background:rgba(96,165,250,0.5)"></span> Actual</span></div>`:'<div class="empty"><div class="empty-icon">\ud83d\udcca</div>Add entries to see trends</div>'}</div>
-    <div class="card"><div class="card-title">By Material</div>${Object.keys(matB).length?`<div class="donut-wrap"><svg class="donut-svg" viewBox="0 0 140 140" id="dn"></svg><div class="donut-legend" id="dl"></div></div>`:'<div class="empty"><div class="empty-icon">\ud83e\uddf1</div>No data yet</div>'}</div>
-  </div>
+  ${buildReductionGauge(tA, tB, target)}
+  ${d.length > 0 ? `<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:16px 0">
+    <div class="card"><div class="card-title">Monthly Trend</div>${buildBarChart(d, 'dc')}</div>
+    <div class="card"><div class="card-title">By Material</div>${buildDonutChart(d, 'dn', 'dl')}</div>
+  </div>` : ''}
   <div class="card"><div class="card-title">Approvals</div><div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;text-align:center">
     <div><div style="font-size:24px;font-weight:800;color:var(--yellow)">${d.filter(e=>e.status==='pending').length}</div><div style="font-size:10px;color:var(--slate5)">Pending</div></div>
     <div><div style="font-size:24px;font-weight:800;color:var(--blue)">${d.filter(e=>e.status==='review').length}</div><div style="font-size:10px;color:var(--slate5)">Review</div></div>
@@ -149,8 +268,7 @@ function renderClassicDashboard(el) {
     <div><div style="font-size:24px;font-weight:800;color:var(--red)">${d.filter(e=>e.status==='rejected').length}</div><div style="font-size:10px;color:var(--slate5)">Rejected</div></div>
   </div></div>`;
 
-  if(mArr.length){const mx=Math.max(...mArr.map(([k,v])=>Math.max(v.b,v.a)),1);$('dc').innerHTML=mArr.map(([k,v])=>`<div class="bar-group"><div class="bar-pair"><div class="bar baseline" style="height:${(v.b/mx)*170}px"></div><div class="bar actual" style="height:${(v.a/mx)*170}px"></div></div><div class="bar-label">${v.l}</div></div>`).join('');}
-  if(Object.keys(matB).length){const tot=Object.values(matB).reduce((s,v)=>s+v.a,0)||1;let ang=0,sh='',lh='';Object.entries(matB).forEach(([c,v])=>{const p=v.a/tot;const a1=ang;ang+=p*360;const lg=p>.5?1:0;const r=55,cx=70,cy=70;const x1=cx+r*Math.cos((a1-90)*Math.PI/180),y1=cy+r*Math.sin((a1-90)*Math.PI/180);const x2=cx+r*Math.cos((ang-90)*Math.PI/180),y2=cy+r*Math.sin((ang-90)*Math.PI/180);const cl=cols[c]||'var(--slate4)';if(p>.001)sh+=`<path d="M${cx},${cy} L${x1},${y1} A${r},${r} 0 ${lg},1 ${x2},${y2} Z" fill="${cl}" opacity="0.7" stroke="var(--bg2)" stroke-width="1.5"/>`;lh+=`<div class="donut-legend-item"><div class="donut-legend-dot" style="background:${cl}"></div>${c}: ${fmt(v.a)} tCO\u2082 (${(p*100).toFixed(1)}%)</div>`;});$('dn').innerHTML=sh;$('dl').innerHTML=lh;}
+  setTimeout(() => { renderDonutSvg(d, 'dn', 'dl'); }, 50);
 }
 
 // ===== ENTRY (BATCH WORKFLOW) =====
