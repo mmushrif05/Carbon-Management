@@ -72,7 +72,7 @@ async function handleListProjects(decoded) {
     projects = projects.filter(p => myProjectIds.has(p.id) || p.createdBy === decoded.uid);
   }
 
-  projects.sort((a, b) => a.name.localeCompare(b.name));
+  projects.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
   return respond(200, { projects });
 }
 
@@ -270,7 +270,7 @@ async function handleListProjectAssignments(body, decoded) {
     assignments = assignments.filter(a => a.userId === decoded.uid);
   }
 
-  assignments.sort((a, b) => a.projectName.localeCompare(b.projectName));
+  assignments.sort((a, b) => (a.projectName || '').localeCompare(b.projectName || ''));
   return respond(200, { assignments });
 }
 
@@ -370,7 +370,7 @@ async function handleListProjectOrgLinks(body, decoded) {
   }
 
   const data = snap.val() || {};
-  const links = Object.values(data).sort((a, b) => a.projectName.localeCompare(b.projectName));
+  const links = Object.values(data).sort((a, b) => (a.projectName || '').localeCompare(b.projectName || ''));
 
   return respond(200, { links });
 }
