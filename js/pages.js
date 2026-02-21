@@ -655,7 +655,130 @@ function renderPortfolioDashboard(el, projects) {
     tilesHtml = filtered.map(pd=>_buildTile(pd)).join('');
   }
 
+  // Role-specific data
+  const pendReqs = (state.editRequests||[]).filter(rq=>rq.status==='pending');
+  const pendCount = d.filter(e=>e.status==='pending').length;
+  const reviewCount = d.filter(e=>e.status==='review').length;
+  const approvedCount = d.filter(e=>e.status==='approved').length;
+  const rejectedCount = d.filter(e=>e.status==='rejected').length;
+
+  // Role label & accent
+  const roleLabel = r==='client'?'Executive Overview':r==='consultant'?'Consultant Dashboard':'Contractor Dashboard';
+  const roleAccent = r==='client'?'var(--green)':r==='consultant'?'var(--purple)':'var(--blue)';
+
+  // --- CLIENT: extra charts + approval pipeline ---
+  const clientExtra = r==='client'?`
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">
+      <div style="padding:12px;background:var(--bg3);border-radius:10px">
+        <div style="font-size:10px;font-weight:700;letter-spacing:1px;color:var(--text3);text-transform:uppercase;margin-bottom:6px">Emission Trend</div>
+        ${d.length>0?buildLineChart(d,'dashLineClient',true):'<div style="padding:12px;text-align:center;color:var(--slate5);font-size:11px">No data</div>'}
+      </div>
+      <div style="padding:12px;background:var(--bg3);border-radius:10px">
+        <div style="font-size:10px;font-weight:700;letter-spacing:1px;color:var(--text3);text-transform:uppercase;margin-bottom:6px">Materials Breakdown</div>
+        ${d.length>0?buildDonutChart(d,'dashDonutClient','dashDonutLgClient'):'<div style="padding:12px;text-align:center;color:var(--slate5);font-size:11px">No data</div>'}
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px">
+      <div style="padding:10px;background:rgba(251,191,36,0.06);border:1px solid rgba(251,191,36,0.12);border-radius:8px;text-align:center">
+        <div style="font-size:20px;font-weight:800;color:var(--yellow)">${pendCount}</div>
+        <div style="font-size:9px;color:var(--slate5)">Pending</div>
+      </div>
+      <div style="padding:10px;background:rgba(96,165,250,0.06);border:1px solid rgba(96,165,250,0.12);border-radius:8px;text-align:center">
+        <div style="font-size:20px;font-weight:800;color:var(--blue)">${reviewCount}</div>
+        <div style="font-size:9px;color:var(--slate5)">In Review</div>
+      </div>
+      <div style="padding:10px;background:rgba(52,211,153,0.06);border:1px solid rgba(52,211,153,0.12);border-radius:8px;text-align:center">
+        <div style="font-size:20px;font-weight:800;color:var(--green)">${approvedCount}</div>
+        <div style="font-size:9px;color:var(--slate5)">Approved</div>
+      </div>
+      <div style="padding:10px;background:rgba(248,113,113,0.06);border:1px solid rgba(248,113,113,0.12);border-radius:8px;text-align:center">
+        <div style="font-size:20px;font-weight:800;color:var(--red)">${rejectedCount}</div>
+        <div style="font-size:9px;color:var(--slate5)">Rejected</div>
+      </div>
+    </div>
+    ${allCon.length>0?`<div style="margin-bottom:14px;padding:12px;background:var(--bg3);border-radius:10px">
+      <div style="font-size:10px;font-weight:700;letter-spacing:1px;color:var(--text3);text-transform:uppercase;margin-bottom:8px">Contractor Performance</div>
+      ${allCon.slice(0,6).map(c=>{const ok=c.pct>=target;return`<div style="display:flex;align-items:center;gap:8px;margin-bottom:5px">
+        <div style="width:120px;font-size:11px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${c.name}</div>
+        <div style="flex:1;height:14px;background:var(--bg4);border-radius:4px;overflow:hidden;position:relative">
+          <div style="height:100%;width:${Math.min(Math.max(c.pct,0),100)}%;background:${ok?'var(--green)':'var(--red)'};opacity:0.4;border-radius:4px"></div>
+          <div style="position:absolute;left:${target}%;top:0;bottom:0;width:1px;background:var(--red);z-index:1"></div>
+        </div>
+        <div style="font-size:10px;font-weight:700;color:${ok?'var(--green)':'var(--red)'};width:45px;text-align:right">${fmt(c.pct)}%</div>
+      </div>`;}).join('')}
+    </div>`:''}`:'';
+
+  // --- CONSULTANT: pending requests banner + review queue ---
+  const consultantExtra = r==='consultant'?`
+    ${pendReqs.length>0?`<div style="padding:10px 14px;background:rgba(251,146,60,0.08);border:1px solid rgba(251,146,60,0.15);border-radius:10px;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between">
+      <div style="display:flex;align-items:center;gap:10px">
+        <div style="font-size:20px">&#x1F4DD;</div>
+        <div>
+          <div style="font-size:12px;font-weight:700;color:var(--orange)">${pendReqs.length} Edit/Delete Request${pendReqs.length!==1?'s':''} Pending</div>
+          <div style="font-size:10px;color:var(--slate5)">Contractors are waiting for your approval to modify entries</div>
+        </div>
+      </div>
+      <button class="btn btn-sm" onclick="navigate('approvals')" style="background:rgba(251,146,60,0.15);color:var(--orange);border:1px solid rgba(251,146,60,0.3);font-size:10px">Review</button>
+    </div>`:''}
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px">
+      <div style="padding:10px;background:rgba(251,191,36,0.06);border:1px solid rgba(251,191,36,0.12);border-radius:8px;text-align:center;cursor:pointer" onclick="navigate('approvals')">
+        <div style="font-size:20px;font-weight:800;color:var(--yellow)">${pendCount}</div>
+        <div style="font-size:9px;color:var(--slate5)">Pending Review</div>
+      </div>
+      <div style="padding:10px;background:rgba(96,165,250,0.06);border:1px solid rgba(96,165,250,0.12);border-radius:8px;text-align:center;cursor:pointer" onclick="navigate('approvals')">
+        <div style="font-size:20px;font-weight:800;color:var(--blue)">${reviewCount}</div>
+        <div style="font-size:9px;color:var(--slate5)">In Review</div>
+      </div>
+      <div style="padding:10px;background:rgba(52,211,153,0.06);border:1px solid rgba(52,211,153,0.12);border-radius:8px;text-align:center">
+        <div style="font-size:20px;font-weight:800;color:var(--green)">${approvedCount}</div>
+        <div style="font-size:9px;color:var(--slate5)">Approved</div>
+      </div>
+    </div>
+    ${d.length>0?`<div style="padding:12px;background:var(--bg3);border-radius:10px;margin-bottom:14px">
+      <div style="font-size:10px;font-weight:700;letter-spacing:1px;color:var(--text3);text-transform:uppercase;margin-bottom:6px">Emission Trend</div>
+      ${buildLineChart(d,'dashLineConsultant',true)}
+    </div>`:''}`:'';
+
+  // --- CONTRACTOR: submission stats + edit request status ---
+  const myReqs = r==='contractor'?(state.editRequests||[]).filter(rq=>rq.requestedByUid===state.uid||rq.organizationId===state.organizationId):[];
+  const contractorExtra = r==='contractor'?`
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px">
+      <div style="padding:10px;background:rgba(96,165,250,0.06);border:1px solid rgba(96,165,250,0.12);border-radius:8px;text-align:center">
+        <div style="font-size:20px;font-weight:800;color:var(--blue)">${d.length}</div>
+        <div style="font-size:9px;color:var(--slate5)">Total Entries</div>
+      </div>
+      <div style="padding:10px;background:rgba(251,191,36,0.06);border:1px solid rgba(251,191,36,0.12);border-radius:8px;text-align:center">
+        <div style="font-size:20px;font-weight:800;color:var(--yellow)">${pendCount}</div>
+        <div style="font-size:9px;color:var(--slate5)">Pending</div>
+      </div>
+      <div style="padding:10px;background:rgba(52,211,153,0.06);border:1px solid rgba(52,211,153,0.12);border-radius:8px;text-align:center">
+        <div style="font-size:20px;font-weight:800;color:var(--green)">${approvedCount}</div>
+        <div style="font-size:9px;color:var(--slate5)">Approved</div>
+      </div>
+      <div style="padding:10px;background:rgba(248,113,113,0.06);border:1px solid rgba(248,113,113,0.12);border-radius:8px;text-align:center">
+        <div style="font-size:20px;font-weight:800;color:var(--red)">${rejectedCount}</div>
+        <div style="font-size:9px;color:var(--slate5)">Rejected</div>
+      </div>
+    </div>
+    ${myReqs.filter(rq=>rq.status==='pending').length>0?`<div style="padding:10px 14px;background:rgba(96,165,250,0.06);border:1px solid rgba(96,165,250,0.12);border-radius:10px;margin-bottom:12px">
+      <div style="font-size:11px;font-weight:700;color:var(--blue)">&#x23F3; ${myReqs.filter(rq=>rq.status==='pending').length} edit/delete request${myReqs.filter(rq=>rq.status==='pending').length!==1?'s':''} awaiting consultant approval</div>
+    </div>`:''}
+    ${myReqs.filter(rq=>rq.status==='approved'&&rq.requestType==='edit').length>0?`<div style="padding:10px 14px;background:rgba(52,211,153,0.06);border:1px solid rgba(52,211,153,0.12);border-radius:10px;margin-bottom:12px">
+      <div style="font-size:11px;font-weight:700;color:var(--green)">\u2713 ${myReqs.filter(rq=>rq.status==='approved'&&rq.requestType==='edit').length} edit request${myReqs.filter(rq=>rq.status==='approved'&&rq.requestType==='edit').length!==1?'s':''} approved \u2014 open project details to edit</div>
+    </div>`:''}`:'';
+
   el.innerHTML=`
+  <!-- Role Badge -->
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+    <div style="display:flex;align-items:center;gap:8px">
+      <div style="font-size:14px;font-weight:800;letter-spacing:0.5px;color:${roleAccent}">${roleLabel}</div>
+      <span style="font-size:9px;padding:2px 8px;background:${roleAccent}15;border:1px solid ${roleAccent}30;border-radius:4px;color:${roleAccent};font-weight:700;text-transform:uppercase">${r}</span>
+    </div>
+    ${r==='client'?`<div style="font-size:9px;color:var(--slate5)">${(state.organizations||[]).length} organizations | ${(state.projectAssignments||[]).length} assignments</div>`:''}
+    ${r==='consultant'?`<div style="font-size:9px;color:var(--slate5)">${state.name||''} | ${state.organizationName||'Unassigned'}</div>`:''}
+    ${r==='contractor'?`<div style="font-size:9px;color:var(--slate5)">${state.organizationName||state.name||''}</div>`:''}
+  </div>
+
   <!-- Sticky Header -->
   <div class="dash-sticky">
     <div class="dash-kpi-row">
@@ -689,6 +812,9 @@ function renderPortfolioDashboard(el, projects) {
       </div>
     </div>
   </div>
+
+  <!-- Role-Specific Section -->
+  ${clientExtra}${consultantExtra}${contractorExtra}
 
   <!-- Decision Row -->
   <div class="dash-decision-row">
@@ -724,6 +850,11 @@ function renderPortfolioDashboard(el, projects) {
   </div>
   ${r==='contractor'?tilesHtml||'<div style="padding:24px;text-align:center;color:var(--slate5);font-size:12px">No projects match your search.</div>'
    :`<div class="pcard-grid">${tilesHtml||'<div style="padding:24px;text-align:center;color:var(--slate5);font-size:12px;grid-column:1/-1">No projects match your search.</div>'}</div>`}`;
+
+  // Render donut charts for client dashboard
+  if (r === 'client' && d.length > 0) {
+    setTimeout(()=>{renderDonutSvg(d,'dashDonutClient','dashDonutLgClient');},60);
+  }
 }
 
 async function saveReductionTarget() {

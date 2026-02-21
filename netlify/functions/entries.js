@@ -6,7 +6,7 @@ async function getUserProfile(uid) {
   return snap.val();
 }
 
-// Get the list of contractor UIDs that a consultant is assigned to review
+// Get the list of contractor UIDs that a consultant is assigned to review (legacy assignments table)
 async function getAssignedContractorUids(consultantUid) {
   const db = getDb();
   const snap = await db.ref('assignments')
@@ -16,6 +16,25 @@ async function getAssignedContractorUids(consultantUid) {
 
   const data = snap.val() || {};
   return Object.values(data).map(a => a.contractorUid);
+}
+
+// Get project IDs assigned to a user via project_assignments or org links
+async function getAssignedProjectIds(uid, profile) {
+  const db = getDb();
+  const [assignSnap, orgLinkSnap] = await Promise.all([
+    db.ref('project_assignments').once('value'),
+    db.ref('project_org_links').once('value')
+  ]);
+  const projectIds = new Set();
+  Object.values(assignSnap.val() || {}).forEach(a => {
+    if (a.userId === uid) projectIds.add(a.projectId);
+  });
+  if (profile && profile.organizationId) {
+    Object.values(orgLinkSnap.val() || {}).forEach(l => {
+      if (l.orgId === profile.organizationId) projectIds.add(l.projectId);
+    });
+  }
+  return projectIds;
 }
 
 async function handleList(event) {
@@ -29,21 +48,26 @@ async function handleList(event) {
     const data = snap.val();
     let entries = data ? Object.values(data) : [];
 
-    // Role-based filtering:
-    // - Client sees all entries
-    // - Consultant sees only entries from their assigned contractors (or their own)
-    // - Contractor sees only their own entries
+    // Role-based filtering
     if (profile && profile.role === 'consultant') {
+      // Use both old assignments AND new project_assignments
       const assignedContractors = await getAssignedContractorUids(decoded.uid);
-      if (assignedContractors.length > 0) {
+      const assignedProjectIds = await getAssignedProjectIds(decoded.uid, profile);
+      if (assignedContractors.length > 0 || assignedProjectIds.size > 0) {
         entries = entries.filter(e =>
           e.submittedByUid === decoded.uid ||
-          assignedContractors.includes(e.submittedByUid)
+          assignedContractors.includes(e.submittedByUid) ||
+          assignedProjectIds.has(e.projectId)
         );
       }
       // If no assignments exist yet, consultant sees all (backward compatible)
     } else if (profile && profile.role === 'contractor') {
-      entries = entries.filter(e => e.submittedByUid === decoded.uid);
+      // Contractor sees entries from their organization
+      if (profile.organizationId) {
+        entries = entries.filter(e => e.organizationId === profile.organizationId);
+      } else {
+        entries = entries.filter(e => e.submittedByUid === decoded.uid);
+      }
     }
     // Client sees all — no filter
 
@@ -268,15 +292,24 @@ async function handleListRequests(event) {
 
     // Filter by role
     if (profile && profile.role === 'contractor') {
-      requests = requests.filter(r => r.requestedByUid === decoded.uid);
+      // Contractor sees own requests only
+      if (profile.organizationId) {
+        requests = requests.filter(r => r.organizationId === profile.organizationId);
+      } else {
+        requests = requests.filter(r => r.requestedByUid === decoded.uid);
+      }
     } else if (profile && profile.role === 'consultant') {
+      // Consultant sees requests for projects they are assigned to
       const assignedContractors = await getAssignedContractorUids(decoded.uid);
-      if (assignedContractors.length > 0) {
+      const assignedProjectIds = await getAssignedProjectIds(decoded.uid, profile);
+      if (assignedContractors.length > 0 || assignedProjectIds.size > 0) {
         requests = requests.filter(r =>
           r.requestedByUid === decoded.uid ||
-          assignedContractors.includes(r.requestedByUid)
+          assignedContractors.includes(r.requestedByUid) ||
+          assignedProjectIds.has(r.projectId)
         );
       }
+      // If no assignments, consultant sees all (backward compatible)
     }
     // Client sees all
 
