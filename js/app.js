@@ -10,7 +10,7 @@ function buildSidebar() {
   items.push({section:"Reports"},{id:'monthly',icon:'\ud83d\udcc5',label:'Monthly Report'},{id:'cumulative',icon:'\ud83d\udcc8',label:'Cumulative'});
   if(r==='consultant'||r==='client'){items.push({section:"Config"},{id:'baselines',icon:'\u2699\ufe0f',label:'Baseline EFs'});}
   items.push({section:"Manage"},{id:'team',icon:'\ud83d\udc65',label:'Team'});
-  if(r==='consultant'||r==='client'){items.push({id:'projects',icon:'\ud83d\udccb',label:'Projects'});}
+  items.push({id:'projects',icon:'\ud83d\udccb',label:'Projects'});
   if(r==='consultant'||r==='client'){items.push({id:'organizations',icon:'\ud83c\udfe2',label:'Organizations'});}
   items.push({id:'certifications',icon:'\ud83c\udfc6',label:'Certifications'},{id:'integrations',icon:'\ud83d\udd0c',label:'API Hub'});
 

@@ -1,14 +1,30 @@
 const { getDb, verifyToken, respond, optionsResponse } = require('./utils/firebase');
 
+async function getUserProfile(uid) {
+  const db = getDb();
+  const snap = await db.ref('users/' + uid).once('value');
+  return snap.val();
+}
+
 async function handleList(event) {
   const decoded = await verifyToken(event);
   if (!decoded) return respond(401, { error: 'Unauthorized' });
 
   try {
     const db = getDb();
+    const profile = await getUserProfile(decoded.uid);
     const snap = await db.ref('projects/ksia/a5entries').once('value');
     const data = snap.val();
-    return respond(200, { entries: data ? Object.values(data) : [] });
+    let entries = data ? Object.values(data) : [];
+
+    // Role-based filtering (same as A1-A3 entries):
+    // - Client sees all entries
+    // - Contractor sees only their own entries
+    if (profile && profile.role === 'contractor') {
+      entries = entries.filter(e => e.submittedByUid === decoded.uid);
+    }
+
+    return respond(200, { entries });
   } catch (e) {
     return respond(500, { error: 'Failed to load A5 entries' });
   }
@@ -25,7 +41,19 @@ async function handleSave(event, body) {
 
   try {
     const db = getDb();
+    const profile = await getUserProfile(decoded.uid);
+
+    // Set server-verified fields
+    entry.submittedBy = decoded.name || decoded.email;
+    entry.submittedByUid = decoded.uid;
     entry.submittedAt = new Date().toISOString();
+
+    // Tag with organization info
+    if (profile) {
+      entry.organizationId = profile.organizationId || null;
+      entry.organizationName = profile.organizationName || null;
+    }
+
     await db.ref('projects/ksia/a5entries/' + entry.id).set(entry);
     return respond(200, { success: true });
   } catch (e) {
