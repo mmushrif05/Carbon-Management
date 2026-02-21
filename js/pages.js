@@ -213,15 +213,17 @@ function openProjectModal(idx, opts) {
     <div class="tbl-wrap" id="ctbTbl"><table>
       <thead><tr><th>Month</th><th>Contractor</th><th>Material</th><th>Type</th><th class="r">Qty</th><th class="r">BL EF</th><th class="r">Act EF</th><th class="r">Baseline</th><th class="r">Actual</th><th class="r">Savings</th><th class="r">Red%</th><th>EPD</th><th>Status</th></tr></thead>
       <tbody>${sorted.map(e=>{const pct=e.a13B>0?((e.a13B-e.a13A)/e.a13B)*100:0;const sav=Math.max((e.a13B||0)-(e.a13A||0),0);
-      return`<tr data-month="${e.monthLabel||''}" data-contractor="${e.organizationName||e.submittedBy||'Unknown'}" data-material="${e.category||''}" data-estatus="${e.status||'pending'}">
+      const blEF=e.baselineEF||e.baseline;const acEF=e.actualEF||e.actual;
+      const suspect=blEF&&acEF&&blEF>0&&acEF/blEF>10;
+      return`<tr data-month="${e.monthLabel||''}" data-contractor="${e.organizationName||e.submittedBy||'Unknown'}" data-material="${e.category||''}" data-estatus="${e.status||'pending'}" ${suspect?'style="background:rgba(248,113,113,0.06)"':''}>
         <td style="font-size:10px">${e.monthLabel||'--'}</td><td style="font-size:10px">${e.organizationName||e.submittedBy||'--'}</td>
         <td style="font-weight:600;font-size:10px">${e.category||'--'}</td><td style="font-size:10px">${e.type||'--'}</td>
         <td class="r mono" style="font-size:10px">${fmtI(e.qty)}</td>
-        <td class="r mono" style="font-size:10px">${e.baselineEF?fmt(e.baselineEF):'--'}</td>
-        <td class="r mono" style="font-size:10px">${e.actualEF?fmt(e.actualEF):'--'}</td>
+        <td class="r mono" style="font-size:10px">${blEF?fmt(blEF):'--'}</td>
+        <td class="r mono" style="font-size:10px${suspect?';color:var(--red)':''}">${acEF?fmt(acEF):'--'}${suspect?' !':''}</td>
         <td class="r mono" style="font-size:10px">${fmt(e.a13B)}</td><td class="r mono" style="font-size:10px">${fmt(e.a13A)}</td>
-        <td class="r mono" style="font-size:10px;color:var(--green)">${fmt(sav)}</td>
-        <td class="r mono" style="font-size:10px;font-weight:700;color:${_rc(pct,target)}">${fmt(pct)}%</td>
+        <td class="r mono" style="font-size:10px;color:${sav>=0?'var(--green)':'var(--red)'}">${fmt(sav)}</td>
+        <td class="r mono" style="font-size:10px;font-weight:700;color:${_rc(pct,target)}">${fmt(pct)}%${suspect?' !!':''}</td>
         <td style="font-size:9px;color:var(--blue)">${e.epdId||e.epdRef||'--'}</td>
         <td><span class="badge ${e.status||'pending'}" style="font-size:9px">${e.status||'pending'}</span></td>
       </tr>`;}).join('')}</tbody></table></div>
@@ -410,12 +412,15 @@ function buildEntryTable(entries, a5entries) {
         <div style="font-size:10px;color:${_rc(pct,target)};font-weight:600">${fmt(pct)}% reduction</div>
       </div>`;}).join('')}</div></div>`;
     html+=`<div style="font-size:12px;font-weight:700;color:var(--slate4);margin-bottom:6px">All Entries (${sorted.length})</div>
-    <div class="tbl-wrap"><table><thead><tr><th>Month</th><th>Material</th><th>Type</th><th class="r">Qty</th><th class="r">Baseline</th><th class="r">Actual</th><th class="r">A4</th><th class="r">Total</th><th class="r">Red%</th><th>By</th><th>Org</th><th>Status</th></tr></thead>
-    <tbody>${sorted.map(e=>{const pct=e.a13B>0?((e.a13B-e.a13A)/e.a13B)*100:0;return`<tr>
+    <div class="tbl-wrap"><table><thead><tr><th>Month</th><th>Material</th><th>Type</th><th class="r">Qty</th><th class="r">BL EF</th><th class="r">Act EF</th><th class="r">Baseline</th><th class="r">Actual</th><th class="r">A4</th><th class="r">Total</th><th class="r">Red%</th><th>By</th><th>Org</th><th>Status</th></tr></thead>
+    <tbody>${sorted.map(e=>{const pct=e.a13B>0?((e.a13B-e.a13A)/e.a13B)*100:0;const blEF=e.baselineEF||e.baseline;const acEF=e.actualEF||e.actual;const suspect=blEF&&acEF&&blEF>0&&acEF/blEF>10;return`<tr${suspect?' style="background:rgba(248,113,113,0.06)"':''}>
       <td style="font-size:11px">${e.monthLabel||'--'}</td><td style="font-weight:600">${e.category||'--'}</td><td style="font-size:11px">${e.type||'--'}</td>
-      <td class="r mono" style="font-size:11px">${fmtI(e.qty)}</td><td class="r mono" style="font-size:11px">${fmt(e.a13B)}</td><td class="r mono" style="font-size:11px">${fmt(e.a13A)}</td>
+      <td class="r mono" style="font-size:11px">${fmtI(e.qty)}</td>
+      <td class="r mono" style="font-size:11px">${blEF?fmt(blEF):'--'}</td>
+      <td class="r mono" style="font-size:11px${suspect?';color:var(--red)':''}">${acEF?fmt(acEF):'--'}${suspect?' !':''}</td>
+      <td class="r mono" style="font-size:11px">${fmt(e.a13B)}</td><td class="r mono" style="font-size:11px">${fmt(e.a13A)}</td>
       <td class="r mono" style="font-size:11px">${fmt(e.a4)}</td><td class="r mono" style="font-size:11px;font-weight:700">${fmt(e.a14)}</td>
-      <td class="r mono" style="font-size:11px;font-weight:700;color:${_rc(pct,target)}">${fmt(pct)}%</td>
+      <td class="r mono" style="font-size:11px;font-weight:700;color:${_rc(pct,target)}">${fmt(pct)}%${suspect?' !!':''}</td>
       <td style="font-size:10px;color:var(--slate5)">${e.submittedBy||'--'}</td><td style="font-size:10px;color:var(--slate5)">${e.organizationName||'--'}</td>
       <td><span class="badge ${e.status||'pending'}" style="font-size:10px">${e.status||'pending'}</span></td>
     </tr>`;}).join('')}</tbody></table></div>`;
@@ -728,7 +733,7 @@ function renderEntry(el) {
   <div class="fg"><label>Quantity</label><input type="number" id="eQ" placeholder="Enter amount" oninput="preview()"><div class="fg-help" id="eQU">\u2014</div></div></div>
   <div class="form-row c3"><div class="fg"><label>Baseline EF</label><input id="eBL" class="fg-readonly" readonly></div>
   <div class="fg"><label>Target EF</label><input id="eTG" class="fg-readonly" readonly></div>
-  <div class="fg"><label>Actual GWP (EPD)</label><input type="number" id="eA" step="0.01" placeholder="From EPD" oninput="preview()"><div class="fg-help" id="eAU">\u2014</div></div></div>
+  <div class="fg"><label>Actual EF (from EPD)</label><input type="number" id="eA" step="0.01" placeholder="EF per unit" oninput="preview()"><div class="fg-help" id="eAU">\u2014</div></div></div>
   <div class="form-row c3"><div class="fg"><label>Road (km)</label><input type="number" id="eR" value="0" oninput="preview()"></div>
   <div class="fg"><label>Sea (km)</label><input type="number" id="eS" value="0" oninput="preview()"></div>
   <div class="fg"><label>Train (km)</label><input type="number" id="eT" value="0" oninput="preview()"></div></div>
@@ -771,7 +776,10 @@ function preview(){
   const rd=parseFloat($('eR').value)||0,se=parseFloat($('eS').value)||0,tr=parseFloat($('eT').value)||0;
   const b=(q*t.baseline)/1000,ac=(q*a)/1000,a4=(mass*rd*TEF.road+mass*se*TEF.sea+mass*tr*TEF.train)/1000;
   const tot=ac+a4,p=b>0?((b-ac)/b)*100:0,cl=p>20?'green':p>=10?'orange':'purple';
-  $('ePrev').innerHTML=`<div class="stats-row" style="margin:16px 0 8px"><div class="stat-card slate"><div class="sc-label">A1-A3 Baseline</div><div class="sc-value">${fmt(b)}</div><div class="sc-sub">ton CO\u2082eq</div></div><div class="stat-card blue"><div class="sc-label">A1-A3 Actual</div><div class="sc-value">${fmt(ac)}</div><div class="sc-sub">ton CO\u2082eq</div></div><div class="stat-card orange"><div class="sc-label">A4 Transport</div><div class="sc-value">${fmt(a4)}</div><div class="sc-sub">ton CO\u2082eq</div></div><div class="stat-card green"><div class="sc-label">A1-A4 Total</div><div class="sc-value">${fmt(tot)}</div><div class="sc-sub">ton CO\u2082eq</div></div><div class="stat-card ${cl}"><div class="sc-label">Reduction</div><div class="sc-value">${fmt(p)}%</div><div class="sc-sub">${fmt(b-ac)} saved</div></div></div>`;
+  // Validate: warn if actualEF is unreasonable vs baseline
+  const efRatio=t.baseline>0?a/t.baseline:0;
+  const warn=efRatio>5?`<div style="padding:8px 12px;background:rgba(248,113,113,0.1);border:1px solid rgba(248,113,113,0.2);border-radius:8px;color:var(--red);font-size:11px;margin-bottom:8px"><strong>Warning:</strong> Actual EF (${a} ${m.efUnit}) is ${efRatio.toFixed(0)}x the baseline (${t.baseline} ${m.efUnit}). Please check — you should enter the <strong>Emission Factor per ${m.unit}</strong> from the EPD, not the total emission value.</div>`:efRatio>3?`<div style="padding:8px 12px;background:rgba(251,191,36,0.1);border:1px solid rgba(251,191,36,0.2);border-radius:8px;color:var(--orange);font-size:11px;margin-bottom:8px"><strong>Note:</strong> Actual EF (${a}) is higher than baseline (${t.baseline}). Ensure you are entering the EF in ${m.efUnit}.</div>`:'';
+  $('ePrev').innerHTML=`${warn}<div class="stats-row" style="margin:16px 0 8px"><div class="stat-card slate"><div class="sc-label">A1-A3 Baseline</div><div class="sc-value">${fmt(b)}</div><div class="sc-sub">ton CO\u2082eq</div></div><div class="stat-card blue"><div class="sc-label">A1-A3 Actual</div><div class="sc-value">${fmt(ac)}</div><div class="sc-sub">ton CO\u2082eq</div></div><div class="stat-card orange"><div class="sc-label">A4 Transport</div><div class="sc-value">${fmt(a4)}</div><div class="sc-sub">ton CO\u2082eq</div></div><div class="stat-card green"><div class="sc-label">A1-A4 Total</div><div class="sc-value">${fmt(tot)}</div><div class="sc-sub">ton CO\u2082eq</div></div><div class="stat-card ${cl}"><div class="sc-label">Reduction</div><div class="sc-value">${fmt(p)}%</div><div class="sc-sub">${fmt(b-ac)} saved</div></div></div>`;
 }
 
 // Add an entry to the local draft batch (contractor only)
@@ -786,11 +794,14 @@ function addToBatch() {
   const proj = (state.projects || []).find(p => p.id === projId);
 
   const m=MATERIALS[c],t=m.types[i],mass=q*m.massFactor;
+  // Validate actualEF vs baselineEF
+  const efRatio=t.baseline>0?a/t.baseline:0;
+  if(efRatio>10){if(!confirm(`Warning: Actual EF (${a} ${m.efUnit}) is ${efRatio.toFixed(0)}x the baseline (${t.baseline} ${m.efUnit}).\n\nYou should enter the Emission Factor per ${m.unit} from the EPD, NOT the total emission.\n\nAre you sure this value is correct?`))return;}
   const rd=parseFloat($('eR').value)||0,se=parseFloat($('eS').value)||0,tr=parseFloat($('eT').value)||0;
   const b=(q*t.baseline)/1000,ac=(q*a)/1000,a4=(mass*rd*TEF.road+mass*se*TEF.sea+mass*tr*TEF.train)/1000;
   const yr=$('eY').value,mo=$('eM').value;
 
-  const entry={id:Date.now(),category:c,type:t.name,qty:q,unit:m.unit,actual:a,baseline:t.baseline,target:t.target,
+  const entry={id:Date.now(),category:c,type:t.name,qty:q,unit:m.unit,actual:a,baseline:t.baseline,target:t.target,baselineEF:t.baseline,actualEF:a,
     road:rd,sea:se,train:tr,a13B:b,a13A:ac,a4,a14:ac+a4,pct:b>0?((b-ac)/b)*100:0,
     year:yr,month:mo,monthKey:yr+'-'+mo,monthLabel:MONTHS[parseInt(mo)-1]+' '+yr,
     district:$('eD').value,contract:$('eC').value,notes:$('eN').value,
@@ -888,11 +899,14 @@ async function submitEntry(){
   const proj = (state.projects || []).find(p => p.id === projId);
 
   const m=MATERIALS[c],t=m.types[i],mass=q*m.massFactor;
+  // Validate actualEF vs baselineEF
+  const efRatio=t.baseline>0?a/t.baseline:0;
+  if(efRatio>10){if(!confirm(`Warning: Actual EF (${a} ${m.efUnit}) is ${efRatio.toFixed(0)}x the baseline (${t.baseline} ${m.efUnit}).\n\nYou should enter the Emission Factor per ${m.unit} from the EPD, NOT the total emission.\n\nAre you sure this value is correct?`))return;}
   const rd=parseFloat($('eR').value)||0,se=parseFloat($('eS').value)||0,tr=parseFloat($('eT').value)||0;
   const b=(q*t.baseline)/1000,ac=(q*a)/1000,a4=(mass*rd*TEF.road+mass*se*TEF.sea+mass*tr*TEF.train)/1000;
   const yr=$('eY').value,mo=$('eM').value;
 
-  const entry={id:Date.now(),category:c,type:t.name,qty:q,unit:m.unit,actual:a,baseline:t.baseline,target:t.target,
+  const entry={id:Date.now(),category:c,type:t.name,qty:q,unit:m.unit,actual:a,baseline:t.baseline,target:t.target,baselineEF:t.baseline,actualEF:a,
     road:rd,sea:se,train:tr,a13B:b,a13A:ac,a4,a14:ac+a4,pct:b>0?((b-ac)/b)*100:0,
     year:yr,month:mo,monthKey:yr+'-'+mo,monthLabel:MONTHS[parseInt(mo)-1]+' '+yr,
     district:$('eD').value,contract:$('eC').value,notes:$('eN').value,
@@ -908,7 +922,12 @@ async function submitEntry(){
 function renderRecent(){
   const t=$('reTbl');if(!t)return;
   const r=[...state.entries].reverse().slice(0,15);
-  t.innerHTML=r.length?r.map(e=>`<tr><td style="font-weight:600;color:var(--blue);font-size:11px">${e.projectName||'--'}</td><td>${e.monthLabel}</td><td>${e.category}</td><td>${e.type}</td><td class="r mono">${fmtI(e.qty)}</td><td class="r mono">${fmt(e.a13B)}</td><td class="r mono">${fmt(e.a13A)}</td><td class="r mono">${fmt(e.a4)}</td><td class="r mono" style="font-weight:700">${fmt(e.a14)}</td><td><span class="badge ${e.status}">${e.status}</span></td><td>${e.status==='pending'?`<button class="btn btn-danger btn-sm" onclick="delEntry(${e.id})">\u2715</button>`:''}</td></tr>`).join(''):'<tr><td colspan="11" class="empty">No entries</td></tr>';
+  t.innerHTML=r.length?r.map(e=>{const blEF=e.baselineEF||e.baseline;const acEF=e.actualEF||e.actual;const suspect=blEF&&acEF&&blEF>0&&acEF/blEF>10;const pct=e.a13B>0?((e.a13B-e.a13A)/e.a13B)*100:0;
+    return`<tr${suspect?' style="background:rgba(248,113,113,0.06)"':''}>
+    <td style="font-weight:600;color:var(--blue);font-size:11px">${e.projectName||'--'}</td><td>${e.monthLabel}</td><td>${e.category}</td><td>${e.type}</td>
+    <td class="r mono">${fmtI(e.qty)}</td><td class="r mono">${fmt(e.a13B)}</td><td class="r mono"${suspect?' style="color:var(--red)"':''}>${fmt(e.a13A)}${suspect?' !':''}</td><td class="r mono">${fmt(e.a4)}</td><td class="r mono" style="font-weight:700">${fmt(e.a14)}</td>
+    <td><span class="badge ${e.status}">${e.status}</span></td>
+    <td>${e.status==='pending'?`<button class="btn btn-danger btn-sm" onclick="delEntry(${e.id})">\u2715</button>`:''}</td></tr>`;}).join(''):'<tr><td colspan="11" class="empty">No entries</td></tr>';
 }
 
 async function delEntry(id){await DB.deleteEntry(id);state.entries=state.entries.filter(e=>e.id!==id);navigate(state.page);}
