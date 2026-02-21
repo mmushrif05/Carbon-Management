@@ -14,13 +14,13 @@ const MATCOLS={Concrete:'var(--slate4)',Steel:'var(--blue)',Asphalt:'var(--orang
 function buildLineChart(entries, chartId, compact) {
   const mMap={};entries.forEach(e=>{const k=e.monthKey;if(!mMap[k])mMap[k]={b:0,a:0,l:e.monthLabel};mMap[k].b+=e.a13B||0;mMap[k].a+=e.a13A||0;});
   const mArr=Object.entries(mMap).sort((a,b)=>a[0].localeCompare(b[0]));
-  if(!mArr.length) return '<div class="empty" style="padding:20px"><div class="empty-icon">\ud83d\udcca</div>No entries yet</div>';
-  const h=compact?120:180, w=compact?280:480, pad=compact?30:40, padR=compact?10:16, padB=compact?22:28;
+  if(!mArr.length) return '<div class="empty" style="padding:12px"><div style="font-size:10px;color:var(--slate5)">No entries yet</div></div>';
+  const h=compact?100:180, w=compact?280:480, pad=compact?30:40, padR=compact?10:16, padB=compact?22:28;
   const plotW=w-pad-padR, plotH=h-padB-10;
   const mx=Math.max(...mArr.map(([k,v])=>Math.max(v.b,v.a)),1);
   const pts=mArr.map(([k,v],i)=>{
     const x=pad+(mArr.length===1?plotW/2:i/(mArr.length-1)*plotW);
-    return {x, yB:10+plotH-(v.b/mx)*plotH, yA:10+plotH-(v.a/mx)*plotH, l:v.l, b:v.b, a:v.a};
+    return {x, yB:10+plotH-(v.b/mx)*plotH, yA:10+plotH-(v.a/mx)*plotH, l:v.l};
   });
   const lineB=pts.map((p,i)=>(i===0?'M':'L')+p.x.toFixed(1)+','+p.yB.toFixed(1)).join(' ');
   const lineA=pts.map((p,i)=>(i===0?'M':'L')+p.x.toFixed(1)+','+p.yA.toFixed(1)).join(' ');
@@ -28,8 +28,7 @@ function buildLineChart(entries, chartId, compact) {
   const gridCount=compact?3:4;
   let gridLines='';
   for(let i=0;i<=gridCount;i++){
-    const y=10+plotH-i/gridCount*plotH;
-    const val=(mx*i/gridCount);
+    const y=10+plotH-i/gridCount*plotH;const val=(mx*i/gridCount);
     gridLines+=`<line x1="${pad}" y1="${y}" x2="${w-padR}" y2="${y}" stroke="rgba(148,163,184,0.08)" stroke-width="1"/>`;
     gridLines+=`<text x="${pad-4}" y="${y+3}" fill="rgba(148,163,184,0.4)" font-size="${compact?7:8}" text-anchor="end" font-family="system-ui">${val>=1000?(val/1000).toFixed(1)+'k':Math.round(val)}</text>`;
   }
@@ -37,23 +36,20 @@ function buildLineChart(entries, chartId, compact) {
   const dotsA=pts.map(p=>`<circle cx="${p.x}" cy="${p.yA}" r="${compact?2.5:3.5}" fill="rgba(96,165,250,0.9)" stroke="var(--bg2)" stroke-width="1.5"/>`).join('');
   const labels=pts.map(p=>`<text x="${p.x}" y="${h-4}" fill="rgba(148,163,184,0.5)" font-size="${compact?7:9}" text-anchor="middle" font-family="system-ui">${p.l}</text>`).join('');
   return `<div id="${chartId}"><svg viewBox="0 0 ${w} ${h}" style="width:100%;height:auto;overflow:visible">
-    ${gridLines}
-    <path d="${areaA}" fill="rgba(96,165,250,0.07)"/>
+    ${gridLines}<path d="${areaA}" fill="rgba(96,165,250,0.07)"/>
     <path d="${lineB}" fill="none" stroke="rgba(148,163,184,0.35)" stroke-width="${compact?1.5:2}" stroke-dasharray="4 3"/>
     <path d="${lineA}" fill="none" stroke="rgba(96,165,250,0.8)" stroke-width="${compact?1.5:2.5}" stroke-linecap="round" stroke-linejoin="round"/>
-    ${dotsB}${dotsA}${labels}
-  </svg></div>
-  <div class="chart-legend" style="margin-top:6px"><span><span class="chart-legend-dot" style="background:rgba(148,163,184,0.4)"></span> BAU Baseline</span><span><span class="chart-legend-dot" style="background:rgba(96,165,250,0.8)"></span> Actual</span></div>`;
+    ${dotsB}${dotsA}${labels}</svg></div>
+  ${compact?'':'<div class="chart-legend" style="margin-top:6px"><span><span class="chart-legend-dot" style="background:rgba(148,163,184,0.4)"></span> BAU Baseline</span><span><span class="chart-legend-dot" style="background:rgba(96,165,250,0.8)"></span> Actual</span></div>'}`;
 }
 
 function buildMiniSparkline(entries) {
   const mMap={};entries.forEach(e=>{const k=e.monthKey;if(!mMap[k])mMap[k]={a:0};mMap[k].a+=e.a13A||0;});
   const mArr=Object.entries(mMap).sort((a,b)=>a[0].localeCompare(b[0]));
-  if(!mArr.length) return '<svg viewBox="0 0 60 20" style="width:60px;height:20px"><line x1="0" y1="10" x2="60" y2="10" stroke="rgba(148,163,184,0.15)" stroke-width="1"/></svg>';
-  const vals=mArr.map(([k,v])=>v.a);
-  const mx=Math.max(...vals,1);
-  const pts=vals.map((v,i)=>{const x=vals.length===1?30:i/(vals.length-1)*56+2;const y=18-(v/mx)*16;return `${x},${y}`;});
-  return `<svg viewBox="0 0 60 20" style="width:60px;height:20px">
+  if(!mArr.length) return '<svg viewBox="0 0 48 16" style="width:48px;height:16px"><line x1="0" y1="8" x2="48" y2="8" stroke="rgba(148,163,184,0.15)" stroke-width="1"/></svg>';
+  const vals=mArr.map(([k,v])=>v.a);const mx=Math.max(...vals,1);
+  const pts=vals.map((v,i)=>{const x=vals.length===1?24:i/(vals.length-1)*44+2;const y=14-(v/mx)*12;return `${x},${y}`;});
+  return `<svg viewBox="0 0 48 16" style="width:48px;height:16px">
     <polyline points="${pts.join(' ')}" fill="none" stroke="rgba(96,165,250,0.7)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
     ${pts.length===1?`<circle cx="${pts[0].split(',')[0]}" cy="${pts[0].split(',')[1]}" r="2" fill="rgba(96,165,250,0.9)"/>`:''}
   </svg>`;
@@ -85,383 +81,386 @@ function buildReductionGauge(actual, baseline, target) {
     <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;color:${gaugeColor};z-index:1">${fmt(pct)}% reduction</div>
   </div>
   <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--slate5)">
-    <span>BAU Baseline: ${fmt(baseline)} tCO\u2082</span>
+    <span>BAU: ${fmt(baseline)} tCO\u2082</span>
     <span style="color:${gaugeColor};font-weight:700">${meetsTarget ? 'Target Met' : 'Below Target'}</span>
     <span>Actual: ${fmt(actual)} tCO\u2082</span>
   </div>`;
 }
 
 function toggleProjectDetail(idx) {
-  const el = $('projDetail'+idx);
-  const btn = $('projToggle'+idx);
-  if (!el) return;
-  const hidden = el.style.display === 'none';
-  el.style.display = hidden ? 'block' : 'none';
+  const el = $('projDetail'+idx);const btn = $('projToggle'+idx);if (!el) return;
+  const hidden = el.style.display === 'none';el.style.display = hidden ? 'block' : 'none';
   if (btn) btn.textContent = hidden ? 'Hide Entries \u25B2' : 'View Entries \u25BC';
 }
 
-// ===== PROJECT MODAL (iOS-style popup) =====
-let _modalProjectData = null;
+// ===== COLOR HELPERS =====
+function _rc(pct, t) { return pct >= t ? 'var(--green)' : pct >= t*0.5 ? 'var(--orange)' : 'var(--red)'; }
+function _rbg(pct, t) { return pct >= t ? 'rgba(52,211,153,0.08)' : pct >= t*0.5 ? 'rgba(251,146,60,0.08)' : 'rgba(248,113,113,0.08)'; }
 
-function openProjectModal(idx) {
+// ===== DASHBOARD FILTER STATE =====
+let _dashFilter = { sort: 'worst', search: '' };
+function dashSetSort(v) { _dashFilter.sort = v; navigate('dashboard'); }
+function dashSearch(v) { _dashFilter.search = v; navigate('dashboard'); }
+
+// ===== AGGREGATION HELPERS =====
+function _aggContractors(entries) {
+  const m={};entries.forEach(e=>{const k=e.organizationId||e.submittedByUid||'unk';if(!m[k])m[k]={name:e.organizationName||e.submittedBy||'Unknown',b:0,a:0,n:0};m[k].b+=e.a13B||0;m[k].a+=e.a13A||0;m[k].n++;});
+  return Object.values(m).filter(o=>o.n>0).map(o=>({...o,pct:o.b>0?((o.b-o.a)/o.b)*100:0})).sort((a,b)=>a.pct-b.pct);
+}
+function _aggMaterials(entries) {
+  const m={};entries.forEach(e=>{const c=e.category||'Other';if(!m[c])m[c]={name:c,b:0,a:0,n:0};m[c].b+=e.a13B||0;m[c].a+=e.a13A||0;m[c].n++;});
+  return Object.values(m).sort((a,b)=>b.a-a.a);
+}
+
+// ===== BOTTOM SHEET MODAL (Apple-style, tabbed) =====
+function openProjectModal(idx, opts) {
+  opts = opts || {};
   const projects = state.projects || [];
   const p = projects[idx]; if (!p) return;
   const d = state.entries || [];
   const a5e = state.a5entries || [];
-  const projAssignments = state.projectAssignments || [];
+  const pa = state.projectAssignments || [];
   const target = state.reductionTarget || 20;
   const r = state.role;
-  const pe = d.filter(e => e.projectId === p.id);
-  const pa5 = a5e.filter(e => e.projectId === p.id);
-  const pAssign = projAssignments.filter(a => a.projectId === p.id);
+  // Role scoping: contractor sees only own org entries
+  let pe, pa5;
+  if (r === 'contractor' && state.organizationId) {
+    pe = d.filter(e => e.projectId === p.id && e.organizationId === state.organizationId);
+    pa5 = a5e.filter(e => e.projectId === p.id && e.organizationId === state.organizationId);
+  } else {
+    pe = d.filter(e => e.projectId === p.id);
+    pa5 = a5e.filter(e => e.projectId === p.id);
+  }
+  const pAsgn = pa.filter(a => a.projectId === p.id);
   let pB=0,pA=0,pA4=0; pe.forEach(e=>{pB+=e.a13B||0;pA+=e.a13A||0;pA4+=e.a4||0;});
   let pA5=0; pa5.forEach(e=>{pA5+=e.emission||0;});
-  const pRed = pB>0?((pB-pA)/pB)*100:0;
-  const pTotal = pA+pA4+pA5;
-  const consCount = pAssign.filter(a=>a.userRole==='consultant').length;
-  const contCount = pAssign.filter(a=>a.userRole==='contractor').length;
-  const svgId = 'modalSvg'+idx;
-  const lgId = 'modalLg'+idx;
-  const redColor = pRed >= target ? 'var(--green)' : pRed >= target*0.5 ? 'var(--orange)' : 'var(--red)';
+  const pRed=pB>0?((pB-pA)/pB)*100:0, pTotal=pA+pA4+pA5, pSav=Math.max(pB-pA,0);
+  const rc=_rc(pRed,target);
+  const consC=pAsgn.filter(a=>a.userRole==='consultant').length;
+  const contC=pAsgn.filter(a=>a.userRole==='contractor').length;
+  const contractors=_aggContractors(pe);
+  const materials=_aggMaterials(pe);
+  const activeTab = opts.tab || 'overview';
+  const svgId='mSvg'+idx, lgId='mLg'+idx;
 
-  // Remove existing modal if any
-  const old = document.getElementById('projectModalOverlay');
-  if (old) old.remove();
+  // Remove old
+  const old=document.getElementById('projectModalOverlay'); if(old)old.remove();
+  const ov=document.createElement('div');ov.id='projectModalOverlay';ov.className='pm-overlay';
 
-  const overlay = document.createElement('div');
-  overlay.id = 'projectModalOverlay';
-  overlay.className = 'pm-overlay';
-  overlay.innerHTML = `
+  // --- TAB: Overview ---
+  const tabOv=`<div class="pm-tab-pane" data-tab="overview" style="display:${activeTab==='overview'?'block':'none'}">
+    <div class="stats-row" style="margin-bottom:10px;grid-template-columns:repeat(5,1fr)">
+      <div class="stat-card slate" style="padding:8px 10px"><div class="sc-label" style="font-size:9px">BAU Baseline</div><div class="sc-value" style="font-size:16px">${fmt(pB)}</div><div class="sc-sub">tCO\u2082eq</div></div>
+      <div class="stat-card blue" style="padding:8px 10px"><div class="sc-label" style="font-size:9px">Actual</div><div class="sc-value" style="font-size:16px">${fmt(pA)}</div><div class="sc-sub">tCO\u2082eq</div></div>
+      <div class="stat-card green" style="padding:8px 10px"><div class="sc-label" style="font-size:9px">Savings</div><div class="sc-value" style="font-size:16px">${fmt(pSav)}</div><div class="sc-sub">tCO\u2082eq</div></div>
+      <div class="stat-card" style="padding:8px 10px;background:${_rbg(pRed,target)};border:1px solid ${rc}22"><div class="sc-label" style="font-size:9px;color:${rc}">Reduction</div><div class="sc-value" style="font-size:16px;color:${rc}">${fmt(pRed)}%</div><div class="sc-sub" style="color:${rc}">vs ${target}%</div></div>
+      <div class="stat-card orange" style="padding:8px 10px"><div class="sc-label" style="font-size:9px">A4+A5</div><div class="sc-value" style="font-size:16px">${fmt(pA4+pA5)}</div><div class="sc-sub">tCO\u2082eq</div></div>
+    </div>
+    ${buildReductionGauge(pA, pB, target)}
+    ${pe.length>0?`<div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:12px">
+      <div><div style="font-size:10px;font-weight:700;letter-spacing:1px;color:var(--text3);text-transform:uppercase;margin-bottom:6px">BAU vs Actual Trend</div>${buildLineChart(pe,'mLine'+idx,false)}</div>
+      <div><div style="font-size:10px;font-weight:700;letter-spacing:1px;color:var(--text3);text-transform:uppercase;margin-bottom:6px">Materials Mix</div>${buildDonutChart(pe,svgId,lgId)}</div>
+    </div>`:'<div style="padding:24px;text-align:center;color:var(--slate5);font-size:12px">No entries yet.</div>'}
+  </div>`;
+
+  // --- TAB: Contractors ---
+  const tabCon=`<div class="pm-tab-pane" data-tab="contractors" style="display:${activeTab==='contractors'?'block':'none'}">
+    ${contractors.length>0?`<div class="tbl-wrap"><table>
+      <thead><tr><th>Contractor</th><th class="r">Entries</th><th class="r">Baseline</th><th class="r">Actual</th><th class="r">Savings</th><th class="r">Reduction</th><th>Status</th></tr></thead>
+      <tbody>${contractors.map((o,ci)=>{const ok=o.pct>=target;return`<tr style="${!ok?'background:rgba(248,113,113,0.05)':''}">
+        <td style="font-weight:600">${o.name}</td><td class="r">${o.n}</td>
+        <td class="r mono">${fmt(o.b)}</td><td class="r mono">${fmt(o.a)}</td>
+        <td class="r mono" style="color:var(--green)">${fmt(Math.max(o.b-o.a,0))}</td>
+        <td class="r mono" style="font-weight:700;color:${ok?'var(--green)':'var(--red)'}">${fmt(o.pct)}%</td>
+        <td>${ok?'<span class="badge approved" style="font-size:9px">On Track</span>':'<span class="badge" style="background:rgba(248,113,113,0.15);color:var(--red);font-size:9px">Below</span>'}</td>
+      </tr>`;}).join('')}</tbody></table></div>`:'<div style="padding:24px;text-align:center;color:var(--slate5);font-size:12px">No contractor data.</div>'}
+  </div>`;
+
+  // --- TAB: Materials ---
+  const tabMat=`<div class="pm-tab-pane" data-tab="materials" style="display:${activeTab==='materials'?'block':'none'}">
+    ${materials.length>0?`<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:8px;margin-bottom:12px">
+      ${materials.map(m=>{const pct=m.b>0?((m.b-m.a)/m.b)*100:0;const cl=MATCOLS[m.name]||'var(--slate4)';return`<div style="padding:10px 12px;background:var(--bg3);border-radius:10px;border-left:3px solid ${cl}">
+        <div style="font-size:12px;font-weight:700;color:var(--text)">${m.name.replace('_',' ')}</div>
+        <div style="font-size:10px;color:var(--slate5)">${m.n} entries</div>
+        <div style="display:flex;justify-content:space-between;align-items:baseline;margin-top:3px">
+          <div style="font-size:15px;font-weight:800;color:var(--blue)">${fmt(m.a)}</div>
+          <div style="font-size:11px;font-weight:700;color:${_rc(pct,20)}">${fmt(pct)}%</div>
+        </div><div style="font-size:8px;color:var(--slate5)">tCO\u2082 actual | reduction</div>
+      </div>`;}).join('')}</div>
+    ${buildDonutChart(pe,'matSvg'+idx,'matLg'+idx)}`:'<div style="padding:24px;text-align:center;color:var(--slate5);font-size:12px">No material data.</div>'}
+  </div>`;
+
+  // --- TAB: Contributors (raw traceability table) ---
+  const sorted=[...pe].sort((a,b)=>(b.a13A||0)-(a.a13A||0));
+  const tabCtb=`<div class="pm-tab-pane" data-tab="contributors" style="display:${activeTab==='contributors'?'block':'none'}">
+    ${sorted.length>0?`
+    <div style="margin-bottom:8px;display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+      <select onchange="_filterCtb(this.value,'month')" style="padding:3px 6px;font-size:10px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;color:var(--text)">
+        <option value="all">All Months</option>${[...new Set(pe.map(e=>e.monthLabel))].map(m=>`<option value="${m}">${m}</option>`).join('')}
+      </select>
+      <select onchange="_filterCtb(this.value,'contractor')" style="padding:3px 6px;font-size:10px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;color:var(--text)">
+        <option value="all">All Contractors</option>${[...new Set(pe.map(e=>e.organizationName||e.submittedBy||'Unknown'))].map(c=>`<option value="${c}">${c}</option>`).join('')}
+      </select>
+      <select onchange="_filterCtb(this.value,'material')" style="padding:3px 6px;font-size:10px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;color:var(--text)">
+        <option value="all">All Materials</option>${[...new Set(pe.map(e=>e.category).filter(Boolean))].map(c=>`<option value="${c}">${c}</option>`).join('')}
+      </select>
+      <select onchange="_filterCtb(this.value,'estatus')" style="padding:3px 6px;font-size:10px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;color:var(--text)">
+        <option value="all">All Statuses</option><option value="pending">Pending</option><option value="review">Review</option><option value="approved">Approved</option><option value="rejected">Rejected</option>
+      </select>
+    </div>
+    <div class="tbl-wrap" id="ctbTbl"><table>
+      <thead><tr><th>Month</th><th>Contractor</th><th>Material</th><th>Type</th><th class="r">Qty</th><th class="r">BL EF</th><th class="r">Act EF</th><th class="r">Baseline</th><th class="r">Actual</th><th class="r">Savings</th><th class="r">Red%</th><th>EPD</th><th>Status</th></tr></thead>
+      <tbody>${sorted.map(e=>{const pct=e.a13B>0?((e.a13B-e.a13A)/e.a13B)*100:0;const sav=Math.max((e.a13B||0)-(e.a13A||0),0);
+      return`<tr data-month="${e.monthLabel||''}" data-contractor="${e.organizationName||e.submittedBy||'Unknown'}" data-material="${e.category||''}" data-estatus="${e.status||'pending'}">
+        <td style="font-size:10px">${e.monthLabel||'--'}</td><td style="font-size:10px">${e.organizationName||e.submittedBy||'--'}</td>
+        <td style="font-weight:600;font-size:10px">${e.category||'--'}</td><td style="font-size:10px">${e.type||'--'}</td>
+        <td class="r mono" style="font-size:10px">${fmtI(e.qty)}</td>
+        <td class="r mono" style="font-size:10px">${e.baselineEF?fmt(e.baselineEF):'--'}</td>
+        <td class="r mono" style="font-size:10px">${e.actualEF?fmt(e.actualEF):'--'}</td>
+        <td class="r mono" style="font-size:10px">${fmt(e.a13B)}</td><td class="r mono" style="font-size:10px">${fmt(e.a13A)}</td>
+        <td class="r mono" style="font-size:10px;color:var(--green)">${fmt(sav)}</td>
+        <td class="r mono" style="font-size:10px;font-weight:700;color:${_rc(pct,target)}">${fmt(pct)}%</td>
+        <td style="font-size:9px;color:var(--blue)">${e.epdId||e.epdRef||'--'}</td>
+        <td><span class="badge ${e.status||'pending'}" style="font-size:9px">${e.status||'pending'}</span></td>
+      </tr>`;}).join('')}</tbody></table></div>
+    ${pa5.length>0?`<div style="margin-top:10px;font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;margin-bottom:4px">A5 Site (${pa5.length})</div>
+    <div class="tbl-wrap"><table><thead><tr><th>Month</th><th>Source</th><th class="r">Qty</th><th>Unit</th><th class="r">Emission</th><th>By</th></tr></thead>
+    <tbody>${[...pa5].sort((a,b)=>(b.emission||0)-(a.emission||0)).map(e=>`<tr><td style="font-size:10px">${e.monthLabel||'--'}</td><td style="font-weight:600;font-size:10px">${e.source||'--'}</td><td class="r mono" style="font-size:10px">${fmtI(e.qty)}</td><td style="font-size:10px">${e.unit||'--'}</td><td class="r mono" style="font-size:10px;font-weight:700">${fmt(e.emission)}</td><td style="font-size:9px;color:var(--slate5)">${e.submittedBy||'--'}</td></tr>`).join('')}</tbody></table></div>`:''}
+    `:'<div style="padding:24px;text-align:center;color:var(--slate5);font-size:12px">No entries yet. Contributors appear here when data is submitted.</div>'}
+  </div>`;
+
+  ov.innerHTML=`
     <div class="pm-sheet" id="pmSheet">
       <div class="pm-handle" onclick="closeProjectModal()"><div class="pm-handle-bar"></div></div>
       <div class="pm-close" onclick="closeProjectModal()">&times;</div>
       <div class="pm-scroll">
-        <!-- Header -->
-        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:4px">
           <div>
-            <div style="font-size:20px;font-weight:800;color:var(--text)">${p.name}</div>
-            ${p.code ? `<div style="font-size:11px;color:var(--blue);font-family:monospace;margin-top:3px">${p.code}</div>` : ''}
+            <div style="font-size:18px;font-weight:800;color:var(--text)">${p.name}</div>
+            <div style="display:flex;gap:8px;align-items:center;margin-top:2px">
+              ${p.code?`<span style="font-size:10px;color:var(--blue);font-family:monospace">${p.code}</span>`:''}
+              <span style="font-size:10px;color:var(--slate5)">${consC} cons, ${contC} contr</span>
+              <span class="badge ${p.status==='active'?'approved':'review'}" style="font-size:9px;text-transform:capitalize">${p.status||'active'}</span>
+            </div>
           </div>
-          <div style="display:flex;gap:8px;align-items:center">
-            <span style="font-size:10px;color:var(--slate5)">${consCount} consultants, ${contCount} contractors</span>
-            <span class="badge ${p.status==='active'?'approved':'review'}" style="text-transform:capitalize">${p.status||'active'}</span>
+          <div style="display:flex;gap:12px;align-items:center">
+            <div style="text-align:center"><div style="font-size:20px;font-weight:800;color:${rc}">${fmt(pRed)}%</div><div style="font-size:8px;color:var(--slate5)">Reduction</div></div>
+            <div style="text-align:center"><div style="font-size:20px;font-weight:800;color:var(--blue)">${fmt(pTotal)}</div><div style="font-size:8px;color:var(--slate5)">tCO\u2082</div></div>
           </div>
         </div>
-
-        <!-- KPI row -->
-        <div class="stats-row" style="margin-bottom:14px;grid-template-columns:repeat(5,1fr)">
-          <div class="stat-card slate" style="padding:10px 12px"><div class="sc-label" style="font-size:9px">A1-A3 Baseline</div><div class="sc-value" style="font-size:18px">${fmt(pB)}</div><div class="sc-sub">tCO\u2082eq</div></div>
-          <div class="stat-card blue" style="padding:10px 12px"><div class="sc-label" style="font-size:9px">A1-A3 Actual</div><div class="sc-value" style="font-size:18px">${fmt(pA)}</div><div class="sc-sub">tCO\u2082eq</div></div>
-          <div class="stat-card orange" style="padding:10px 12px"><div class="sc-label" style="font-size:9px">A4 Transport</div><div class="sc-value" style="font-size:18px">${fmt(pA4)}</div><div class="sc-sub">tCO\u2082eq</div></div>
-          <div class="stat-card cyan" style="padding:10px 12px"><div class="sc-label" style="font-size:9px">A5 Site</div><div class="sc-value" style="font-size:18px">${fmt(pA5)}</div><div class="sc-sub">tCO\u2082eq</div></div>
-          <div class="stat-card green" style="padding:10px 12px"><div class="sc-label" style="font-size:9px">Total A1-A5</div><div class="sc-value" style="font-size:18px">${fmt(pTotal)}</div><div class="sc-sub">tCO\u2082eq</div></div>
+        <div class="pm-tabs">
+          <button class="pm-tab ${activeTab==='overview'?'active':''}" onclick="_switchTab('overview')">Overview</button>
+          <button class="pm-tab ${activeTab==='contractors'?'active':''}" onclick="_switchTab('contractors')">Contractors</button>
+          <button class="pm-tab ${activeTab==='materials'?'active':''}" onclick="_switchTab('materials')">Materials</button>
+          <button class="pm-tab ${activeTab==='contributors'?'active':''}" onclick="_switchTab('contributors')">Contributors</button>
         </div>
-
-        <!-- Reduction gauge -->
-        ${buildReductionGauge(pA, pB, target)}
-
-        <!-- Charts -->
-        ${pe.length > 0 ? `<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px">
-          <div><div style="font-size:11px;font-weight:700;color:var(--slate4);margin-bottom:6px">Monthly Trend</div>${buildLineChart(pe, 'modalLine'+idx, false)}</div>
-          <div><div style="font-size:11px;font-weight:700;color:var(--slate4);margin-bottom:6px">Materials Breakdown</div>${buildDonutChart(pe, svgId, lgId)}</div>
-        </div>` : '<div style="padding:20px;text-align:center;color:var(--slate5);font-size:12px">No entries yet for this project.</div>'}
-
-        <!-- Contractor Performance -->
-        ${r !== 'contractor' && pe.length > 0 ? `<div style="margin-top:16px">
-          <div style="font-size:11px;font-weight:700;letter-spacing:1px;color:var(--text3);text-transform:uppercase;margin-bottom:8px">Contractor Performance</div>
-          ${buildContractorPerformance(pe, pAssign, target)}
-        </div>` : ''}
-
-        <!-- Entry table (all entries) -->
-        ${pe.length > 0 ? `<div style="margin-top:16px">
-          <div style="font-size:11px;font-weight:700;letter-spacing:1px;color:var(--text3);text-transform:uppercase;margin-bottom:8px">All Entries</div>
-          ${buildEntryTable(pe, pa5)}
-        </div>` : ''}
+        ${tabOv}${tabCon}${tabMat}${tabCtb}
       </div>
     </div>`;
+  document.body.appendChild(ov);
+  requestAnimationFrame(()=>{ov.classList.add('pm-visible');document.getElementById('pmSheet').classList.add('pm-sheet-visible');});
+  ov.addEventListener('click',e=>{if(e.target===ov)closeProjectModal();});
+  const escH=e=>{if(e.key==='Escape'){closeProjectModal();document.removeEventListener('keydown',escH);}};
+  document.addEventListener('keydown',escH);
+  setTimeout(()=>{renderDonutSvg(pe,svgId,lgId);renderDonutSvg(pe,'matSvg'+idx,'matLg'+idx);},60);
+}
 
-  document.body.appendChild(overlay);
-  // Trigger animation
-  requestAnimationFrame(() => {
-    overlay.classList.add('pm-visible');
-    document.getElementById('pmSheet').classList.add('pm-sheet-visible');
-  });
-  // Close on backdrop click
-  overlay.addEventListener('click', (e) => { if (e.target === overlay) closeProjectModal(); });
-  // Render donut after DOM
-  setTimeout(() => { renderDonutSvg(pe, svgId, lgId); }, 60);
+function _switchTab(tab) {
+  document.querySelectorAll('.pm-tab-pane').forEach(el=>{el.style.display=el.getAttribute('data-tab')===tab?'block':'none';});
+  document.querySelectorAll('.pm-tab').forEach(btn=>{btn.classList.toggle('active',btn.textContent.toLowerCase()===tab);});
+}
+
+function _filterCtb(val, field) {
+  const tbl=document.getElementById('ctbTbl');if(!tbl)return;
+  tbl.querySelectorAll('tbody tr').forEach(row=>{row.style.display=(val==='all'||row.getAttribute('data-'+field)===val)?'':'none';});
 }
 
 function closeProjectModal() {
-  const overlay = document.getElementById('projectModalOverlay');
-  if (!overlay) return;
-  const sheet = document.getElementById('pmSheet');
-  if (sheet) sheet.classList.remove('pm-sheet-visible');
-  overlay.classList.remove('pm-visible');
-  setTimeout(() => overlay.remove(), 350);
+  const ov=document.getElementById('projectModalOverlay');if(!ov)return;
+  const sh=document.getElementById('pmSheet');if(sh)sh.classList.remove('pm-sheet-visible');
+  ov.classList.remove('pm-visible');setTimeout(()=>ov.remove(),350);
 }
 
 function buildEntryTable(entries, a5entries) {
-  // Sort by carbon impact (biggest actual first)
-  const sorted = [...entries].sort((a, b) => (b.a13A || 0) - (a.a13A || 0));
-  let html = '';
-
-  if (sorted.length > 0) {
-    // Top Contributors summary (by material category)
-    const byCat = {};
-    sorted.forEach(e => {
-      if (!byCat[e.category]) byCat[e.category] = { b: 0, a: 0, count: 0 };
-      byCat[e.category].b += e.a13B || 0;
-      byCat[e.category].a += e.a13A || 0;
-      byCat[e.category].count++;
-    });
-    const catArr = Object.entries(byCat).sort((a, b) => b[1].a - a[1].a);
-
-    html += `<div style="margin-bottom:14px">
-      <div style="font-size:12px;font-weight:700;color:var(--slate4);margin-bottom:6px">Top Carbon Contributors (by material)</div>
-      <div style="display:flex;flex-wrap:wrap;gap:8px">${catArr.map(([cat, v]) => {
-        const pct = v.b > 0 ? ((v.b - v.a) / v.b) * 100 : 0;
-        const cl = MATCOLS[cat] || 'var(--slate4)';
-        return `<div style="padding:8px 14px;background:var(--bg2);border-radius:10px;border-left:3px solid ${cl};min-width:140px">
-          <div style="font-size:13px;font-weight:700;color:var(--slate2)">${cat.replace('_', ' ')}</div>
-          <div style="font-size:11px;color:var(--slate5)">${v.count} entries</div>
-          <div style="font-size:14px;font-weight:800;color:var(--blue);margin-top:2px">${fmt(v.a)} tCO\u2082</div>
-          <div style="font-size:10px;color:${pct >= 20 ? 'var(--green)' : 'var(--red)'};font-weight:600">${fmt(pct)}% reduction</div>
-        </div>`;
-      }).join('')}</div>
-    </div>`;
-
-    // Full entry table
-    html += `<div style="font-size:12px;font-weight:700;color:var(--slate4);margin-bottom:6px">All A1-A4 Entries (${sorted.length})</div>
-    <div class="tbl-wrap"><table>
-      <thead><tr><th>Month</th><th>Material</th><th>Type</th><th class="r">Qty</th><th class="r">Baseline</th><th class="r">Actual</th><th class="r">A4</th><th class="r">Total</th><th class="r">Red%</th><th>By</th><th>Org</th><th>Status</th></tr></thead>
-      <tbody>${sorted.map(e => {
-        const pct = e.a13B > 0 ? ((e.a13B - e.a13A) / e.a13B) * 100 : 0;
-        return `<tr>
-          <td style="font-size:11px">${e.monthLabel || '--'}</td>
-          <td style="font-weight:600">${e.category || '--'}</td>
-          <td style="font-size:11px">${e.type || '--'}</td>
-          <td class="r mono" style="font-size:11px">${fmtI(e.qty)}</td>
-          <td class="r mono" style="font-size:11px">${fmt(e.a13B)}</td>
-          <td class="r mono" style="font-size:11px">${fmt(e.a13A)}</td>
-          <td class="r mono" style="font-size:11px">${fmt(e.a4)}</td>
-          <td class="r mono" style="font-size:11px;font-weight:700">${fmt(e.a14)}</td>
-          <td class="r mono" style="font-size:11px;font-weight:700;color:${pct >= 20 ? 'var(--green)' : 'var(--red)'}">${fmt(pct)}%</td>
-          <td style="font-size:10px;color:var(--slate5)">${e.submittedBy || '--'}</td>
-          <td style="font-size:10px;color:var(--slate5)">${e.organizationName || '--'}</td>
-          <td><span class="badge ${e.status || 'pending'}" style="font-size:10px">${e.status || 'pending'}</span></td>
-        </tr>`;
-      }).join('')}</tbody>
-    </table></div>`;
+  const sorted=[...entries].sort((a,b)=>(b.a13A||0)-(a.a13A||0));let html='';
+  const target=state.reductionTarget||20;
+  if(sorted.length>0){
+    const byCat={};sorted.forEach(e=>{if(!byCat[e.category])byCat[e.category]={b:0,a:0,count:0};byCat[e.category].b+=e.a13B||0;byCat[e.category].a+=e.a13A||0;byCat[e.category].count++;});
+    const catArr=Object.entries(byCat).sort((a,b)=>b[1].a-a[1].a);
+    html+=`<div style="margin-bottom:14px"><div style="font-size:12px;font-weight:700;color:var(--slate4);margin-bottom:6px">Top Carbon Contributors</div>
+      <div style="display:flex;flex-wrap:wrap;gap:8px">${catArr.map(([cat,v])=>{const pct=v.b>0?((v.b-v.a)/v.b)*100:0;const cl=MATCOLS[cat]||'var(--slate4)';
+      return`<div style="padding:8px 14px;background:var(--bg3);border-radius:10px;border-left:3px solid ${cl};min-width:140px">
+        <div style="font-size:13px;font-weight:700;color:var(--slate3)">${cat.replace('_',' ')}</div>
+        <div style="font-size:11px;color:var(--slate5)">${v.count} entries</div>
+        <div style="font-size:14px;font-weight:800;color:var(--blue);margin-top:2px">${fmt(v.a)} tCO\u2082</div>
+        <div style="font-size:10px;color:${_rc(pct,target)};font-weight:600">${fmt(pct)}% reduction</div>
+      </div>`;}).join('')}</div></div>`;
+    html+=`<div style="font-size:12px;font-weight:700;color:var(--slate4);margin-bottom:6px">All Entries (${sorted.length})</div>
+    <div class="tbl-wrap"><table><thead><tr><th>Month</th><th>Material</th><th>Type</th><th class="r">Qty</th><th class="r">Baseline</th><th class="r">Actual</th><th class="r">A4</th><th class="r">Total</th><th class="r">Red%</th><th>By</th><th>Org</th><th>Status</th></tr></thead>
+    <tbody>${sorted.map(e=>{const pct=e.a13B>0?((e.a13B-e.a13A)/e.a13B)*100:0;return`<tr>
+      <td style="font-size:11px">${e.monthLabel||'--'}</td><td style="font-weight:600">${e.category||'--'}</td><td style="font-size:11px">${e.type||'--'}</td>
+      <td class="r mono" style="font-size:11px">${fmtI(e.qty)}</td><td class="r mono" style="font-size:11px">${fmt(e.a13B)}</td><td class="r mono" style="font-size:11px">${fmt(e.a13A)}</td>
+      <td class="r mono" style="font-size:11px">${fmt(e.a4)}</td><td class="r mono" style="font-size:11px;font-weight:700">${fmt(e.a14)}</td>
+      <td class="r mono" style="font-size:11px;font-weight:700;color:${_rc(pct,target)}">${fmt(pct)}%</td>
+      <td style="font-size:10px;color:var(--slate5)">${e.submittedBy||'--'}</td><td style="font-size:10px;color:var(--slate5)">${e.organizationName||'--'}</td>
+      <td><span class="badge ${e.status||'pending'}" style="font-size:10px">${e.status||'pending'}</span></td>
+    </tr>`;}).join('')}</tbody></table></div>`;
   }
-
-  // A5 entries
-  if (a5entries && a5entries.length > 0) {
-    const sortedA5 = [...a5entries].sort((a, b) => (b.emission || 0) - (a.emission || 0));
-    html += `<div style="margin-top:14px;font-size:12px;font-weight:700;color:var(--slate4);margin-bottom:6px">A5 Site Entries (${sortedA5.length})</div>
-    <div class="tbl-wrap"><table>
-      <thead><tr><th>Month</th><th>Source</th><th class="r">Qty</th><th>Unit</th><th class="r">Emission</th><th>By</th><th>Org</th></tr></thead>
-      <tbody>${sortedA5.map(e => `<tr>
-        <td style="font-size:11px">${e.monthLabel || '--'}</td>
-        <td style="font-weight:600">${e.source || '--'}</td>
-        <td class="r mono" style="font-size:11px">${fmtI(e.qty)}</td>
-        <td style="font-size:11px">${e.unit || '--'}</td>
-        <td class="r mono" style="font-size:11px;font-weight:700">${fmt(e.emission)}</td>
-        <td style="font-size:10px;color:var(--slate5)">${e.submittedBy || '--'}</td>
-        <td style="font-size:10px;color:var(--slate5)">${e.organizationName || '--'}</td>
-      </tr>`).join('')}</tbody>
-    </table></div>`;
+  if(a5entries&&a5entries.length>0){const s5=[...a5entries].sort((a,b)=>(b.emission||0)-(a.emission||0));
+    html+=`<div style="margin-top:14px;font-size:12px;font-weight:700;color:var(--slate4);margin-bottom:6px">A5 Site (${s5.length})</div>
+    <div class="tbl-wrap"><table><thead><tr><th>Month</th><th>Source</th><th class="r">Qty</th><th>Unit</th><th class="r">Emission</th><th>By</th><th>Org</th></tr></thead>
+    <tbody>${s5.map(e=>`<tr><td style="font-size:11px">${e.monthLabel||'--'}</td><td style="font-weight:600">${e.source||'--'}</td><td class="r mono" style="font-size:11px">${fmtI(e.qty)}</td><td style="font-size:11px">${e.unit||'--'}</td><td class="r mono" style="font-size:11px;font-weight:700">${fmt(e.emission)}</td><td style="font-size:10px;color:var(--slate5)">${e.submittedBy||'--'}</td><td style="font-size:10px;color:var(--slate5)">${e.organizationName||'--'}</td></tr>`).join('')}</tbody></table></div>`;
   }
-
-  if (!html) html = '<div style="padding:16px;text-align:center;color:var(--slate5);font-size:12px">No entries yet for this project.</div>';
+  if(!html) html='<div style="padding:16px;text-align:center;color:var(--slate5);font-size:12px">No entries yet.</div>';
   return html;
 }
 
 function buildContractorPerformance(entries, assignments, target) {
-  // Group entries by submitting contractor (org)
-  const byOrg = {};
-  entries.forEach(e => {
-    const orgKey = e.organizationId || e.submittedByUid || 'unknown';
-    if (!byOrg[orgKey]) byOrg[orgKey] = { name: e.organizationName || e.submittedBy || 'Unknown', b: 0, a: 0, count: 0 };
-    byOrg[orgKey].b += e.a13B || 0;
-    byOrg[orgKey].a += e.a13A || 0;
-    byOrg[orgKey].count++;
-  });
-  const orgs = Object.values(byOrg).filter(o => o.count > 0).sort((a, b) => {
-    const pa = a.b > 0 ? ((a.b - a.a) / a.b) * 100 : 0;
-    const pb = b.b > 0 ? ((b.b - b.a) / b.b) * 100 : 0;
-    return pa - pb; // worst first
-  });
-  if (!orgs.length) return '';
-  return `<div class="tbl-wrap"><table>
-    <thead><tr><th>Contractor / Org</th><th class="r">Entries</th><th class="r">Baseline</th><th class="r">Actual</th><th class="r">Reduction</th><th>Status</th></tr></thead>
-    <tbody>${orgs.map(o => {
-      const pct = o.b > 0 ? ((o.b - o.a) / o.b) * 100 : 0;
-      const ok = pct >= target;
-      return `<tr style="${!ok ? 'background:rgba(248,113,113,0.06)' : ''}">
-        <td style="font-weight:600">${o.name}</td>
-        <td class="r">${o.count}</td>
-        <td class="r mono">${fmt(o.b)}</td>
-        <td class="r mono">${fmt(o.a)}</td>
-        <td class="r mono" style="font-weight:700;color:${ok ? 'var(--green)' : 'var(--red)'}">${fmt(pct)}%</td>
-        <td>${ok
-          ? '<span class="badge approved">On Track</span>'
-          : '<span class="badge" style="background:rgba(248,113,113,0.15);color:var(--red)">Below Target</span>'}</td>
-      </tr>`;
-    }).join('')}</tbody>
-  </table></div>`;
+  const byOrg={};entries.forEach(e=>{const k=e.organizationId||e.submittedByUid||'unknown';if(!byOrg[k])byOrg[k]={name:e.organizationName||e.submittedBy||'Unknown',b:0,a:0,count:0};byOrg[k].b+=e.a13B||0;byOrg[k].a+=e.a13A||0;byOrg[k].count++;});
+  const orgs=Object.values(byOrg).filter(o=>o.count>0).sort((a,b)=>{const pa=a.b>0?((a.b-a.a)/a.b)*100:0;const pb=b.b>0?((b.b-b.a)/b.b)*100:0;return pa-pb;});
+  if(!orgs.length)return'';
+  return`<div class="tbl-wrap"><table><thead><tr><th>Contractor</th><th class="r">Entries</th><th class="r">Baseline</th><th class="r">Actual</th><th class="r">Reduction</th><th>Status</th></tr></thead>
+  <tbody>${orgs.map(o=>{const pct=o.b>0?((o.b-o.a)/o.b)*100:0;const ok=pct>=target;return`<tr style="${!ok?'background:rgba(248,113,113,0.06)':''}">
+    <td style="font-weight:600">${o.name}</td><td class="r">${o.count}</td><td class="r mono">${fmt(o.b)}</td><td class="r mono">${fmt(o.a)}</td>
+    <td class="r mono" style="font-weight:700;color:${ok?'var(--green)':'var(--red)'}">${fmt(pct)}%</td>
+    <td>${ok?'<span class="badge approved">On Track</span>':'<span class="badge" style="background:rgba(248,113,113,0.15);color:var(--red)">Below Target</span>'}</td>
+  </tr>`;}).join('')}</tbody></table></div>`;
 }
 
-// ===== PORTFOLIO DASHBOARD (compact, one-screen) =====
+// ===== PORTFOLIO DASHBOARD — one-screen command center =====
 function renderPortfolioDashboard(el, projects) {
   const r = state.role;
-  const d = state.entries;
+  const d = state.entries || [];
   const a5e = state.a5entries || [];
-  const projAssignments = state.projectAssignments || [];
+  const pa = state.projectAssignments || [];
   const target = state.reductionTarget || 20;
 
-  // Overall totals
+  // Totals
   let tB=0,tA=0,tA4=0; d.forEach(e=>{tB+=e.a13B||0;tA+=e.a13A||0;tA4+=e.a4||0;});
   let a5T=0; a5e.forEach(e=>{a5T+=e.emission||0;});
   const rP=tB>0?((tB-tA)/tB)*100:0;
-  const overallTotal=tA+tA4+a5T;
-  const overallRedColor = rP >= target ? 'var(--green)' : rP >= target*0.5 ? 'var(--orange)' : 'var(--red)';
+  const tTotal=tA+tA4+a5T, tSav=Math.max(tB-tA,0);
+  const orc=_rc(rP,target), onTrack=rP>=target;
 
-  // Contractor performance data (for underperformers alert)
-  const byOrg = {};
-  d.forEach(e => {
-    const orgKey = e.organizationId || e.submittedByUid || 'unknown';
-    if (!byOrg[orgKey]) byOrg[orgKey] = { name: e.organizationName || e.submittedBy || 'Unknown', b: 0, a: 0, count: 0 };
-    byOrg[orgKey].b += e.a13B || 0;
-    byOrg[orgKey].a += e.a13A || 0;
-    byOrg[orgKey].count++;
+  // Aggregate per-project
+  const projData=projects.map((p,idx)=>{
+    const pe=d.filter(e=>e.projectId===p.id);
+    const pa5=a5e.filter(e=>e.projectId===p.id);
+    let pB=0,pA=0,pA4=0;pe.forEach(e=>{pB+=e.a13B||0;pA+=e.a13A||0;pA4+=e.a4||0;});
+    let pA5=0;pa5.forEach(e=>{pA5+=e.emission||0;});
+    const pRed=pB>0?((pB-pA)/pB)*100:0, pTotal=pA+pA4+pA5, pSav=Math.max(pB-pA,0);
+    // Worst contractor per project
+    const orgs=_aggContractors(pe);
+    const worstOrg=orgs.length>0?orgs[0]:null;
+    return {p,idx,pe,pB,pA,pRed,pTotal,pSav,worstOrg};
   });
-  const allOrgs = Object.values(byOrg).filter(o => o.count > 0);
-  const underperformers = allOrgs.filter(o => { const p = o.b > 0 ? ((o.b - o.a) / o.b) * 100 : 0; return p < target; });
 
-  // Build compact project cards
-  const projectCards = projects.map((p, idx) => {
-    const pe = d.filter(e => e.projectId === p.id);
-    const pa5 = a5e.filter(e => e.projectId === p.id);
-    let pB=0,pA=0,pA4=0; pe.forEach(e=>{pB+=e.a13B||0;pA+=e.a13A||0;pA4+=e.a4||0;});
-    let pA5=0; pa5.forEach(e=>{pA5+=e.emission||0;});
-    const pRed = pB>0?((pB-pA)/pB)*100:0;
-    const pTotal = pA+pA4+pA5;
-    const redColor = pRed >= target ? 'var(--green)' : pRed >= target*0.5 ? 'var(--orange)' : 'var(--red)';
-    const redBg = pRed >= target ? 'rgba(52,211,153,0.08)' : pRed >= target*0.5 ? 'rgba(251,146,60,0.08)' : 'rgba(248,113,113,0.08)';
-    const gaugeW = Math.min(Math.max(pRed, 0), 100);
+  // Decision row data
+  const allCon=_aggContractors(d);const allMat=_aggMaterials(d);
+  const belowTarget=projData.filter(pd=>pd.pRed<target&&pd.pe.length>0);
+  const worstProj=projData.filter(pd=>pd.pe.length>0).sort((a,b)=>b.pA-a.pA)[0];
+  const worstCon=allCon.length>0?allCon[0]:null;
+  const bigMat=allMat.length>0?allMat[0]:null;
 
-    return `<div class="pcard" onclick="openProjectModal(${idx})" style="cursor:pointer">
-      <div class="pcard-top">
+  // Filtered + sorted project list
+  let filtered=[...projData];
+  if(_dashFilter.search){const q=_dashFilter.search.toLowerCase();filtered=filtered.filter(pd=>pd.p.name.toLowerCase().includes(q)||(pd.p.code||'').toLowerCase().includes(q));}
+  switch(_dashFilter.sort){
+    case'worst':filtered.sort((a,b)=>b.pA-a.pA);break;
+    case'best':filtered.sort((a,b)=>b.pRed-a.pRed);break;
+    case'alpha':filtered.sort((a,b)=>a.p.name.localeCompare(b.p.name));break;
+    case'below':filtered.sort((a,b)=>a.pRed-b.pRed);break;
+  }
+
+  // Build tiles
+  const tiles=filtered.map(pd=>{
+    const{p,idx,pe,pRed,pTotal,pSav,worstOrg}=pd;
+    const rc=_rc(pRed,target);const gw=Math.min(Math.max(pRed,0),100);
+    const woC=worstOrg?_rc(worstOrg.pct,target):'';
+    return`<div class="pcard" onclick="openProjectModal(${idx})">
+      <div class="pcard-top"><div style="display:flex;justify-content:space-between;align-items:flex-start">
         <div class="pcard-name">${p.name}</div>
-        ${p.code ? `<div class="pcard-code">${p.code}</div>` : ''}
-      </div>
-      <div class="pcard-body">
-        <div class="pcard-metric">
-          <div class="pcard-metric-val" style="color:var(--blue)">${fmt(pTotal)}</div>
-          <div class="pcard-metric-lbl">tCO\u2082 total</div>
-        </div>
-        <div class="pcard-spark">${buildMiniSparkline(pe)}</div>
-      </div>
-      <div class="pcard-gauge">
-        <div class="pcard-gauge-track"><div class="pcard-gauge-fill" style="width:${gaugeW}%;background:${redColor}"></div></div>
-        <div class="pcard-gauge-label" style="color:${redColor}">${fmt(pRed)}% reduction</div>
-      </div>
+        <span class="pcard-red-badge" style="background:${_rbg(pRed,target)};color:${rc}">${fmt(pRed)}%</span>
+      </div>${p.code?`<div class="pcard-code">${p.code}</div>`:''}</div>
+      <div class="pcard-body"><div class="pcard-metric">
+        <div class="pcard-metric-val" style="color:var(--blue)">${fmt(pTotal)}</div>
+        <div class="pcard-metric-lbl">tCO\u2082 actual</div>
+      </div><div style="text-align:right">
+        <div style="font-size:11px;font-weight:700;color:var(--green)">${fmt(pSav)}</div>
+        <div style="font-size:8px;color:var(--slate5)">saved</div>
+      </div></div>
+      <div class="pcard-gauge"><div class="pcard-gauge-track"><div class="pcard-gauge-fill" style="width:${gw}%;background:${rc}"></div></div></div>
       <div class="pcard-footer">
-        <span style="font-size:10px;color:var(--slate5)">${pe.length} entries</span>
-        <span class="badge ${p.status==='active'?'approved':'review'}" style="font-size:9px;padding:2px 6px;text-transform:capitalize">${p.status||'active'}</span>
+        <div class="pcard-spark">${buildMiniSparkline(pe)}</div>
+        ${worstOrg?`<div style="font-size:8px;color:${woC};max-width:55%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${worstOrg.name}: ${fmt(worstOrg.pct)}%">${worstOrg.name}</div>`:`<span style="font-size:9px;color:var(--slate5)">${pe.length} entries</span>`}
       </div>
     </div>`;
   }).join('');
 
-  el.innerHTML = `
-  <!-- Portfolio Header (compact) -->
-  <div class="card" style="padding:14px 20px;background:linear-gradient(135deg,rgba(96,165,250,0.06),rgba(167,139,250,0.04));border:1px solid rgba(96,165,250,0.12)">
-    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
-      <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
-        <div style="font-size:11px;font-weight:700;letter-spacing:1.5px;color:var(--blue);text-transform:uppercase">Portfolio</div>
-        <div style="display:flex;gap:16px;align-items:center">
-          <div style="text-align:center"><div style="font-size:22px;font-weight:800;color:var(--blue)">${projects.length}</div><div style="font-size:9px;color:var(--slate5)">Projects</div></div>
-          <div style="width:1px;height:28px;background:var(--border2)"></div>
-          <div style="text-align:center"><div style="font-size:22px;font-weight:800;color:${overallRedColor}">${fmt(rP)}%</div><div style="font-size:9px;color:var(--slate5)">Reduction</div></div>
-          <div style="width:1px;height:28px;background:var(--border2)"></div>
-          <div style="text-align:center"><div style="font-size:22px;font-weight:800;color:var(--text)">${fmt(overallTotal)}</div><div style="font-size:9px;color:var(--slate5)">tCO\u2082 Total</div></div>
-          <div style="width:1px;height:28px;background:var(--border2)"></div>
-          <div style="text-align:center"><div style="font-size:22px;font-weight:800;color:var(--slate3)">${fmt(tB)}</div><div style="font-size:9px;color:var(--slate5)">BAU Baseline</div></div>
-        </div>
+  el.innerHTML=`
+  <!-- Sticky Header -->
+  <div class="dash-sticky">
+    <div class="dash-kpi-row">
+      <div class="dash-kpi"><div class="dash-kpi-v" style="color:var(--slate3)">${fmt(tB)}</div><div class="dash-kpi-l">BAU Baseline</div></div>
+      <div class="dash-kpi-sep"></div>
+      <div class="dash-kpi"><div class="dash-kpi-v" style="color:var(--blue)">${fmt(tTotal)}</div><div class="dash-kpi-l">Actual</div></div>
+      <div class="dash-kpi-sep"></div>
+      <div class="dash-kpi"><div class="dash-kpi-v" style="color:var(--green)">${fmt(tSav)}</div><div class="dash-kpi-l">Savings</div></div>
+      <div class="dash-kpi-sep"></div>
+      <div class="dash-kpi"><div class="dash-kpi-v" style="color:${orc}">${fmt(rP)}%</div><div class="dash-kpi-l">Reduction</div></div>
+      <div class="dash-kpi-sep"></div>
+      <div class="dash-kpi">
+        ${r==='client'?`<div style="display:flex;align-items:center;gap:3px">
+          <input type="number" id="dashTarget" value="${target}" min="0" max="100" step="1" class="dash-target-input"/>
+          <span style="font-size:10px;color:var(--red);font-weight:700">%</span>
+          <button class="btn btn-sm" onclick="saveReductionTarget()" style="font-size:9px;padding:2px 8px">Set</button>
+        </div>`:`<div class="dash-kpi-v" style="color:var(--red)">${target}%</div>`}
+        <div class="dash-kpi-l">Target</div>
       </div>
-      ${r === 'client' ? `<div style="display:flex;align-items:center;gap:6px;padding:6px 12px;background:var(--bg2);border-radius:8px;border:1px solid var(--border)">
-        <label style="font-size:10px;font-weight:700;color:var(--red);white-space:nowrap">Target:</label>
-        <input type="number" id="dashTarget" value="${target}" min="0" max="100" step="1" style="width:48px;font-size:13px;font-weight:700;text-align:center;padding:3px 4px" />
-        <span style="font-size:10px;color:var(--slate5)">%</span>
-        <button class="btn btn-sm" onclick="saveReductionTarget()" style="font-size:10px;padding:4px 10px">Save</button>
-      </div>` : `<div style="padding:6px 12px;background:rgba(248,113,113,0.06);border:1px solid rgba(248,113,113,0.12);border-radius:8px;font-size:11px;color:var(--red)">
-        Target: <strong>${target}%</strong>
-      </div>`}
+      <div class="dash-kpi-sep"></div>
+      <div class="dash-kpi"><div class="dash-track-badge ${onTrack?'on':'off'}">${onTrack?'ON TRACK':'OFF TRACK'}</div></div>
+    </div>
+    <div class="dash-filter-row">
+      <input type="text" placeholder="Search projects..." value="${_dashFilter.search||''}" oninput="dashSearch(this.value)" class="dash-search-input"/>
+      <div style="display:flex;gap:3px;align-items:center">
+        <span style="font-size:9px;color:var(--slate5);font-weight:700">SORT:</span>
+        <button class="dash-sort ${_dashFilter.sort==='worst'?'active':''}" onclick="dashSetSort('worst')">Worst First</button>
+        <button class="dash-sort ${_dashFilter.sort==='best'?'active':''}" onclick="dashSetSort('best')">Best Reduction</button>
+        <button class="dash-sort ${_dashFilter.sort==='alpha'?'active':''}" onclick="dashSetSort('alpha')">A-Z</button>
+        <button class="dash-sort ${_dashFilter.sort==='below'?'active':''}" onclick="dashSetSort('below')">Below Target</button>
+      </div>
     </div>
   </div>
 
-  <!-- Main dashboard row: Trend + Donut + Approvals + Contractors -->
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
-    <div class="card" style="padding:14px 16px;margin-bottom:0">
-      <div style="font-size:10px;font-weight:700;letter-spacing:1px;color:var(--text3);text-transform:uppercase;margin-bottom:8px">Monthly Trend</div>
-      ${d.length > 0 ? buildLineChart(d, 'overallLine', true) : '<div style="padding:16px;text-align:center;color:var(--slate5);font-size:11px">No data yet</div>'}
-    </div>
-    <div class="card" style="padding:14px 16px;margin-bottom:0">
-      <div style="font-size:10px;font-weight:700;letter-spacing:1px;color:var(--text3);text-transform:uppercase;margin-bottom:8px">Materials Breakdown</div>
-      ${d.length > 0 ? buildDonutChart(d, 'overallSvg', 'overallLg') : '<div style="padding:16px;text-align:center;color:var(--slate5);font-size:11px">No data yet</div>'}
+  <!-- Decision Row -->
+  <div class="dash-decision-row">
+    ${worstProj?`<div class="dash-dcard dash-dcard-red" onclick="openProjectModal(${worstProj.idx})">
+      <div class="dash-dcard-icon" style="background:rgba(248,113,113,0.15);color:var(--red)">!</div>
+      <div><div class="dash-dcard-title">Worst Project</div><div class="dash-dcard-val">${worstProj.p.name}</div><div class="dash-dcard-sub">${fmt(worstProj.pA)} tCO\u2082</div></div>
+    </div>`:''}
+    ${worstCon&&worstCon.pct<target?`<div class="dash-dcard dash-dcard-red" onclick="openProjectModal(0,{tab:'contractors'})">
+      <div class="dash-dcard-icon" style="background:rgba(248,113,113,0.15);color:var(--red)">!</div>
+      <div><div class="dash-dcard-title">Worst Contractor</div><div class="dash-dcard-val">${worstCon.name}</div><div class="dash-dcard-sub">${fmt(worstCon.pct)}% reduction</div></div>
+    </div>`:(allCon.length>0?`<div class="dash-dcard dash-dcard-green">
+      <div class="dash-dcard-icon" style="background:rgba(52,211,153,0.15);color:var(--green)">\u2713</div>
+      <div><div class="dash-dcard-title">Contractors</div><div class="dash-dcard-val" style="color:var(--green)">All on track</div><div class="dash-dcard-sub">${allCon.length} total</div></div>
+    </div>`:'')}
+    ${bigMat?`<div class="dash-dcard">
+      <div class="dash-dcard-icon" style="background:rgba(96,165,250,0.15);color:var(--blue)">\u25CF</div>
+      <div><div class="dash-dcard-title">Material Hotspot</div><div class="dash-dcard-val">${bigMat.name.replace('_',' ')}</div><div class="dash-dcard-sub">${fmt(bigMat.a)} tCO\u2082 (${bigMat.n} entries)</div></div>
+    </div>`:''}
+    <div class="dash-dcard ${belowTarget.length>0?'dash-dcard-amber':'dash-dcard-green'}">
+      <div class="dash-dcard-icon" style="background:${belowTarget.length>0?'rgba(251,191,36,0.15)':'rgba(52,211,153,0.15)'};color:${belowTarget.length>0?'var(--yellow)':'var(--green)'}">${belowTarget.length>0?belowTarget.length:'\u2713'}</div>
+      <div><div class="dash-dcard-title">Below Target</div><div class="dash-dcard-val" style="color:${belowTarget.length>0?'var(--yellow)':'var(--green)'}">${belowTarget.length>0?belowTarget.length+' project'+(belowTarget.length!==1?'s':''):'All meeting target'}</div><div class="dash-dcard-sub">vs ${target}%</div></div>
     </div>
   </div>
 
-  <!-- Approvals + Contractor Performance row -->
-  <div style="display:grid;grid-template-columns:${r !== 'contractor' && allOrgs.length > 0 ? '1fr 1fr' : '1fr'};gap:12px;margin-bottom:12px">
-    <div class="card" style="padding:14px 16px;margin-bottom:0">
-      <div style="font-size:10px;font-weight:700;letter-spacing:1px;color:var(--text3);text-transform:uppercase;margin-bottom:10px">Approvals</div>
-      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;text-align:center">
-        <div style="padding:8px 4px;background:rgba(251,191,36,0.06);border-radius:8px"><div style="font-size:20px;font-weight:800;color:var(--yellow)">${d.filter(e=>e.status==='pending').length}</div><div style="font-size:9px;color:var(--slate5)">Pending</div></div>
-        <div style="padding:8px 4px;background:rgba(96,165,250,0.06);border-radius:8px"><div style="font-size:20px;font-weight:800;color:var(--blue)">${d.filter(e=>e.status==='review').length}</div><div style="font-size:9px;color:var(--slate5)">Review</div></div>
-        <div style="padding:8px 4px;background:rgba(52,211,153,0.06);border-radius:8px"><div style="font-size:20px;font-weight:800;color:var(--green)">${d.filter(e=>e.status==='approved').length}</div><div style="font-size:9px;color:var(--slate5)">Approved</div></div>
-        <div style="padding:8px 4px;background:rgba(248,113,113,0.06);border-radius:8px"><div style="font-size:20px;font-weight:800;color:var(--red)">${d.filter(e=>e.status==='rejected').length}</div><div style="font-size:9px;color:var(--slate5)">Rejected</div></div>
-      </div>
-    </div>
-    ${r !== 'contractor' && allOrgs.length > 0 ? `<div class="card" style="padding:14px 16px;margin-bottom:0">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-        <div style="font-size:10px;font-weight:700;letter-spacing:1px;color:var(--text3);text-transform:uppercase">Contractor Performance</div>
-        ${underperformers.length > 0 ? `<span style="font-size:9px;padding:2px 8px;background:rgba(248,113,113,0.12);color:var(--red);border-radius:6px;font-weight:700">${underperformers.length} below target</span>` : `<span style="font-size:9px;padding:2px 8px;background:rgba(52,211,153,0.12);color:var(--green);border-radius:6px;font-weight:700">All on track</span>`}
-      </div>
-      <div style="max-height:140px;overflow-y:auto">
-      ${allOrgs.sort((a,b)=>{const pa=a.b>0?((a.b-a.a)/a.b)*100:0;const pb=b.b>0?((b.b-b.a)/b.b)*100:0;return pa-pb;}).map(o => {
-        const pct = o.b > 0 ? ((o.b - o.a) / o.b) * 100 : 0;
-        const ok = pct >= target;
-        return `<div style="display:flex;align-items:center;justify-content:space-between;padding:5px 8px;border-radius:6px;margin-bottom:3px;background:${ok?'transparent':'rgba(248,113,113,0.04)'}">
-          <div style="display:flex;align-items:center;gap:8px">
-            <div style="width:6px;height:6px;border-radius:50%;background:${ok?'var(--green)':'var(--red)'}"></div>
-            <span style="font-size:11px;font-weight:600;color:var(--text)">${o.name}</span>
-            <span style="font-size:9px;color:var(--slate5)">${o.count} entries</span>
-          </div>
-          <div style="display:flex;align-items:center;gap:8px">
-            <span style="font-size:11px;font-weight:700;color:${ok?'var(--green)':'var(--red)'}">${fmt(pct)}%</span>
-            <span style="font-size:9px;padding:1px 6px;border-radius:4px;font-weight:600;background:${ok?'rgba(52,211,153,0.1)':'rgba(248,113,113,0.1)'};color:${ok?'var(--green)':'var(--red)'}">${ok?'On Track':'Below'}</span>
-          </div>
-        </div>`;
-      }).join('')}
-      </div>
-    </div>` : ''}
+  <!-- Project Grid -->
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+    <div style="font-size:9px;font-weight:700;letter-spacing:1.5px;color:var(--text3);text-transform:uppercase">${r==='contractor'?'My Projects':r==='consultant'?'Assigned Projects':'All Projects'}</div>
+    <div style="font-size:10px;color:var(--slate5)">${filtered.length} of ${projects.length} | Click to drill down</div>
   </div>
-
-  <!-- Project Cards Grid (compact, click-to-expand) -->
-  <div style="margin-bottom:8px;display:flex;justify-content:space-between;align-items:center">
-    <div style="font-size:10px;font-weight:700;letter-spacing:1.5px;color:var(--text3);text-transform:uppercase">All Projects</div>
-    <div style="font-size:10px;color:var(--slate5)">Click any project to see full details</div>
-  </div>
-  <div class="pcard-grid">
-    ${projectCards}
-  </div>`;
-
-  // Render SVG donut chart after DOM is ready
-  setTimeout(() => {
-    renderDonutSvg(d, 'overallSvg', 'overallLg');
-  }, 50);
+  <div class="pcard-grid">${tiles||'<div style="padding:24px;text-align:center;color:var(--slate5);font-size:12px;grid-column:1/-1">No projects match your search.</div>'}</div>`;
 }
 
 async function saveReductionTarget() {
@@ -471,9 +470,7 @@ async function saveReductionTarget() {
     await DB.setSettings({ reductionTarget: val });
     state.reductionTarget = val;
     navigate('dashboard');
-  } catch (e) {
-    alert(e.message || 'Failed to save target.');
-  }
+  } catch (e) { alert(e.message || 'Failed to save target.'); }
 }
 
 // Classic Dashboard — fallback when no projects defined
@@ -481,12 +478,11 @@ function renderClassicDashboard(el) {
   const d=getFilteredEntries();const target=state.reductionTarget||20;
   let tB=0,tA=0,tA4=0;d.forEach(e=>{tB+=e.a13B||0;tA+=e.a13A||0;tA4+=e.a4||0;});
   let a5T=0;state.a5entries.forEach(e=>{a5T+=e.emission||0;});
-
-  const a5Arr = state.a5entries || [];
+  const a5Arr=state.a5entries||[];
   el.innerHTML=`
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
     <div style="font-size:16px;font-weight:700;color:var(--slate2)">Carbon Overview</div>
-    ${d.length > 0 ? `<button class="btn btn-sm" id="projToggleAll" onclick="toggleProjectDetail('All')" style="font-size:11px">View All Entries \u25BC</button>` : ''}
+    ${d.length>0?`<button class="btn btn-sm" id="projToggleAll" onclick="toggleProjectDetail('All')" style="font-size:11px">View All Entries \u25BC</button>`:''}
   </div>
   <div class="stats-row">
     <div class="stat-card slate"><div class="sc-label">A1-A3 BAU Baseline</div><div class="sc-value">${fmt(tB)}</div><div class="sc-sub">tCO\u2082eq</div></div>
@@ -496,21 +492,20 @@ function renderClassicDashboard(el) {
     <div class="stat-card green"><div class="sc-label">A1-A5 Total</div><div class="sc-value">${fmt(tA+tA4+a5T)}</div><div class="sc-sub">tCO\u2082eq</div></div>
   </div>
   ${buildReductionGauge(tA, tB, target)}
-  ${d.length > 0 ? `<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:16px 0">
-    <div class="card"><div class="card-title">Monthly Trend</div>${buildLineChart(d, 'dc', false)}</div>
-    <div class="card"><div class="card-title">By Material</div>${buildDonutChart(d, 'dn', 'dl')}</div>
+  ${d.length>0?`<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:16px 0">
+    <div class="card"><div class="card-title">Monthly Trend</div>${buildLineChart(d,'dc',false)}</div>
+    <div class="card"><div class="card-title">By Material</div>${buildDonutChart(d,'dn','dl')}</div>
   </div>
   <div id="projDetailAll" style="display:none;margin:0 0 16px;padding:16px;background:var(--bg2);border-radius:12px;border:1px solid var(--border)">
     ${buildEntryTable(d, a5Arr)}
-  </div>` : ''}
+  </div>`:''}
   <div class="card"><div class="card-title">Approvals</div><div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;text-align:center">
     <div><div style="font-size:24px;font-weight:800;color:var(--yellow)">${d.filter(e=>e.status==='pending').length}</div><div style="font-size:10px;color:var(--slate5)">Pending</div></div>
     <div><div style="font-size:24px;font-weight:800;color:var(--blue)">${d.filter(e=>e.status==='review').length}</div><div style="font-size:10px;color:var(--slate5)">Review</div></div>
     <div><div style="font-size:24px;font-weight:800;color:var(--green)">${d.filter(e=>e.status==='approved').length}</div><div style="font-size:10px;color:var(--slate5)">Approved</div></div>
     <div><div style="font-size:24px;font-weight:800;color:var(--red)">${d.filter(e=>e.status==='rejected').length}</div><div style="font-size:10px;color:var(--slate5)">Rejected</div></div>
   </div></div>`;
-
-  setTimeout(() => { renderDonutSvg(d, 'dn', 'dl'); }, 50);
+  setTimeout(()=>{renderDonutSvg(d,'dn','dl');},50);
 }
 
 // ===== ENTRY (BATCH WORKFLOW) =====
