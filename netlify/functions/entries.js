@@ -235,18 +235,20 @@ async function handleRequestChange(event, body) {
     const db = getDb();
     const profile = await getUserProfile(decoded.uid);
 
-    // Verify the entry exists and belongs to the requester
-    const entrySnap = await db.ref('projects/ksia/entries/' + entryId).once('value');
+    // Verify the entry exists and belongs to the requester (by UID or organization)
+    const entrySnap = await db.ref('projects/ksia/entries/' + String(entryId)).once('value');
     const entry = entrySnap.val();
     if (!entry) return respond(404, { error: 'Entry not found' });
-    if (entry.submittedByUid !== decoded.uid) {
+    const isOwner = entry.submittedByUid === decoded.uid ||
+      (profile && profile.organizationId && entry.organizationId === profile.organizationId);
+    if (!isOwner) {
       return respond(403, { error: 'You can only request changes to your own entries' });
     }
 
     const requestId = Date.now() + '_' + Math.random().toString(36).substr(2, 6);
     const request = {
       id: requestId,
-      entryId,
+      entryId: String(entryId),
       requestType,
       reason: reason || '',
       proposedChanges: requestType === 'edit' ? (proposedChanges || {}) : null,
@@ -266,7 +268,7 @@ async function handleRequestChange(event, body) {
     await db.ref('projects/ksia/editRequests/' + requestId).set(request);
 
     // Also mark the entry with a pending request flag
-    await db.ref('projects/ksia/entries/' + entryId).update({
+    await db.ref('projects/ksia/entries/' + String(entryId)).update({
       editRequestId: requestId,
       editRequestType: requestType,
       editRequestStatus: 'pending'
@@ -394,12 +396,15 @@ async function handleApplyEdit(event, body) {
 
   try {
     const db = getDb();
-    const entryRef = db.ref('projects/ksia/entries/' + entryId);
+    const profile = await getUserProfile(decoded.uid);
+    const entryRef = db.ref('projects/ksia/entries/' + String(entryId));
     const entrySnap = await entryRef.once('value');
     const entry = entrySnap.val();
 
     if (!entry) return respond(404, { error: 'Entry not found' });
-    if (entry.submittedByUid !== decoded.uid) return respond(403, { error: 'Not your entry' });
+    const isOwner = entry.submittedByUid === decoded.uid ||
+      (profile && profile.organizationId && entry.organizationId === profile.organizationId);
+    if (!isOwner) return respond(403, { error: 'Not your entry' });
     if (entry.editRequestStatus !== 'approved') return respond(403, { error: 'Edit not approved' });
 
     // Only allow updating data fields (not status/metadata)

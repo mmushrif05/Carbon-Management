@@ -199,14 +199,14 @@ function openProjectModal(idx, opts) {
     if (!isContr) return '';
     // If edit is approved, show Edit button
     if (e.editRequestStatus === 'approved' && e.editRequestType === 'edit') {
-      return `<td><button class="btn btn-sm btn-primary" onclick="openEditEntryForm(${e.id})" style="font-size:8px;padding:2px 6px">Edit Now</button></td>`;
+      return `<td><button class="btn btn-sm btn-primary" onclick="openEditEntryForm('${e.id}')" style="font-size:8px;padding:2px 6px">Edit Now</button></td>`;
     }
     // If request is pending, show waiting badge
     if (e.editRequestStatus === 'pending') {
       return `<td><span class="badge review" style="font-size:8px">${e.editRequestType==='delete'?'Del':'Edit'} Requested</span></td>`;
     }
     // Otherwise, show request buttons (only if entry is not already deleted)
-    return `<td class="edit-req-actions"><button class="btn btn-sm" onclick="requestEditEntry(${e.id})" style="font-size:8px;padding:2px 5px;background:rgba(96,165,250,0.12);color:var(--blue);border:1px solid rgba(96,165,250,0.2)" title="Request Edit">Edit</button><button class="btn btn-sm" onclick="requestDeleteEntry(${e.id})" style="font-size:8px;padding:2px 5px;background:rgba(248,113,113,0.12);color:var(--red);border:1px solid rgba(248,113,113,0.2);margin-left:2px" title="Request Delete">Del</button></td>`;
+    return `<td class="edit-req-actions"><button class="btn btn-sm" onclick="requestEditEntry('${e.id}')" style="font-size:8px;padding:2px 5px;background:rgba(96,165,250,0.12);color:var(--blue);border:1px solid rgba(96,165,250,0.2)" title="Request Edit">Edit</button><button class="btn btn-sm" onclick="requestDeleteEntry('${e.id}')" style="font-size:8px;padding:2px 5px;background:rgba(248,113,113,0.12);color:var(--red);border:1px solid rgba(248,113,113,0.2);margin-left:2px" title="Request Delete">Del</button></td>`;
   };
   const tabCtb=`<div class="pm-tab-pane" data-tab="contributors" style="display:${activeTab==='contributors'?'block':'none'}">
     ${sorted.length>0?`
@@ -273,11 +273,11 @@ function openProjectModal(idx, opts) {
           <button class="pm-tab ${activeTab==='contractors'?'active':''}" onclick="_switchTab('contractors')">Contractors</button>
           <button class="pm-tab ${activeTab==='materials'?'active':''}" onclick="_switchTab('materials')">Materials</button>
           <button class="pm-tab ${activeTab==='contributors'?'active':''}" onclick="_switchTab('contributors')">Contributors</button>
-          ${r==='consultant'?`<button class="pm-tab ${activeTab==='requests'?'active':''}" onclick="_switchTab('requests')" style="color:var(--orange)">Requests${(state.editRequests||[]).filter(rq=>rq.status==='pending'&&rq.projectId===p.id).length>0?' <span style="background:var(--orange);color:#000;border-radius:50%;padding:0 5px;font-size:8px;font-weight:800;margin-left:3px">'+((state.editRequests||[]).filter(rq=>rq.status==='pending'&&rq.projectId===p.id).length)+'</span>':''}</button>`:''}
+          ${(r==='consultant'||r==='contractor')?`<button class="pm-tab ${activeTab==='requests'?'active':''}" onclick="_switchTab('requests')" style="color:var(--orange)">Requests${(state.editRequests||[]).filter(rq=>rq.status==='pending'&&rq.projectId===p.id).length>0?' <span style="background:var(--orange);color:#000;border-radius:50%;padding:0 5px;font-size:8px;font-weight:800;margin-left:3px">'+((state.editRequests||[]).filter(rq=>rq.status==='pending'&&rq.projectId===p.id).length)+'</span>':''}</button>`:''}
           ${r==='consultant'?`<button class="pm-tab ${activeTab==='advisor'?'active':''}" onclick="_switchTab('advisor')" style="color:var(--purple)">AI Advisor</button>`:''}
         </div>
         ${tabOv}${tabCon}${tabMat}${tabCtb}
-        ${r==='consultant'?(() => {
+        ${(r==='consultant'||r==='contractor')?(() => {
           const projReqs = (state.editRequests||[]).filter(rq=>rq.projectId===p.id).sort((a,b)=>(a.status==='pending'?0:1)-(b.status==='pending'?0:1)||(new Date(b.requestedAt)-new Date(a.requestedAt)));
           const pendingReqs = projReqs.filter(rq=>rq.status==='pending');
           const resolvedReqs = projReqs.filter(rq=>rq.status!=='pending');
@@ -285,11 +285,11 @@ function openProjectModal(idx, opts) {
             <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
               <div style="width:36px;height:36px;border-radius:10px;background:rgba(251,146,60,0.15);display:flex;align-items:center;justify-content:center;font-size:18px">&#x1F4DD;</div>
               <div>
-                <div style="font-size:14px;font-weight:800;color:var(--text)">Edit / Delete Requests</div>
-                <div style="font-size:10px;color:var(--slate5)">Contractors request permission to edit or delete their submitted entries</div>
+                <div style="font-size:14px;font-weight:800;color:var(--text)">${r==='contractor'?'Your Edit / Delete Requests':'Edit / Delete Requests'}</div>
+                <div style="font-size:10px;color:var(--slate5)">${r==='contractor'?'Track the status of your edit and delete requests':'Contractors request permission to edit or delete their submitted entries'}</div>
               </div>
             </div>
-            ${pendingReqs.length>0?`<div style="font-size:10px;font-weight:700;letter-spacing:1px;color:var(--orange);text-transform:uppercase;margin-bottom:8px">Pending Requests (${pendingReqs.length})</div>
+            ${pendingReqs.length>0?`<div style="font-size:10px;font-weight:700;letter-spacing:1px;color:var(--orange);text-transform:uppercase;margin-bottom:8px">${r==='contractor'?'Awaiting Approval':'Pending Requests'} (${pendingReqs.length})</div>
             ${pendingReqs.map(rq=>{
               const origEntry = (state.entries||[]).find(e=>String(e.id)===String(rq.entryId));
               return `<div class="edit-request-card pending">
@@ -300,9 +300,9 @@ function openProjectModal(idx, opts) {
                   </div>
                   <div style="font-size:9px;color:var(--slate5)">${rq.entryMonth||''}</div>
                 </div>
-                <div style="font-size:11px;color:var(--slate4);margin-bottom:4px">
+                ${r==='consultant'?`<div style="font-size:11px;color:var(--slate4);margin-bottom:4px">
                   <strong>By:</strong> ${rq.requestedBy} (${rq.organizationName||'--'})
-                </div>
+                </div>`:''}
                 <div style="font-size:11px;color:var(--slate4);margin-bottom:8px">
                   <strong>Reason:</strong> ${rq.reason||'No reason provided'}
                 </div>
@@ -312,26 +312,28 @@ function openProjectModal(idx, opts) {
                   <div style="text-align:center"><div style="font-size:8px;color:var(--slate5)">Actual</div><div style="font-size:11px;font-weight:700;color:var(--blue)">${fmt(origEntry.a13A)}</div></div>
                   <div style="text-align:center"><div style="font-size:8px;color:var(--slate5)">Red%</div><div style="font-size:11px;font-weight:700;color:${_rc(origEntry.pct||0,target)}">${fmt(origEntry.pct||0)}%</div></div>
                 </div>`:''}
-                <div style="display:flex;gap:6px;justify-content:flex-end">
+                ${r==='consultant'?`<div style="display:flex;gap:6px;justify-content:flex-end">
                   <button class="btn btn-sm" onclick="resolveEditRequest('${rq.id}','approved')" style="background:rgba(52,211,153,0.15);color:var(--green);border:1px solid rgba(52,211,153,0.3);padding:4px 12px;font-size:10px;font-weight:700">\u2713 Approve</button>
                   <button class="btn btn-sm" onclick="resolveEditRequest('${rq.id}','rejected')" style="background:rgba(248,113,113,0.15);color:var(--red);border:1px solid rgba(248,113,113,0.3);padding:4px 12px;font-size:10px;font-weight:700">\u2715 Reject</button>
-                </div>
+                </div>`:`<div style="display:flex;justify-content:flex-end"><span class="badge review" style="font-size:9px;padding:4px 10px">Awaiting consultant approval</span></div>`}
               </div>`;}).join('')}`
-            :'<div style="padding:20px;text-align:center;color:var(--green);font-size:12px;background:rgba(52,211,153,0.05);border-radius:8px;margin-bottom:14px">No pending requests</div>'}
+            :`<div style="padding:20px;text-align:center;color:var(--green);font-size:12px;background:rgba(52,211,153,0.05);border-radius:8px;margin-bottom:14px">${r==='contractor'?'No pending requests. Use the Edit/Del buttons in Contributors tab to request changes.':'No pending requests'}</div>`}
             ${resolvedReqs.length>0?`<div style="font-size:10px;font-weight:700;letter-spacing:1px;color:var(--slate5);text-transform:uppercase;margin:14px 0 8px">History (${resolvedReqs.length})</div>
-            ${resolvedReqs.slice(0,10).map(rq=>`<div class="edit-request-card resolved" style="opacity:0.7">
+            ${resolvedReqs.slice(0,10).map(rq=>{
+              const isApproved = rq.status === 'approved';
+              return `<div class="edit-request-card resolved" style="opacity:0.7">
               <div style="display:flex;justify-content:space-between;align-items:center">
                 <div>
                   <span class="badge ${rq.requestType==='delete'?'rejected':'review'}" style="font-size:8px;text-transform:uppercase">${rq.requestType}</span>
                   <span style="font-size:11px;font-weight:600;color:var(--text);margin-left:6px">${rq.entryCategory} \u2014 ${rq.entryType}</span>
-                  <span style="font-size:10px;color:var(--slate5);margin-left:6px">by ${rq.requestedBy}</span>
+                  ${r==='consultant'?`<span style="font-size:10px;color:var(--slate5);margin-left:6px">by ${rq.requestedBy}</span>`:''}
                 </div>
                 <div>
                   <span class="badge ${rq.status}" style="font-size:8px">${rq.status}</span>
-                  <span style="font-size:9px;color:var(--slate6);margin-left:4px">by ${rq.resolvedBy||'--'}</span>
+                  <span style="font-size:9px;color:var(--slate6);margin-left:4px">${r==='contractor'&&isApproved&&rq.requestType==='edit'?'<strong style="color:var(--green)">Ready to edit</strong>':'by '+(rq.resolvedBy||'--')}</span>
                 </div>
               </div>
-            </div>`).join('')}`:''}
+            </div>`;}).join('')}`:''}
           </div>`;
         })():''}
         ${r==='consultant'?`<div class="pm-tab-pane" data-tab="advisor" style="display:${activeTab==='advisor'?'block':'none'}">
@@ -1133,16 +1135,16 @@ function renderRecent(){
     let actionHtml = '';
     if (isContr) {
       if (e.status === 'pending' && !e.editRequestStatus) {
-        actionHtml = `<button class="btn btn-danger btn-sm" onclick="delEntry(${e.id})">\u2715</button>`;
+        actionHtml = `<button class="btn btn-danger btn-sm" onclick="delEntry('${e.id}')">\u2715</button>`;
       } else if (e.editRequestStatus === 'approved' && e.editRequestType === 'edit') {
-        actionHtml = `<button class="btn btn-sm btn-primary" onclick="openEditEntryForm(${e.id})" style="font-size:9px;padding:2px 6px">Edit</button>`;
+        actionHtml = `<button class="btn btn-sm btn-primary" onclick="openEditEntryForm('${e.id}')" style="font-size:9px;padding:2px 6px">Edit</button>`;
       } else if (e.editRequestStatus === 'pending') {
         actionHtml = `<span class="badge review" style="font-size:8px">${e.editRequestType==='delete'?'Del':'Edit'} Req</span>`;
       } else if (e.status !== 'pending') {
-        actionHtml = `<button class="btn btn-sm" onclick="requestEditEntry(${e.id})" style="font-size:8px;padding:2px 5px;background:rgba(96,165,250,0.12);color:var(--blue);border:1px solid rgba(96,165,250,0.2)" title="Request Edit">Edit</button><button class="btn btn-sm" onclick="requestDeleteEntry(${e.id})" style="font-size:8px;padding:2px 5px;background:rgba(248,113,113,0.12);color:var(--red);border:1px solid rgba(248,113,113,0.2);margin-left:2px" title="Request Delete">Del</button>`;
+        actionHtml = `<button class="btn btn-sm" onclick="requestEditEntry('${e.id}')" style="font-size:8px;padding:2px 5px;background:rgba(96,165,250,0.12);color:var(--blue);border:1px solid rgba(96,165,250,0.2)" title="Request Edit">Edit</button><button class="btn btn-sm" onclick="requestDeleteEntry('${e.id}')" style="font-size:8px;padding:2px 5px;background:rgba(248,113,113,0.12);color:var(--red);border:1px solid rgba(248,113,113,0.2);margin-left:2px" title="Request Delete">Del</button>`;
       }
     } else {
-      if (e.status === 'pending') actionHtml = `<button class="btn btn-danger btn-sm" onclick="delEntry(${e.id})">\u2715</button>`;
+      if (e.status === 'pending') actionHtml = `<button class="btn btn-danger btn-sm" onclick="delEntry('${e.id}')">\u2715</button>`;
     }
     return`<tr${suspect?' style="background:rgba(248,113,113,0.06)"':''}>
     <td style="font-weight:600;color:var(--blue);font-size:11px">${e.projectName||'--'}</td><td>${e.monthLabel}</td><td>${e.category}</td><td>${e.type}</td>
@@ -1151,19 +1153,19 @@ function renderRecent(){
     <td>${actionHtml}</td></tr>`;}).join(''):'<tr><td colspan="11" class="empty">No entries</td></tr>';
 }
 
-async function delEntry(id){await DB.deleteEntry(id);state.entries=state.entries.filter(e=>e.id!==id);navigate(state.page);}
+async function delEntry(id){await DB.deleteEntry(id);state.entries=state.entries.filter(e=>String(e.id)!==String(id));navigate(state.page);}
 
 // ===== EDIT/DELETE REQUEST WORKFLOW =====
 
 // Contractor requests permission to edit an entry
 async function requestEditEntry(entryId) {
-  const entry = state.entries.find(e => e.id === entryId);
+  const entry = state.entries.find(e => String(e.id) === String(entryId));
   if (!entry) { alert('Entry not found'); return; }
   const reason = prompt('Reason for edit request:\n(e.g. "Wrong EF value entered", "Quantity correction needed")');
   if (reason === null) return;
   if (!reason.trim()) { alert('Please provide a reason for the edit request.'); return; }
   try {
-    const res = await DB.requestChange(entryId, 'edit', reason.trim());
+    const res = await DB.requestChange(String(entryId), 'edit', reason.trim());
     entry.editRequestId = res.requestId;
     entry.editRequestType = 'edit';
     entry.editRequestStatus = 'pending';
@@ -1175,14 +1177,14 @@ async function requestEditEntry(entryId) {
 
 // Contractor requests permission to delete an entry
 async function requestDeleteEntry(entryId) {
-  const entry = state.entries.find(e => e.id === entryId);
+  const entry = state.entries.find(e => String(e.id) === String(entryId));
   if (!entry) { alert('Entry not found'); return; }
   const reason = prompt('Reason for deletion request:\n(e.g. "Duplicate entry", "Wrong project")');
   if (reason === null) return;
   if (!reason.trim()) { alert('Please provide a reason for the delete request.'); return; }
   if (!confirm('Request deletion of this entry?\n\n' + entry.category + ' - ' + entry.type + '\nQty: ' + fmtI(entry.qty) + ', Actual: ' + fmt(entry.a13A) + ' tCO\u2082')) return;
   try {
-    await DB.requestChange(entryId, 'delete', reason.trim());
+    await DB.requestChange(String(entryId), 'delete', reason.trim());
     entry.editRequestId = true;
     entry.editRequestType = 'delete';
     entry.editRequestStatus = 'pending';
@@ -1203,13 +1205,13 @@ async function resolveEditRequest(requestId, resolution) {
     req.status = resolution;
     // If delete was approved, remove entry from local state
     if (resolution === 'approved' && req.requestType === 'delete') {
-      state.entries = state.entries.filter(e => e.id !== req.entryId);
+      state.entries = state.entries.filter(e => String(e.id) !== String(req.entryId));
     } else if (resolution === 'approved' && req.requestType === 'edit') {
-      const entry = state.entries.find(e => e.id === req.entryId);
+      const entry = state.entries.find(e => String(e.id) === String(req.entryId));
       if (entry) entry.editRequestStatus = 'approved';
     } else {
       // Rejected — clear flags
-      const entry = state.entries.find(e => e.id === req.entryId);
+      const entry = state.entries.find(e => String(e.id) === String(req.entryId));
       if (entry) { entry.editRequestId = null; entry.editRequestType = null; entry.editRequestStatus = null; }
     }
     state.editRequests = await DB.getEditRequests();
@@ -1226,7 +1228,7 @@ async function resolveEditRequest(requestId, resolution) {
 
 // Contractor opens edit form for an approved-edit entry
 function openEditEntryForm(entryId) {
-  const entry = state.entries.find(e => e.id === entryId);
+  const entry = state.entries.find(e => String(e.id) === String(entryId));
   if (!entry) { alert('Entry not found'); return; }
   if (entry.editRequestStatus !== 'approved') { alert('Edit not yet approved.'); return; }
 
@@ -1268,7 +1270,7 @@ function openEditEntryForm(entryId) {
           <input id="editNotes" value="${entry.notes||''}" style="width:100%;padding:8px 10px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px"></div>
         <div id="editPreview" style="margin-bottom:14px"></div>
         <div style="display:flex;gap:8px">
-          <button class="btn btn-primary" onclick="applyEntryEdit(${entryId})" style="flex:1">Save Changes</button>
+          <button class="btn btn-primary" onclick="applyEntryEdit('${entryId}')" style="flex:1">Save Changes</button>
           <button class="btn btn-secondary" onclick="closeEditForm()">Cancel</button>
         </div>
       </div>
@@ -1286,7 +1288,7 @@ function openEditEntryForm(entryId) {
 }
 
 function previewEdit(entryId) {
-  const entry = state.entries.find(e => e.id === entryId);
+  const entry = state.entries.find(e => String(e.id) === String(entryId));
   if (!entry) return;
   const prev = $('editPreview'); if (!prev) return;
   const q = parseFloat($('editQty').value), a = parseFloat($('editActEF').value);
@@ -1307,7 +1309,7 @@ function previewEdit(entryId) {
 }
 
 async function applyEntryEdit(entryId) {
-  const entry = state.entries.find(e => e.id === entryId);
+  const entry = state.entries.find(e => String(e.id) === String(entryId));
   if (!entry) { alert('Entry not found'); return; }
   const q = parseFloat($('editQty').value), a = parseFloat($('editActEF').value);
   if (isNaN(q) || isNaN(a) || q <= 0 || a <= 0) { alert('Enter valid Quantity and Actual EF.'); return; }
@@ -1402,9 +1404,9 @@ function renderApprovals(el){
 
   el.innerHTML=`${assignInfo}<div class="card"><div class="card-title">Workflow</div>
   <div class="flow-steps"><div class="flow-step"><div class="flow-dot done">\ud83c\udfd7\ufe0f</div><div class="flow-label">Contractor</div></div><div class="flow-line done"></div><div class="flow-step"><div class="flow-dot ${r==='consultant'?'current':'done'}">\ud83d\udccb</div><div class="flow-label">Consultant</div></div><div class="flow-line ${r==='client'||r==='consultant'?'done':''}"></div><div class="flow-step"><div class="flow-dot ${r==='client'?'current':(r==='consultant'?'done':'')}">\ud83d\udc54</div><div class="flow-label">Client</div></div></div></div>
-  <div class="card"><div class="card-title">${items.length} Items</div><div class="tbl-wrap"><table><thead><tr><th>Project</th><th>Month</th><th>Material</th><th>Type</th><th>By</th><th>Org</th><th class="r">Baseline</th><th class="r">Actual</th><th class="r">Reduction</th><th>Status</th>${r!=='contractor'?'<th>Actions</th>':''}</tr></thead><tbody>${items.length?items.map(e=>`<tr><td style="font-weight:600;color:var(--blue);font-size:11px">${e.projectName||'--'}</td><td>${e.monthLabel}</td><td>${e.category}</td><td>${e.type}</td><td>${e.submittedBy||'\u2014'}</td><td style="font-size:11px;color:var(--slate5)">${e.organizationName||'\u2014'}</td><td class="r mono">${fmt(e.a13B)}</td><td class="r mono">${fmt(e.a13A)}</td><td class="r mono" style="color:${e.pct>20?'var(--green)':'var(--orange)'};font-weight:700">${fmt(e.pct)}%</td><td><span class="badge ${e.status}">${e.status}</span></td>${r==='consultant'?`<td>${e.status==='pending'?`<button class="btn btn-approve btn-sm" onclick="appr(${e.id},'review')">\u2713 Forward</button> `:''}${e.status==='pending'||e.status==='review'?`<button class="btn btn-primary btn-sm" onclick="appr(${e.id},'approved')">\u2713 Approve</button> `:''}<button class="btn btn-danger btn-sm" onclick="appr(${e.id},'rejected')">\u2715 Reject</button></td>`:''}${r==='client'?`<td><button class="btn btn-approve btn-sm" onclick="appr(${e.id},'approved')">\u2713 Approve</button> <button class="btn btn-danger btn-sm" onclick="appr(${e.id},'rejected')">\u2715 Reject</button></td>`:''}</tr>`).join(''):'<tr><td colspan="11" class="empty">No pending items</td></tr>'}</tbody></table></div></div>`;
+  <div class="card"><div class="card-title">${items.length} Items</div><div class="tbl-wrap"><table><thead><tr><th>Project</th><th>Month</th><th>Material</th><th>Type</th><th>By</th><th>Org</th><th class="r">Baseline</th><th class="r">Actual</th><th class="r">Reduction</th><th>Status</th>${r!=='contractor'?'<th>Actions</th>':''}</tr></thead><tbody>${items.length?items.map(e=>`<tr><td style="font-weight:600;color:var(--blue);font-size:11px">${e.projectName||'--'}</td><td>${e.monthLabel}</td><td>${e.category}</td><td>${e.type}</td><td>${e.submittedBy||'\u2014'}</td><td style="font-size:11px;color:var(--slate5)">${e.organizationName||'\u2014'}</td><td class="r mono">${fmt(e.a13B)}</td><td class="r mono">${fmt(e.a13A)}</td><td class="r mono" style="color:${e.pct>20?'var(--green)':'var(--orange)'};font-weight:700">${fmt(e.pct)}%</td><td><span class="badge ${e.status}">${e.status}</span></td>${r==='consultant'?`<td>${e.status==='pending'?`<button class="btn btn-approve btn-sm" onclick="appr('${e.id}','review')">\u2713 Forward</button> `:''}${e.status==='pending'||e.status==='review'?`<button class="btn btn-primary btn-sm" onclick="appr('${e.id}','approved')">\u2713 Approve</button> `:''}<button class="btn btn-danger btn-sm" onclick="appr('${e.id}','rejected')">\u2715 Reject</button></td>`:''}${r==='client'?`<td><button class="btn btn-approve btn-sm" onclick="appr('${e.id}','approved')">\u2713 Approve</button> <button class="btn btn-danger btn-sm" onclick="appr('${e.id}','rejected')">\u2715 Reject</button></td>`:''}</tr>`).join(''):'<tr><td colspan="11" class="empty">No pending items</td></tr>'}</tbody></table></div></div>`;
 }
-async function appr(id,s){await DB.updateEntry(id,{status:s,[state.role+'At']:new Date().toISOString(),[state.role+'By']:state.name,[state.role+'ByUid']:state.uid});const e=state.entries.find(x=>x.id===id);if(e)e.status=s;buildSidebar();navigate('approvals');}
+async function appr(id,s){await DB.updateEntry(id,{status:s,[state.role+'At']:new Date().toISOString(),[state.role+'By']:state.name,[state.role+'ByUid']:state.uid});const e=state.entries.find(x=>String(x.id)===String(id));if(e)e.status=s;buildSidebar();navigate('approvals');}
 
 // ===== PROJECT FILTER HELPER =====
 function buildProjectFilterHtml(selectId, onchangeFn) {
