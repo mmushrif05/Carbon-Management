@@ -23,9 +23,9 @@ async function handleCreateProject(body, decoded) {
     return respond(403, { error: 'User profile not found in the database. This can happen if the account was created but the profile was not saved. Please contact an administrator.' });
   }
 
-  if (!['client', 'consultant'].includes(profile.role)) {
+  if (profile.role !== 'client') {
     console.warn('[PROJECT] Role check failed:', profile.role, 'for uid:', decoded.uid);
-    return respond(403, { error: 'Only clients and consultants can create projects. Your role is: ' + profile.role });
+    return respond(403, { error: 'Only clients can create projects. Your role is: ' + profile.role });
   }
 
   const db = getDb();
@@ -69,16 +69,23 @@ async function handleListProjects(decoded) {
     projects = projects.filter(p => p.name);
   }
 
-  // If consultant or contractor, show projects they are assigned to OR created
+  // If consultant or contractor, show projects they are assigned to, org-linked to, or created
   if (profile.role === 'consultant' || profile.role === 'contractor') {
-    const assignSnap = await db.ref('project_assignments').once('value');
-    const assignments = assignSnap.val() || {};
+    const [assignSnap, orgLinkSnap] = await Promise.all([
+      db.ref('project_assignments').once('value'),
+      db.ref('project_org_links').once('value')
+    ]);
     const myProjectIds = new Set();
-    Object.values(assignments).forEach(a => {
-      if (a.userId === decoded.uid) {
-        myProjectIds.add(a.projectId);
-      }
+    // User-level assignments
+    Object.values(assignSnap.val() || {}).forEach(a => {
+      if (a.userId === decoded.uid) myProjectIds.add(a.projectId);
     });
+    // Org-level links (show projects where my org is linked)
+    if (profile.organizationId) {
+      Object.values(orgLinkSnap.val() || {}).forEach(l => {
+        if (l.orgId === profile.organizationId) myProjectIds.add(l.projectId);
+      });
+    }
     projects = projects.filter(p => myProjectIds.has(p.id) || p.createdBy === decoded.uid);
   }
 
@@ -110,8 +117,8 @@ async function handleUpdateProject(body, decoded) {
   const profile = await getUserProfile(decoded.uid);
   if (!profile) return respond(403, { error: 'Profile not found.' });
 
-  if (!['client', 'consultant'].includes(profile.role)) {
-    return respond(403, { error: 'Only clients and consultants can update projects.' });
+  if (profile.role !== 'client') {
+    return respond(403, { error: 'Only clients can update projects.' });
   }
 
   const db = getDb();
@@ -452,6 +459,21 @@ async function handleLinkOrgToProject(body, decoded) {
     if (!isInCharge) {
       return respond(403, { error: 'Only consultant in-charge can link contractor companies to this project.' });
     }
+    // Check projectConsultants permissions from client
+    if (!profile.organizationId) {
+      return respond(403, { error: 'Your account has no organization. Contact your administrator.' });
+    }
+    const permSnap = await db.ref('projectConsultants/' + projectId + '/' + profile.organizationId).once('value');
+    const perms = permSnap.val();
+    if (!perms || !perms.canLinkContractors) {
+      return respond(403, { error: 'Client has not granted contractor-linking permission for this project. Contact the client.' });
+    }
+    // Check if this contractor org is in the allowed list (if list is defined)
+    if (perms.allowedContractorOrgIds && Object.keys(perms.allowedContractorOrgIds).length > 0) {
+      if (!perms.allowedContractorOrgIds[orgId]) {
+        return respond(403, { error: 'This contractor organization is not in the allowed list for this project.' });
+      }
+    }
   } else {
     return respond(403, { error: 'Only clients and consultants can link organizations to projects.' });
   }
@@ -509,23 +531,9 @@ async function handleUnlinkOrgFromProject(body, decoded) {
   const link = snap.val();
   if (!link) return respond(404, { error: 'Link not found.' });
 
-  // Authority: client can unlink any; consultant in-charge can unlink contractors they linked
-  if (profile.role === 'client') {
-    // Client can unlink any
-  } else if (profile.role === 'consultant') {
-    if (link.orgType !== 'contractor_company') {
-      return respond(403, { error: 'Only clients can unlink consultant firms from projects.' });
-    }
-    const assignSnap = await db.ref('project_assignments').once('value');
-    const allAssign = Object.values(assignSnap.val() || {});
-    const isInCharge = allAssign.find(
-      a => a.userId === decoded.uid && a.projectId === link.projectId && a.designation === 'in_charge'
-    );
-    if (!isInCharge) {
-      return respond(403, { error: 'Only consultant in-charge can unlink contractor companies.' });
-    }
-  } else {
-    return respond(403, { error: 'You do not have permission to unlink organizations from projects.' });
+  // Authority: only client can unlink organizations from projects
+  if (profile.role !== 'client') {
+    return respond(403, { error: 'Only clients can unlink organizations from projects.' });
   }
 
   await db.ref('project_org_links/' + linkId).remove();
@@ -557,6 +565,82 @@ async function handleListProjectOrgLinks(body, decoded) {
   const links = Object.values(data).sort((a, b) => (a.projectName || '').localeCompare(b.projectName || ''));
 
   return respond(200, { links });
+}
+
+// === SET CONSULTANT PERMISSIONS ===
+// Client defines what a consultant org can do on a specific project
+async function handleSetConsultantPermissions(body, decoded) {
+  const { projectId, consultantOrgId, canLinkContractors, allowedContractorOrgIds } = body;
+  if (!projectId || !consultantOrgId) return respond(400, { error: 'Project ID and Consultant Org ID are required.' });
+
+  const profile = await getUserProfile(decoded.uid);
+  if (!profile) return respond(403, { error: 'Profile not found.' });
+  if (profile.role !== 'client') return respond(403, { error: 'Only clients can set consultant permissions.' });
+
+  const db = getDb();
+
+  // Verify the consultant org is linked to this project
+  const orgLinkSnap = await db.ref('project_org_links').once('value');
+  const isLinked = Object.values(orgLinkSnap.val() || {}).find(
+    l => l.orgId === consultantOrgId && l.projectId === projectId && l.orgType === 'consultant_firm'
+  );
+  if (!isLinked) return respond(400, { error: 'This consultant organization is not linked to this project.' });
+
+  const permissions = {
+    projectId,
+    consultantOrgId,
+    canLinkContractors: !!canLinkContractors,
+    allowedContractorOrgIds: (allowedContractorOrgIds && typeof allowedContractorOrgIds === 'object') ? allowedContractorOrgIds : {},
+    updatedBy: decoded.uid,
+    updatedAt: new Date().toISOString()
+  };
+
+  await db.ref('projectConsultants/' + projectId + '/' + consultantOrgId).set(permissions);
+  console.log('[PROJECT] Set consultant permissions:', projectId, consultantOrgId, 'canLink:', !!canLinkContractors);
+
+  return respond(200, { permissions });
+}
+
+// === GET CONSULTANT PERMISSIONS ===
+// Returns projectConsultants permissions. Client sees all; consultant sees own org only.
+async function handleGetConsultantPermissions(body, decoded) {
+  const { projectId } = body;
+
+  const profile = await getUserProfile(decoded.uid);
+  if (!profile) return respond(403, { error: 'Profile not found.' });
+
+  const db = getDb();
+
+  if (projectId) {
+    const snap = await db.ref('projectConsultants/' + projectId).once('value');
+    const allPerms = snap.val() || {};
+    // Consultant: filter to own org only
+    if (profile.role !== 'client' && profile.organizationId) {
+      const own = allPerms[profile.organizationId];
+      return respond(200, { permissions: own ? { [profile.organizationId]: own } : {} });
+    }
+    return respond(200, { permissions: allPerms });
+  }
+
+  // Return all permissions
+  const snap = await db.ref('projectConsultants').once('value');
+  const allPerms = snap.val() || {};
+
+  if (profile.role === 'client') {
+    return respond(200, { permissions: allPerms });
+  }
+
+  // For consultant: filter to own org
+  const result = {};
+  if (profile.organizationId) {
+    Object.entries(allPerms).forEach(([projId, orgs]) => {
+      if (orgs[profile.organizationId]) {
+        result[projId] = { [profile.organizationId]: orgs[profile.organizationId] };
+      }
+    });
+  }
+
+  return respond(200, { permissions: result });
 }
 
 // === GET PROJECT SUMMARY (for dashboard) ===
@@ -630,6 +714,10 @@ exports.handler = async (event) => {
       case 'link-org':            return await handleLinkOrgToProject(body, decoded);
       case 'unlink-org':          return await handleUnlinkOrgFromProject(body, decoded);
       case 'list-org-links':      return await handleListProjectOrgLinks(body, decoded);
+
+      // Consultant permissions
+      case 'set-consultant-perms': return await handleSetConsultantPermissions(body, decoded);
+      case 'get-consultant-perms': return await handleGetConsultantPermissions(body, decoded);
 
       // Dashboard summary
       case 'summary':             return await handleGetProjectSummary(body, decoded);
