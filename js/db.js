@@ -549,11 +549,11 @@ const DB = {
     return data;
   },
 
-  async assignUserToProject(userId, projectId) {
+  async assignUserToProject(userId, projectId, designation) {
     await ensureDbConnected();
     const res = await apiCall('/projects', {
       method: 'POST',
-      body: JSON.stringify({ action: 'assign-user', userId, projectId })
+      body: JSON.stringify({ action: 'assign-user', userId, projectId, designation: designation || 'team_member' })
     });
     const data = await safeJsonParse(res);
     if (!res.ok) throw new Error(data.error || 'Failed to assign user to project.');
@@ -587,11 +587,11 @@ const DB = {
     return data.assignments || [];
   },
 
-  async linkOrgToProject(orgId, projectId) {
+  async linkOrgToProject(orgId, projectId, role) {
     await ensureDbConnected();
     const res = await apiCall('/projects', {
       method: 'POST',
-      body: JSON.stringify({ action: 'link-org', orgId, projectId })
+      body: JSON.stringify({ action: 'link-org', orgId, projectId, role: role || '' })
     });
     const data = await safeJsonParse(res);
     if (!res.ok) throw new Error(data.error || 'Failed to link organization to project.');
