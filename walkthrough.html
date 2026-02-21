@@ -1,0 +1,944 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CarbonIQ — Product Walkthrough</title>
+<style>
+  :root {
+    --green: #22c55e; --green2: #16a34a;
+    --green-dim: rgba(34,197,94,0.10);
+    --green-glow: rgba(34,197,94,0.20);
+    --blue: #60a5fa; --purple: #a78bfa;
+    --orange: #fb923c; --cyan: #22d3ee; --red: #f87171;
+    --bg: #0a0e1a; --bg2: #0f1626; --bg3: #141d2e; --bg4: #1a2540;
+    --border: rgba(255,255,255,0.07);
+    --text: #f1f5f9; --text2: #cbd5e1; --text3: #94a3b8; --slate: #64748b;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html { scroll-behavior: smooth; }
+
+  body {
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    background: var(--bg); color: var(--text);
+    line-height: 1.6;
+  }
+
+  /* ── SIDEBAR ── */
+  .layout { display: flex; min-height: 100vh; }
+
+  .sidebar {
+    width: 260px; flex-shrink: 0;
+    background: var(--bg2); border-right: 1px solid var(--border);
+    padding: 24px 0; position: fixed; top: 0; left: 0; height: 100vh;
+    overflow-y: auto; z-index: 100;
+  }
+
+  .sidebar-brand {
+    padding: 0 20px 20px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 16px;
+  }
+  .sidebar-brand-name { font-size: 18px; font-weight: 900; color: var(--text); }
+  .sidebar-brand-tag { font-size: 10px; color: var(--green); font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; }
+
+  .sidebar-section-label {
+    font-size: 9px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase;
+    color: var(--slate); padding: 12px 20px 6px;
+  }
+
+  .sidebar-link {
+    display: flex; align-items: center; gap: 10px;
+    padding: 9px 20px; font-size: 12px; font-weight: 600;
+    color: var(--text3); cursor: pointer; transition: all 0.15s;
+    border-left: 3px solid transparent; text-decoration: none;
+  }
+  .sidebar-link:hover { color: var(--text); background: var(--bg3); }
+  .sidebar-link.active { color: var(--green); border-left-color: var(--green); background: var(--green-dim); }
+  .sidebar-link-icon { font-size: 14px; flex-shrink: 0; }
+
+  /* ── MAIN ── */
+  .main { margin-left: 260px; padding: 0; flex: 1; }
+
+  /* ── HERO ── */
+  .hero {
+    background: radial-gradient(ellipse 80% 50% at 50% 30%, rgba(34,197,94,0.08) 0%, transparent 65%),
+                linear-gradient(180deg, var(--bg2) 0%, var(--bg) 100%);
+    padding: 64px 64px 56px; border-bottom: 1px solid var(--border);
+  }
+  .hero-label { font-size: 10px; font-weight: 700; letter-spacing: 2.5px; text-transform: uppercase; color: var(--green); margin-bottom: 12px; }
+  .hero-title { font-size: 48px; font-weight: 900; line-height: 1.1; margin-bottom: 16px; }
+  .hero-title span { color: var(--green); }
+  .hero-sub { font-size: 16px; color: var(--text3); max-width: 600px; margin-bottom: 28px; }
+  .hero-pills { display: flex; gap: 10px; flex-wrap: wrap; }
+  .hero-pill {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: var(--bg3); border: 1px solid var(--border);
+    border-radius: 20px; padding: 6px 14px; font-size: 11px; font-weight: 700; color: var(--text3);
+  }
+  .hp-green { border-color: rgba(34,197,94,0.2); color: var(--green); background: var(--green-dim); }
+  .hp-blue { border-color: rgba(96,165,250,0.2); color: var(--blue); background: rgba(96,165,250,0.08); }
+  .hp-purple { border-color: rgba(167,139,250,0.2); color: var(--purple); background: rgba(167,139,250,0.08); }
+  .hp-orange { border-color: rgba(251,146,60,0.2); color: var(--orange); background: rgba(251,146,60,0.08); }
+
+  /* ── SECTION ── */
+  .section {
+    padding: 56px 64px; border-bottom: 1px solid var(--border);
+    scroll-margin-top: 0;
+  }
+  .section:last-child { border-bottom: none; }
+
+  .section-num {
+    font-size: 11px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase;
+    color: var(--green); margin-bottom: 6px;
+  }
+  .section-title {
+    font-size: 32px; font-weight: 900; line-height: 1.15; margin-bottom: 10px;
+  }
+  .section-title span { color: var(--green); }
+  .section-sub { font-size: 14px; color: var(--text3); max-width: 700px; margin-bottom: 32px; line-height: 1.6; }
+  .h-bar { width: 48px; height: 3px; background: var(--green); border-radius: 2px; margin-bottom: 28px; }
+
+  /* ── STEP CARD ── */
+  .steps { display: flex; flex-direction: column; gap: 20px; }
+  .step {
+    display: flex; gap: 20px; align-items: flex-start;
+    background: var(--bg3); border: 1px solid var(--border);
+    border-radius: 14px; padding: 20px 24px;
+  }
+  .step-num {
+    width: 36px; height: 36px; border-radius: 10px; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px; font-weight: 900;
+    background: var(--green-dim); color: var(--green); border: 1px solid rgba(34,197,94,0.2);
+  }
+  .step-body { flex: 1; }
+  .step-title { font-size: 14px; font-weight: 800; margin-bottom: 6px; }
+  .step-text { font-size: 12px; color: var(--text3); line-height: 1.6; }
+  .step-tag {
+    display: inline-block; margin-top: 8px; font-size: 9px; font-weight: 700;
+    letter-spacing: 1px; text-transform: uppercase; padding: 3px 9px; border-radius: 6px;
+    background: var(--green-dim); color: var(--green);
+  }
+  .step-tag-blue { background: rgba(96,165,250,0.1); color: var(--blue); }
+  .step-tag-purple { background: rgba(167,139,250,0.1); color: var(--purple); }
+  .step-tag-orange { background: rgba(251,146,60,0.1); color: var(--orange); }
+
+  /* ── FEATURE GRID ── */
+  .feat-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
+  .feat-card {
+    background: var(--bg3); border: 1px solid var(--border);
+    border-radius: 14px; padding: 20px;
+    border-left: 3px solid transparent;
+  }
+  .feat-card.fc-green { border-left-color: var(--green); }
+  .feat-card.fc-blue { border-left-color: var(--blue); }
+  .feat-card.fc-purple { border-left-color: var(--purple); }
+  .feat-card.fc-orange { border-left-color: var(--orange); }
+  .feat-icon { font-size: 22px; margin-bottom: 10px; }
+  .feat-title { font-size: 13px; font-weight: 800; margin-bottom: 6px; }
+  .feat-body { font-size: 11px; color: var(--text3); line-height: 1.6; }
+
+  /* ── ROLE HEADER ── */
+  .role-header {
+    display: flex; align-items: center; gap: 16px;
+    padding: 20px 24px; border-radius: 14px; margin-bottom: 24px;
+  }
+  .rh-green { background: rgba(34,197,94,0.06); border: 1px solid rgba(34,197,94,0.15); }
+  .rh-purple { background: rgba(167,139,250,0.06); border: 1px solid rgba(167,139,250,0.15); }
+  .rh-blue { background: rgba(96,165,250,0.06); border: 1px solid rgba(96,165,250,0.15); }
+  .rh-icon { font-size: 36px; }
+  .rh-label { font-size: 10px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; margin-bottom: 4px; }
+  .rh-title { font-size: 20px; font-weight: 900; }
+  .rh-sub { font-size: 12px; color: var(--text3); margin-top: 2px; }
+
+  /* ── SCREEN MOCKUP ── */
+  .mockup {
+    background: var(--bg2); border: 1px solid var(--border);
+    border-radius: 16px; overflow: hidden; margin: 24px 0;
+  }
+  .mockup-bar {
+    background: var(--bg3); border-bottom: 1px solid var(--border);
+    padding: 10px 16px; display: flex; align-items: center; gap: 8px;
+  }
+  .mockup-dot { width: 10px; height: 10px; border-radius: 50%; }
+  .mockup-dot:nth-child(1) { background: #f87171; }
+  .mockup-dot:nth-child(2) { background: #fb923c; }
+  .mockup-dot:nth-child(3) { background: #22c55e; }
+  .mockup-url { font-size: 10px; color: var(--slate); margin-left: 8px; }
+  .mockup-body { padding: 20px 24px; }
+
+  /* ── STAT ROW ── */
+  .stat-row { display: flex; gap: 12px; flex-wrap: wrap; margin: 16px 0; }
+  .stat-box {
+    flex: 1; min-width: 100px; padding: 14px 16px;
+    background: var(--bg3); border: 1px solid var(--border); border-radius: 10px;
+    text-align: center;
+  }
+  .stat-val { font-size: 22px; font-weight: 900; }
+  .stat-label { font-size: 9px; color: var(--text3); font-weight: 600; margin-top: 3px; letter-spacing: 0.5px; text-transform: uppercase; }
+
+  /* ── AI WALKTHROUGH ── */
+  .ai-flow {
+    display: flex; flex-direction: column; gap: 12px;
+  }
+  .ai-step {
+    display: flex; gap: 16px; align-items: flex-start;
+    background: var(--bg3); border: 1px solid var(--border); border-radius: 12px; padding: 16px 20px;
+  }
+  .ai-step-num {
+    width: 28px; height: 28px; border-radius: 8px; flex-shrink: 0;
+    background: rgba(34,197,94,0.15); color: var(--green);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 900;
+  }
+  .ai-step-body { flex: 1; }
+  .ai-step-title { font-size: 13px; font-weight: 800; margin-bottom: 4px; }
+  .ai-step-text { font-size: 11px; color: var(--text3); line-height: 1.5; }
+
+  /* ── CALLOUT ── */
+  .callout {
+    padding: 16px 20px; border-radius: 12px; margin: 16px 0;
+    display: flex; align-items: flex-start; gap: 12px;
+  }
+  .callout-green { background: rgba(34,197,94,0.07); border: 1px solid rgba(34,197,94,0.2); }
+  .callout-blue { background: rgba(96,165,250,0.07); border: 1px solid rgba(96,165,250,0.15); }
+  .callout-orange { background: rgba(251,146,60,0.07); border: 1px solid rgba(251,146,60,0.15); }
+  .callout-purple { background: rgba(167,139,250,0.07); border: 1px solid rgba(167,139,250,0.15); }
+  .callout-icon { font-size: 18px; flex-shrink: 0; margin-top: 1px; }
+  .callout-title { font-size: 12px; font-weight: 800; margin-bottom: 3px; }
+  .callout-text { font-size: 11px; color: var(--text3); line-height: 1.5; }
+
+  /* ── TABLE ── */
+  .wt { width: 100%; border-collapse: collapse; margin: 16px 0; }
+  .wt th { font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--slate); padding: 10px 14px; text-align: left; border-bottom: 1px solid var(--border); }
+  .wt td { font-size: 12px; padding: 10px 14px; border-bottom: 1px solid rgba(255,255,255,0.03); color: var(--text2); vertical-align: top; }
+  .wt tr:last-child td { border-bottom: none; }
+  .wt td:first-child { font-weight: 700; color: var(--text); white-space: nowrap; }
+  .td-green { color: var(--green) !important; font-weight: 700 !important; }
+  .td-blue { color: var(--blue) !important; font-weight: 700 !important; }
+  .td-purple { color: var(--purple) !important; font-weight: 700 !important; }
+  .td-orange { color: var(--orange) !important; font-weight: 700 !important; }
+
+  /* ── BACK BTN ── */
+  .back-btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: var(--bg3); border: 1px solid var(--border);
+    color: var(--text3); font-size: 12px; font-weight: 600;
+    padding: 8px 16px; border-radius: 20px; text-decoration: none;
+    margin-bottom: 16px; cursor: pointer;
+  }
+  .back-btn:hover { color: var(--green); border-color: rgba(34,197,94,0.3); }
+
+  /* ── IOT SECTION ── */
+  .iot-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+  .iot-card {
+    background: var(--bg3); border: 1px solid var(--border); border-radius: 14px;
+    padding: 20px; text-align: center;
+  }
+  .iot-icon { font-size: 32px; margin-bottom: 10px; }
+  .iot-title { font-size: 13px; font-weight: 800; margin-bottom: 6px; }
+  .iot-body { font-size: 11px; color: var(--text3); line-height: 1.5; }
+  .iot-badge {
+    display: inline-block; margin-top: 10px; font-size: 9px; font-weight: 700;
+    letter-spacing: 1px; text-transform: uppercase; padding: 3px 9px; border-radius: 6px;
+    background: rgba(251,146,60,0.1); color: var(--orange);
+  }
+
+  /* ── PRINT ── */
+  @media print {
+    .sidebar { display: none; }
+    .main { margin-left: 0; }
+    .section { page-break-inside: avoid; }
+  }
+</style>
+</head>
+<body>
+
+<div class="layout">
+
+  <!-- ── SIDEBAR ── -->
+  <nav class="sidebar">
+    <div class="sidebar-brand">
+      <div style="font-size:20px;margin-bottom:4px">🌿</div>
+      <div class="sidebar-brand-name">CarbonIQ</div>
+      <div class="sidebar-brand-tag">Product Walkthrough</div>
+    </div>
+
+    <div class="sidebar-section-label">Overview</div>
+    <a class="sidebar-link active" href="#overview" onclick="setActive(this)">
+      <span class="sidebar-link-icon">🏠</span> System Overview
+    </a>
+    <a class="sidebar-link" href="#architecture" onclick="setActive(this)">
+      <span class="sidebar-link-icon">🏗️</span> Architecture & Data
+    </a>
+
+    <div class="sidebar-section-label">Stakeholder Roles</div>
+    <a class="sidebar-link" href="#role-client" onclick="setActive(this)">
+      <span class="sidebar-link-icon" style="color:var(--green)">👤</span> Client Dashboard
+    </a>
+    <a class="sidebar-link" href="#role-consultant" onclick="setActive(this)">
+      <span class="sidebar-link-icon" style="color:var(--purple)">🔬</span> Consultant Tools
+    </a>
+    <a class="sidebar-link" href="#role-contractor" onclick="setActive(this)">
+      <span class="sidebar-link-icon" style="color:var(--blue)">🏗️</span> Contractor Reporting
+    </a>
+
+    <div class="sidebar-section-label">AI Features</div>
+    <a class="sidebar-link" href="#ai-boq" onclick="setActive(this)">
+      <span class="sidebar-link-icon">📋</span> BOQ / Tender Parser
+    </a>
+    <a class="sidebar-link" href="#ai-rag" onclick="setActive(this)">
+      <span class="sidebar-link-icon">🔍</span> Document Intelligence
+    </a>
+    <a class="sidebar-link" href="#ai-advisor" onclick="setActive(this)">
+      <span class="sidebar-link-icon">🧠</span> Carbon Advisor
+    </a>
+
+    <div class="sidebar-section-label">Standards & Future</div>
+    <a class="sidebar-link" href="#certifications" onclick="setActive(this)">
+      <span class="sidebar-link-icon">🏆</span> Certifications
+    </a>
+    <a class="sidebar-link" href="#iot" onclick="setActive(this)">
+      <span class="sidebar-link-icon">📡</span> IoT Roadmap
+    </a>
+
+    <div style="padding:16px 20px;margin-top:auto;border-top:1px solid var(--border)">
+      <a href="presentation.html" style="display:flex;align-items:center;gap:8px;font-size:11px;font-weight:700;color:var(--green);text-decoration:none">
+        ← Back to Presentation
+      </a>
+    </div>
+  </nav>
+
+  <!-- ── MAIN CONTENT ── -->
+  <main class="main">
+
+    <!-- HERO -->
+    <div class="hero" id="overview">
+      <a class="back-btn" href="presentation.html">← Presentation</a>
+      <div class="hero-label">Product Walkthrough — CarbonIQ</div>
+      <h1 class="hero-title">How the platform<br><span>works end-to-end</span></h1>
+      <p class="hero-sub">A complete guide to every feature, workflow, and AI capability — covering all three stakeholder roles from first login to final carbon report.</p>
+      <div class="hero-pills">
+        <div class="hero-pill hp-green">✓ 3 Stakeholder Roles</div>
+        <div class="hero-pill hp-blue">✓ Full A1–A5 Lifecycle</div>
+        <div class="hero-pill hp-purple">✓ 3 AI Engines</div>
+        <div class="hero-pill hp-orange">✓ IoT Ready</div>
+        <div class="hero-pill">✓ ISO 21930 Aligned</div>
+        <div class="hero-pill">✓ 5 Certifications</div>
+      </div>
+    </div>
+
+    <!-- ──────────────────────────────────────────
+         SECTION 0 — SYSTEM OVERVIEW
+    ────────────────────────────────────────── -->
+    <section class="section">
+      <div class="section-num">Platform Overview</div>
+      <h2 class="section-title">What <span>CarbonIQ</span> does</h2>
+      <div class="h-bar"></div>
+      <p class="section-sub">CarbonIQ is a multi-stakeholder construction carbon accountability platform. It connects clients, consultants, and contractors on a single platform — with AI automating data extraction, and structured workflows enforcing accountability at every step.</p>
+
+      <div class="feat-grid">
+        <div class="feat-card fc-green">
+          <div class="feat-icon">🔗</div>
+          <div class="feat-title">Invitation-Only Access</div>
+          <div class="feat-body">No open registration. Every user is invited by a client or consultant. This ensures the platform only contains verified stakeholders — maintaining data integrity across the entire supply chain.</div>
+        </div>
+        <div class="feat-card fc-blue">
+          <div class="feat-icon">📊</div>
+          <div class="feat-title">Role-Based Dashboards</div>
+          <div class="feat-body">Each of the three roles (Client, Consultant, Contractor) sees a completely different interface tailored to their responsibilities — the right data, to the right person, at the right time.</div>
+        </div>
+        <div class="feat-card fc-purple">
+          <div class="feat-icon">🤖</div>
+          <div class="feat-title">Three AI Engines</div>
+          <div class="feat-body">BOQ/Tender Parser extracts quantities from documents. Document Intelligence (RAG) analyses project files with citations. Carbon Advisor recommends targeted reductions per contractor.</div>
+        </div>
+        <div class="feat-card fc-orange">
+          <div class="feat-icon">✅</div>
+          <div class="feat-title">Approval Workflow</div>
+          <div class="feat-body">Contractors submit data in batches. Consultants review and approve or request edits. Clients see only approved, verified data. Every change creates an audit trail.</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ──────────────────────────────────────────
+         SECTION 1 — ARCHITECTURE
+    ────────────────────────────────────────── -->
+    <section class="section" id="architecture">
+      <div class="section-num">Section 01</div>
+      <h2 class="section-title">Data Architecture — <span>A1 to A5</span></h2>
+      <div class="h-bar"></div>
+      <p class="section-sub">CarbonIQ tracks the full construction lifecycle from raw material extraction through on-site construction — aligned to ISO 21930. Each phase has its own data model, emission factors, and workflow.</p>
+
+      <table class="wt">
+        <thead>
+          <tr>
+            <th>Phase</th>
+            <th>What it covers</th>
+            <th>Who enters</th>
+            <th>Emission Factors</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="td-green">A1–A3</td>
+            <td>Raw material extraction, factory transport, manufacturing</td>
+            <td>Contractor</td>
+            <td>ICE DB v3.0 (Bath/Circular Ecology)</td>
+            <td class="td-green">Live</td>
+          </tr>
+          <tr>
+            <td class="td-blue">A4</td>
+            <td>Transport from factory to site (road, sea, train)</td>
+            <td>Contractor</td>
+            <td>TEF: Road 0.0000121, Sea 0.0000026, Rail 0.0000052</td>
+            <td class="td-blue">Live</td>
+          </tr>
+          <tr>
+            <td class="td-orange">A5</td>
+            <td>Construction site energy, fuel, and water consumption</td>
+            <td>Contractor</td>
+            <td>Diesel 2.51, Grid 0.611, Potable Water 14.7 kgCO₂/m³</td>
+            <td class="td-orange">Live</td>
+          </tr>
+          <tr>
+            <td style="color:var(--slate)">B–C</td>
+            <td>Operational energy, maintenance, end-of-life</td>
+            <td>—</td>
+            <td>—</td>
+            <td style="color:var(--slate)">Roadmap</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="callout callout-green">
+        <div class="callout-icon">💡</div>
+        <div>
+          <div class="callout-title">8 Material Categories — A1–A3</div>
+          <div class="callout-text">Concrete (C15–C70), Steel (structural, rebar, galvanized), Asphalt (3–7% binder), Aluminum (profiles & sheets), Glass (annealed to IGU), Earth Work, Subgrade aggregates, Precast Concrete Pipes — all with BAU baseline and actual tracked separately.</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ──────────────────────────────────────────
+         SECTION 2 — CLIENT ROLE
+    ────────────────────────────────────────── -->
+    <section class="section" id="role-client">
+      <div class="section-num">Section 02</div>
+      <h2 class="section-title">Role 1 — <span>Client / Owner</span></h2>
+      <div class="h-bar"></div>
+
+      <div class="role-header rh-green">
+        <div class="rh-icon">👤</div>
+        <div>
+          <div class="rh-label" style="color:var(--green)">Executive Oversight</div>
+          <div class="rh-title">Portfolio-wide carbon governance</div>
+          <div class="rh-sub">Sees all projects, all contractors, all organisations — live carbon data across the entire portfolio.</div>
+        </div>
+      </div>
+
+      <div class="steps">
+        <div class="step">
+          <div class="step-num">1</div>
+          <div class="step-body">
+            <div class="step-title">Portfolio Dashboard</div>
+            <div class="step-text">On login, the client sees a live portfolio dashboard with A1–A3 baseline vs. actual, A4 transport, A5 site emissions, and A1–A5 total. A reduction gauge shows current progress against the target percentage. Project cards display per-project sparklines.</div>
+            <span class="step-tag">Live Carbon Overview</span>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">2</div>
+          <div class="step-body">
+            <div class="step-title">Project Deep-Dive</div>
+            <div class="step-text">Click any project to open a detailed modal with five tabs: Overview (donut chart + line chart), Contractors (ranking table with % reduction vs. target), Materials (breakdown by category), Contributors (per-entry audit view), and Requests (pending edit approvals).</div>
+            <span class="step-tag">5-Tab Project View</span>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">3</div>
+          <div class="step-body">
+            <div class="step-title">Contractor Performance Alerts</div>
+            <div class="step-text">The dashboard highlights the worst-performing contractor — the one furthest below target. Red alert cards appear automatically when any contractor misses their reduction target, with exact percentage gaps shown.</div>
+            <span class="step-tag">Auto Alerts</span>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">4</div>
+          <div class="step-body">
+            <div class="step-title">Manage Organisations & Invitations</div>
+            <div class="step-text">The client creates and manages organisations (consultant firms and contractor companies), assigns them to projects, and issues invitation links. Registration is locked — only invited users can join the platform, preserving data integrity.</div>
+            <span class="step-tag">Invitation-Only Security</span>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">5</div>
+          <div class="step-body">
+            <div class="step-title">Certification Progress</div>
+            <div class="step-text">Live tracking against five certifications — Envision, Mostadam, LEED, BREEAM, WELL. Each shows current credits earned, target credits required, and whether the current carbon performance qualifies. Gap analysis shows exactly what improvement is needed.</div>
+            <span class="step-tag">Envision · Mostadam · LEED · BREEAM · WELL</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ──────────────────────────────────────────
+         SECTION 3 — CONSULTANT ROLE
+    ────────────────────────────────────────── -->
+    <section class="section" id="role-consultant">
+      <div class="section-num">Section 03</div>
+      <h2 class="section-title">Role 2 — <span>Consultant / Engineer</span></h2>
+      <div class="h-bar"></div>
+
+      <div class="role-header rh-purple">
+        <div class="rh-icon">🔬</div>
+        <div>
+          <div class="rh-label" style="color:var(--purple)">Project Intelligence Hub</div>
+          <div class="rh-title">The intelligence & approval centre</div>
+          <div class="rh-sub">Reviews contractor submissions, runs AI analyses, manages edit requests, and drives carbon reduction strategy per project.</div>
+        </div>
+      </div>
+
+      <div class="steps">
+        <div class="step">
+          <div class="step-num">1</div>
+          <div class="step-body">
+            <div class="step-title">Assigned Project Dashboard</div>
+            <div class="step-text">Consultants see only projects they are assigned to. Each project card shows live A1–A5 totals, contractor count, reduction percentage, and a mini sparkline of monthly progress.</div>
+            <span class="step-tag" style="background:rgba(167,139,250,0.1);color:var(--purple)">Scoped Access</span>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">2</div>
+          <div class="step-body">
+            <div class="step-title">Review Contractor Submissions</div>
+            <div class="step-text">The Contributors tab shows every submission from every contractor — material type, quantity, baseline, actual, A4 transport, and A5 site data. Suspect entries (unusually low or high values) are flagged automatically. Consultant can approve batches or request corrections.</div>
+            <span class="step-tag" style="background:rgba(167,139,250,0.1);color:var(--purple)">Audit Trail</span>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">3</div>
+          <div class="step-body">
+            <div class="step-title">Edit / Delete Request Workflow</div>
+            <div class="step-text">Contractors cannot freely edit or delete approved entries — they must submit an edit or delete request with a reason. Consultants see pending requests with full context, can approve or reject with comments. All decisions are logged with timestamp and name.</div>
+            <span class="step-tag" style="background:rgba(167,139,250,0.1);color:var(--purple)">Controlled Changes</span>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">4</div>
+          <div class="step-body">
+            <div class="step-title">AI Carbon Advisor</div>
+            <div class="step-text">Exclusive to consultants. The AI Advisor reads live project data — totals, material breakdown, contractor-by-contractor performance — and generates specific, actionable reduction recommendations. It identifies which contractors need attention and by how much.</div>
+            <span class="step-tag" style="background:rgba(167,139,250,0.1);color:var(--purple)">AI Powered</span>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">5</div>
+          <div class="step-body">
+            <div class="step-title">Tender Scenario Builder</div>
+            <div class="step-text">Create pre-procurement carbon scenarios from uploaded BOQ files or manual entry. Compare multiple material choices side-by-side before any order is placed. Export scenarios and save named versions for comparison over time.</div>
+            <span class="step-tag" style="background:rgba(167,139,250,0.1);color:var(--purple)">Pre-Procurement Intelligence</span>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">6</div>
+          <div class="step-body">
+            <div class="step-title">Document Intelligence</div>
+            <div class="step-text">Upload CIAs, CEAPs, technical reports, material submittals, and BOQ specs. AI processes them into a searchable knowledge base. Run 5-dimension analysis with page-level citations. Save findings to history for reference.</div>
+            <span class="step-tag" style="background:rgba(167,139,250,0.1);color:var(--purple)">RAG + Citations</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ──────────────────────────────────────────
+         SECTION 4 — CONTRACTOR ROLE
+    ────────────────────────────────────────── -->
+    <section class="section" id="role-contractor">
+      <div class="section-num">Section 04</div>
+      <h2 class="section-title">Role 3 — <span>Contractor / Supplier</span></h2>
+      <div class="h-bar"></div>
+
+      <div class="role-header rh-blue">
+        <div class="rh-icon">🏗️</div>
+        <div>
+          <div class="rh-label" style="color:var(--blue)">Compliant Reporting</div>
+          <div class="rh-title">Data entry & submission workflow</div>
+          <div class="rh-sub">Enters material data, transport, and site emissions — then submits to the consultant for verification and approval.</div>
+        </div>
+      </div>
+
+      <div class="steps">
+        <div class="step">
+          <div class="step-num">1</div>
+          <div class="step-body">
+            <div class="step-title">A1–A3 Material Entry</div>
+            <div class="step-text">Contractor selects a material category and type. The system pre-fills the BAU baseline emission factor from ICE DB v3.0. The contractor enters actual quantity and actual emission factor used. The difference becomes the carbon reduction contribution automatically.</div>
+            <span class="step-tag step-tag-blue">ICE DB v3.0 Pre-filled</span>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">2</div>
+          <div class="step-body">
+            <div class="step-title">A4 Transport Emissions</div>
+            <div class="step-text">For each material entry, the contractor optionally adds transport data: distance (km), weight (tonnes), and mode (road, sea, or rail). The platform calculates A4 emissions using standard transport emission factors automatically.</div>
+            <span class="step-tag step-tag-blue">Road / Sea / Rail</span>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">3</div>
+          <div class="step-body">
+            <div class="step-title">A5 Site Emissions</div>
+            <div class="step-text">Monthly site consumption entries: energy type (diesel, gasoline, grid electricity, renewable), quantity used, and water (potable, construction, TSE recycled). Emission factors are pre-loaded. The site carbon total is calculated instantly.</div>
+            <span class="step-tag step-tag-blue">Monthly Site Reporting</span>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">4</div>
+          <div class="step-body">
+            <div class="step-title">Batch Submission</div>
+            <div class="step-text">Contractors work in batch mode — adding multiple entries without submitting immediately. When the batch is ready, a single submission sends all entries to the consultant for review. This reduces approval overhead and keeps workflows efficient.</div>
+            <span class="step-tag step-tag-blue">Single-Click Submit</span>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">5</div>
+          <div class="step-body">
+            <div class="step-title">Edit / Delete Requests</div>
+            <div class="step-text">Once entries are submitted, the contractor cannot modify them directly. They submit an edit or delete request with a reason. The status is visible in real-time — "Awaiting consultant approval". When approved, the contractor can apply the edit or delete immediately.</div>
+            <span class="step-tag step-tag-blue">Controlled Corrections</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ──────────────────────────────────────────
+         SECTION 5 — BOQ / TENDER PARSER
+    ────────────────────────────────────────── -->
+    <section class="section" id="ai-boq">
+      <div class="section-num">Section 05 — AI Engine 1</div>
+      <h2 class="section-title">BOQ / <span>Tender Parser</span></h2>
+      <div class="h-bar"></div>
+      <p class="section-sub">The BOQ Parser is the first AI engine — it reads raw tender documents (PDF, Excel, CSV) and automatically extracts material quantities, maps them to carbon emission factors, and builds a carbon forecast — all without manual data entry.</p>
+
+      <div class="callout callout-orange">
+        <div class="callout-icon">⚡</div>
+        <div>
+          <div class="callout-title">The problem it solves</div>
+          <div class="callout-text">A typical BOQ for a large infrastructure project has hundreds of line items across dozens of pages. Manually extracting, categorising, and mapping quantities to carbon factors takes 3–6 weeks. The parser does it in seconds — enabling carbon decisions at the point of procurement, not after.</div>
+        </div>
+      </div>
+
+      <div class="ai-flow" style="margin-top:24px">
+        <div class="ai-step">
+          <div class="ai-step-num">1</div>
+          <div class="ai-step-body">
+            <div class="ai-step-title">Document Upload</div>
+            <div class="ai-step-text">Consultant uploads a PDF, Excel (.xlsx/.xls), or CSV tender document. The system auto-detects the file type and extracts raw text. PDFs are processed page-by-page using PDF.js. Excel files are converted to structured text via SheetJS.</div>
+          </div>
+        </div>
+        <div class="ai-step">
+          <div class="ai-step-num">2</div>
+          <div class="ai-step-body">
+            <div class="ai-step-title">AI Quantity Extraction</div>
+            <div class="ai-step-text">The AI reads each BOQ line item and extracts: item description, unit (m², m³, kg, tonnes, m, nr…), quantity, and thickness/depth where present. Intelligent unit normalisation handles messy AI output — detecting and correcting garbage units using pattern matching.</div>
+          </div>
+        </div>
+        <div class="ai-step">
+          <div class="ai-step-num">3</div>
+          <div class="ai-step-body">
+            <div class="ai-step-title">Material Matching (Fuzzy ICE DB)</div>
+            <div class="ai-step-text">Each extracted item is fuzzy-matched against the ICE Database v3.0 — 200+ material types across Concrete, Steel, Asphalt, Aluminum, Glass, Timber, Insulation, MEP, and more. Match confidence scores are calculated and displayed. Low-confidence matches are flagged for review.</div>
+          </div>
+        </div>
+        <div class="ai-step">
+          <div class="ai-step-num">4</div>
+          <div class="ai-step-body">
+            <div class="ai-step-title">Smart Unit Conversion</div>
+            <div class="ai-step-text">The system handles dimensional conversions automatically. If the BOQ gives m² but the ICE factor requires m³, the AI extracts the thickness from the description (e.g. "300mm thick concrete slab") and converts. Pipe items detect diameter to select the correct precast factor.</div>
+          </div>
+        </div>
+        <div class="ai-step">
+          <div class="ai-step-num">5</div>
+          <div class="ai-step-body">
+            <div class="ai-step-title">Scenario Carbon Forecast</div>
+            <div class="ai-step-text">Results are compiled into a named tender scenario with total A1–A3 carbon (baseline and target), breakdown by material group, and per-line-item detail. Multiple scenarios can be saved and compared — enabling side-by-side evaluation of design alternatives before any procurement commitment.</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ──────────────────────────────────────────
+         SECTION 6 — DOCUMENT INTELLIGENCE
+    ────────────────────────────────────────── -->
+    <section class="section" id="ai-rag">
+      <div class="section-num">Section 06 — AI Engine 2</div>
+      <h2 class="section-title">Document Intelligence <span>(RAG Pipeline)</span></h2>
+      <div class="h-bar"></div>
+      <p class="section-sub">The Document Intelligence module allows consultants to upload project documents and run structured AI analysis across five dimensions — with every finding traced back to its exact source in the uploaded documents via page-level citations.</p>
+
+      <div class="callout callout-purple">
+        <div class="callout-icon">📄</div>
+        <div>
+          <div class="callout-title">Supported document types</div>
+          <div class="callout-text">Carbon Impact Assessments (CIA), Carbon Emissions Action Plans (CEAP), Technical Reports, Material Submittals, BOQ Specifications, and Sustainability Reports. PDF, Excel, and CSV formats supported.</div>
+        </div>
+      </div>
+
+      <div class="ai-flow" style="margin-top:24px">
+        <div class="ai-step">
+          <div class="ai-step-num">1</div>
+          <div class="ai-step-body">
+            <div class="ai-step-title">Upload & Chunking</div>
+            <div class="ai-step-text">Uploaded documents are extracted to text and split into overlapping semantic chunks. The system auto-detects document type (CIA, CEAP, technical report, material submittal, BOQ spec) and labels each chunk with metadata — page number, section heading, detected materials, and topics.</div>
+          </div>
+        </div>
+        <div class="ai-step">
+          <div class="ai-step-num">2</div>
+          <div class="ai-step-body">
+            <div class="ai-step-title">RAG Retrieval</div>
+            <div class="ai-step-text">When an analysis dimension is run, the system queries the document library using Retrieval-Augmented Generation (RAG). The most relevant chunks (up to 25) are retrieved based on semantic relevance to the analysis topic — e.g., "material compliance" retrieves specification and material submittal content.</div>
+          </div>
+        </div>
+        <div class="ai-step">
+          <div class="ai-step-num">3</div>
+          <div class="ai-step-body">
+            <div class="ai-step-title">Live Project Context Injection</div>
+            <div class="ai-step-text">Before sending to the AI, the system builds a live project context from the database: total A1–A3 baseline and actual, material-by-material reduction percentages, contractor-by-contractor breakdown, and A5 site totals. This ensures findings are grounded in real project data, not generic.</div>
+          </div>
+        </div>
+        <div class="ai-step">
+          <div class="ai-step-num">4</div>
+          <div class="ai-step-body">
+            <div class="ai-step-title">5-Dimension AI Analysis</div>
+            <div class="ai-step-text">Each dimension is analysed independently: Material Compliance, Reduction Opportunities, Cross-Document Consistency, Regulatory & Certification Gaps, Actionable Recommendations. Each produces structured findings with severity ratings (HIGH / MEDIUM / LOW) and explicit recommendations.</div>
+          </div>
+        </div>
+        <div class="ai-step">
+          <div class="ai-step-num">5</div>
+          <div class="ai-step-body">
+            <div class="ai-step-title">Page-Level Citation Traceability</div>
+            <div class="ai-step-text">Every finding includes citations: document name, page number, section, and a verbatim quote from the source. This means every AI conclusion is verifiable — consultants can go directly to the source document and confirm the finding without guessing where the AI got its information.</div>
+          </div>
+        </div>
+        <div class="ai-step">
+          <div class="ai-step-num">6</div>
+          <div class="ai-step-body">
+            <div class="ai-step-title">History & Saved Results</div>
+            <div class="ai-step-text">Analysis results can be saved to a project history log with timestamp, user name, and finding count. Past analyses are browsable and can be reloaded into the analysis view for comparison. This creates a carbon intelligence audit trail for the project.</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ──────────────────────────────────────────
+         SECTION 7 — CARBON ADVISOR
+    ────────────────────────────────────────── -->
+    <section class="section" id="ai-advisor">
+      <div class="section-num">Section 07 — AI Engine 3</div>
+      <h2 class="section-title"><span>Carbon Advisor</span></h2>
+      <div class="h-bar"></div>
+      <p class="section-sub">The Carbon Advisor is an AI strategist embedded in the consultant's project view. It reads live project data and generates specific, prioritised reduction recommendations — not generic tips, but data-driven actions tied to the actual numbers.</p>
+
+      <div class="callout callout-green">
+        <div class="callout-icon">🧠</div>
+        <div>
+          <div class="callout-title">Key differentiator</div>
+          <div class="callout-text">The Advisor doesn't just show what happened. It tells the consultant what to do next — and specifically which contractor to engage, which material to substitute, and how much carbon reduction that action will deliver.</div>
+        </div>
+      </div>
+
+      <div class="ai-flow" style="margin-top:24px">
+        <div class="ai-step">
+          <div class="ai-step-num">1</div>
+          <div class="ai-step-body">
+            <div class="ai-step-title">Live Data Payload</div>
+            <div class="ai-step-text">The Advisor receives: project metadata, reduction target %, total A1–A3 baseline and actual, A4 and A5 totals, material-by-material breakdown with reduction %, and a contractor-by-contractor performance table showing who is above and below target.</div>
+          </div>
+        </div>
+        <div class="ai-step">
+          <div class="ai-step-num">2</div>
+          <div class="ai-step-body">
+            <div class="ai-step-title">Targeted Recommendations</div>
+            <div class="ai-step-text">The AI analyses which contractors are below target, by how much, and which material categories are driving the gap. It generates role-specific recommendations: for consultants (what to require from contractors), for procurement (material switches and suppliers), and for design (specification changes).</div>
+          </div>
+        </div>
+        <div class="ai-step">
+          <div class="ai-step-num">3</div>
+          <div class="ai-step-body">
+            <div class="ai-step-title">Contractor Gap Analysis</div>
+            <div class="ai-step-text">For each contractor below target, the Advisor shows exactly how many tCO₂ reduction is needed and suggests the specific material substitution or process change that would close the gap. Contractors meeting their target are acknowledged — reinforcing good practice.</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ──────────────────────────────────────────
+         SECTION 8 — CERTIFICATIONS
+    ────────────────────────────────────────── -->
+    <section class="section" id="certifications">
+      <div class="section-num">Section 08</div>
+      <h2 class="section-title">Sustainability <span>Certifications</span></h2>
+      <div class="h-bar"></div>
+      <p class="section-sub">CarbonIQ tracks progress against five major sustainability certifications simultaneously — showing live credit status and gap analysis for each.</p>
+
+      <table class="wt">
+        <thead>
+          <tr>
+            <th>Certification</th>
+            <th>Focus Area</th>
+            <th>Carbon Credits Available</th>
+            <th>Target Threshold</th>
+            <th>Tracked by CarbonIQ</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>🏗️ Envision</td>
+            <td>Infrastructure sustainability</td>
+            <td>14 credits</td>
+            <td>10 credits</td>
+            <td class="td-green">✓ Live</td>
+          </tr>
+          <tr>
+            <td>🏠 Mostadam</td>
+            <td>Saudi Green Building Standard</td>
+            <td>8 credits</td>
+            <td>6 credits</td>
+            <td class="td-green">✓ Live</td>
+          </tr>
+          <tr>
+            <td>🌿 LEED</td>
+            <td>Leadership in Energy & Environment</td>
+            <td>12 credits</td>
+            <td>8 credits</td>
+            <td class="td-green">✓ Live</td>
+          </tr>
+          <tr>
+            <td>🌍 BREEAM</td>
+            <td>Building Research Establishment</td>
+            <td>10 credits</td>
+            <td>7 credits</td>
+            <td class="td-green">✓ Live</td>
+          </tr>
+          <tr>
+            <td>💚 WELL</td>
+            <td>Health & wellbeing in buildings</td>
+            <td>6 credits</td>
+            <td>4 credits</td>
+            <td class="td-green">✓ Live</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="callout callout-blue">
+        <div class="callout-icon">📋</div>
+        <div>
+          <div class="callout-title">ISO 21930 Alignment</div>
+          <div class="callout-text">The platform's lifecycle phase structure (A1–A5) is fully aligned to ISO 21930 — Sustainability in buildings and civil engineering works. This makes CarbonIQ data directly usable for EPD declarations and third-party audits.</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ──────────────────────────────────────────
+         SECTION 9 — IOT ROADMAP
+    ────────────────────────────────────────── -->
+    <section class="section" id="iot">
+      <div class="section-num">Section 09</div>
+      <h2 class="section-title">IoT Integration <span>Roadmap</span></h2>
+      <div class="h-bar"></div>
+      <p class="section-sub">The platform architecture is designed to receive real-time data. Phase 2 introduces IoT sensors at the construction site — transforming A5 reporting from manual monthly submissions into live carbon monitoring.</p>
+
+      <div class="callout callout-orange">
+        <div class="callout-icon">📡</div>
+        <div>
+          <div class="callout-title">The transformation</div>
+          <div class="callout-text">Today: contractors enter A5 data manually each month — consumption estimated or read from meters.<br>With IoT: sensors stream diesel flow, electricity sub-metering, and water consumption in real time. Carbon is calculated automatically and continuously. Alerts fire before thresholds are breached — not after.</div>
+        </div>
+      </div>
+
+      <div class="iot-grid" style="margin-top:24px">
+        <div class="iot-card">
+          <div class="iot-icon">⛽</div>
+          <div class="iot-title">Fuel Flow Meters</div>
+          <div class="iot-body">IoT diesel and gasoline flow meters on generators and equipment. Real-time fuel consumption → A5 combustion carbon calculated continuously.</div>
+          <div class="iot-badge">Phase 2</div>
+        </div>
+        <div class="iot-card">
+          <div class="iot-icon">⚡</div>
+          <div class="iot-title">Smart Sub-Metering</div>
+          <div class="iot-body">Electricity sub-meters at site distribution boards. Grid vs. renewable split tracked live. kWh → kgCO₂ using regional grid emission factors.</div>
+          <div class="iot-badge">Phase 2</div>
+        </div>
+        <div class="iot-card">
+          <div class="iot-icon">💧</div>
+          <div class="iot-title">Water Sensors</div>
+          <div class="iot-body">Flow meters on site water supply — distinguishing potable, construction, and TSE recycled water. Automatic A5 water carbon calculation.</div>
+          <div class="iot-badge">Phase 2</div>
+        </div>
+        <div class="iot-card">
+          <div class="iot-icon">🚨</div>
+          <div class="iot-title">Threshold Alerts</div>
+          <div class="iot-body">Configurable alert rules: notify consultant when daily site carbon exceeds budget, or when weekly trajectory will breach monthly target.</div>
+          <div class="iot-badge">Phase 2</div>
+        </div>
+        <div class="iot-card">
+          <div class="iot-icon">🔮</div>
+          <div class="iot-title">ML Forecasting</div>
+          <div class="iot-body">Machine learning models trained on historical site data predict end-of-project A5 total from early trend data — enabling corrective action months in advance.</div>
+          <div class="iot-badge">Phase 3</div>
+        </div>
+        <div class="iot-card">
+          <div class="iot-icon">🏗️</div>
+          <div class="iot-title">Digital Twin Link</div>
+          <div class="iot-body">IoT data feeds into a BIM/digital twin layer — mapping live carbon to specific building elements. Carbon becomes spatially visible on the 3D model.</div>
+          <div class="iot-badge">Phase 3</div>
+        </div>
+      </div>
+
+      <div style="margin-top:32px;padding:24px;background:var(--bg3);border:1px solid var(--border);border-radius:16px;text-align:center">
+        <div style="font-size:24px;font-weight:900;color:var(--green);margin-bottom:8px">From accountability to control.</div>
+        <div style="font-size:14px;color:var(--text3);max-width:600px;margin:0 auto;line-height:1.6">IoT doesn't just improve the data — it fundamentally changes what CarbonIQ is. From a platform that records what happened, to a platform that prevents what shouldn't.</div>
+      </div>
+    </section>
+
+    <!-- FOOTER -->
+    <section class="section" style="text-align:center;padding:40px 64px">
+      <div style="font-size:28px;margin-bottom:12px">🌿</div>
+      <div style="font-size:20px;font-weight:900;margin-bottom:8px">CarbonIQ</div>
+      <div style="font-size:13px;color:var(--text3);margin-bottom:24px">Construction Carbon Accountability Platform · ISO 21930 Aligned · ICE DB v3.0</div>
+      <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap">
+        <a href="presentation.html" style="display:inline-flex;align-items:center;gap:8px;background:var(--green);color:#000;font-size:13px;font-weight:800;padding:12px 24px;border-radius:30px;text-decoration:none">← Back to Presentation</a>
+        <a href="index.html" style="display:inline-flex;align-items:center;gap:8px;background:var(--bg3);border:1px solid var(--border);color:var(--text3);font-size:13px;font-weight:700;padding:12px 24px;border-radius:30px;text-decoration:none">Launch Platform →</a>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<script>
+  function setActive(el) {
+    document.querySelectorAll('.sidebar-link').forEach(l => l.classList.remove('active'));
+    el.classList.add('active');
+  }
+
+  // Highlight active section on scroll
+  const sections = document.querySelectorAll('section[id], div[id]');
+  const links = document.querySelectorAll('.sidebar-link[href^="#"]');
+
+  const observer = new IntersectionObserver(entries => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        const id = entry.target.id;
+        links.forEach(l => {
+          l.classList.toggle('active', l.getAttribute('href') === '#' + id);
+        });
+      }
+    });
+  }, { threshold: 0.3 });
+
+  sections.forEach(s => observer.observe(s));
+</script>
+</body>
+</html>
