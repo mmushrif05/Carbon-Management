@@ -21,12 +21,21 @@ function renderPortfolioDashboard(el, projects) {
   let a5T=0; state.a5entries.forEach(e=>{a5T+=e.emission||0});
   const rP=tB>0?((tB-tA)/tB)*100:0;
 
-  // Build project cards
+  // Build project cards with carbon data
+  const a5entries = state.a5entries || [];
   const projectCards = projects.map(p => {
     const pAssign = projAssignments.filter(a => a.projectId === p.id);
     const consultants = pAssign.filter(a => a.userRole === 'consultant');
     const contractors = pAssign.filter(a => a.userRole === 'contractor');
     const statusClass = p.status === 'active' ? 'approved' : p.status === 'completed' ? 'review' : 'pending';
+
+    // Per-project carbon data
+    const pEntries = d.filter(e => e.projectId === p.id);
+    const pA5 = a5entries.filter(e => e.projectId === p.id);
+    let pB=0,pA=0,pA4v=0; pEntries.forEach(e=>{pB+=e.a13B||0;pA+=e.a13A||0;pA4v+=e.a4||0});
+    let pA5T=0; pA5.forEach(e=>{pA5T+=e.emission||0});
+    const pRed = pB>0?((pB-pA)/pB)*100:0;
+    const pTotal = pA+pA4v+pA5T;
 
     return `<div class="card" style="cursor:pointer;transition:transform 0.15s;border:1px solid rgba(96,165,250,0.15)" onmouseover="this.style.transform='translateY(-2px)';this.style.borderColor='rgba(96,165,250,0.4)'" onmouseout="this.style.transform='';this.style.borderColor='rgba(96,165,250,0.15)'">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px">
@@ -37,7 +46,12 @@ function renderPortfolioDashboard(el, projects) {
         <span class="badge ${statusClass}" style="text-transform:capitalize">${p.status || 'active'}</span>
       </div>
       ${p.description ? `<div style="font-size:12px;color:var(--slate5);margin-bottom:10px;line-height:1.5">${p.description}</div>` : ''}
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;text-align:center;padding:10px 0;border-top:1px solid var(--bg3)">
+      ${pEntries.length > 0 || pA5.length > 0 ? `<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;text-align:center;padding:8px 0;border-top:1px solid var(--bg3);border-bottom:1px solid var(--bg3);margin-bottom:8px">
+        <div><div style="font-size:14px;font-weight:800;color:var(--green)">${fmt(pTotal)}</div><div style="font-size:9px;color:var(--slate5)">A1-A5 Total tCO\u2082</div></div>
+        <div><div style="font-size:14px;font-weight:800;color:${pRed>20?'var(--green)':'var(--orange)'}">${fmt(pRed)}%</div><div style="font-size:9px;color:var(--slate5)">Reduction</div></div>
+        <div><div style="font-size:14px;font-weight:800;color:var(--blue)">${pEntries.length + pA5.length}</div><div style="font-size:9px;color:var(--slate5)">Entries</div></div>
+      </div>` : ''}
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;text-align:center;padding:10px 0">
         <div>
           <div style="font-size:18px;font-weight:800;color:var(--green)">${consultants.length}</div>
           <div style="font-size:10px;color:var(--slate5)">Consultants</div>
@@ -106,7 +120,7 @@ function renderPortfolioDashboard(el, projects) {
 
 // Classic Dashboard — original view for when no projects are defined
 function renderClassicDashboard(el) {
-  const d=state.entries; let tB=0,tA=0,tA4=0;
+  const d=getFilteredEntries(); let tB=0,tA=0,tA4=0;
   d.forEach(e=>{tB+=e.a13B||0;tA+=e.a13A||0;tA4+=e.a4||0});
   let a5T=0; state.a5entries.forEach(e=>{a5T+=e.emission||0});
   const rP=tB>0?((tB-tA)/tB)*100:0;
@@ -143,11 +157,29 @@ function renderClassicDashboard(el) {
 function renderEntry(el) {
   const yr=new Date().getFullYear(),mo=String(new Date().getMonth()+1).padStart(2,'0');
   const isContractor = state.role === 'contractor';
+  // Build project options from user's assigned projects
+  const myProjects = (state.projects || []).filter(p => p.status === 'active');
+  const projOptions = myProjects.length
+    ? myProjects.map(p => `<option value="${p.id}" ${state.selectedProjectId === p.id ? 'selected' : ''}>${p.name}${p.code ? ' (' + p.code + ')' : ''}</option>`).join('')
+    : '';
+
   el.innerHTML=`
   <div class="card"><div class="card-title">Add Material \u2014 A1-A4</div>
   ${isContractor?`<div style="padding:10px 14px;background:rgba(96,165,250,0.08);border:1px solid rgba(96,165,250,0.2);border-radius:10px;margin-bottom:14px;font-size:13px;color:var(--blue)">
     <strong>Batch Mode:</strong> Add as many entries as you need, then submit them all to the consultant at once.
   </div>`:''}
+  ${myProjects.length > 0 ? `<div class="form-row" style="margin-bottom:12px">
+    <div class="fg" style="max-width:400px">
+      <label style="font-weight:700;color:var(--blue)">Project <span style="color:var(--red)">*</span></label>
+      <select id="eProj" onchange="onProjectSelect(this.value)">
+        <option value="">Select project...</option>
+        ${projOptions}
+      </select>
+    </div>
+    ${state.selectedProjectId ? `<div style="display:flex;align-items:flex-end;padding-bottom:4px"><span class="badge approved" style="font-size:11px">${myProjects.find(p=>p.id===state.selectedProjectId)?.name || ''}</span></div>` : ''}
+  </div>` : `<div style="padding:10px 14px;background:rgba(248,113,113,0.08);border:1px solid rgba(248,113,113,0.2);border-radius:10px;margin-bottom:14px;font-size:13px;color:var(--red)">
+    No projects assigned to you yet. Contact your administrator to assign you to a project before entering data.
+  </div>`}
   <div class="form-row c4"><div class="fg"><label>Year</label><select id="eY">${[yr-1,yr,yr+1].map(y=>`<option ${y===yr?'selected':''}>${y}</option>`).join('')}</select></div>
   <div class="fg"><label>Month</label><select id="eM">${MONTHS.map((m,i)=>`<option value="${String(i+1).padStart(2,'0')}" ${String(i+1).padStart(2,'0')===mo?'selected':''}>${m}</option>`).join('')}</select></div>
   <div class="fg"><label>District</label><input id="eD" value="A"></div>
@@ -179,14 +211,16 @@ function renderEntry(el) {
       </div>
     </div>
     <div id="batchMsg"></div>
-    <div class="tbl-wrap"><table><thead><tr><th>Month</th><th>Material</th><th>Type</th><th class="r">Qty</th><th class="r">Baseline</th><th class="r">Actual</th><th class="r">A4</th><th class="r">Total</th><th></th></tr></thead><tbody id="batchTbl"></tbody></table></div>
+    <div class="tbl-wrap"><table><thead><tr><th>Project</th><th>Month</th><th>Material</th><th>Type</th><th class="r">Qty</th><th class="r">Baseline</th><th class="r">Actual</th><th class="r">A4</th><th class="r">Total</th><th></th></tr></thead><tbody id="batchTbl"></tbody></table></div>
   </div>` : ''}
 
-  <div class="card"><div class="card-title">${isContractor ? 'Submitted Entries' : 'Recent Entries'}</div><div class="tbl-wrap"><table><thead><tr><th>Month</th><th>Material</th><th>Type</th><th class="r">Qty</th><th class="r">Baseline</th><th class="r">Actual</th><th class="r">A4</th><th class="r">Total</th><th>Status</th><th></th></tr></thead><tbody id="reTbl"></tbody></table></div></div>`;
+  <div class="card"><div class="card-title">${isContractor ? 'Submitted Entries' : 'Recent Entries'}</div><div class="tbl-wrap"><table><thead><tr><th>Project</th><th>Month</th><th>Material</th><th>Type</th><th class="r">Qty</th><th class="r">Baseline</th><th class="r">Actual</th><th class="r">A4</th><th class="r">Total</th><th>Status</th><th></th></tr></thead><tbody id="reTbl"></tbody></table></div></div>`;
 
   if (isContractor) renderBatch();
   renderRecent();
 }
+
+function onProjectSelect(val) { state.selectedProjectId = val || null; }
 
 function onCat(){const c=$('eCat').value;if(!c||!MATERIALS[c])return;$('eType').innerHTML='<option value="">Select...</option>'+MATERIALS[c].types.map((t,i)=>`<option value="${i}">${t.name}</option>`).join('');$('eQU').textContent='Unit: '+MATERIALS[c].unit;$('eAU').textContent=MATERIALS[c].efUnit;$('eBL').value='';$('eTG').value='';preview();}
 function onType(){const c=$('eCat').value,i=$('eType').value;if(!c||i==='')return;const t=MATERIALS[c].types[i];$('eBL').value=t.baseline+' '+MATERIALS[c].efUnit;$('eTG').value=t.target+' '+MATERIALS[c].efUnit;preview();}
@@ -205,6 +239,13 @@ function preview(){
 function addToBatch() {
   const c=$('eCat').value,i=$('eType').value,q=parseFloat($('eQ').value),a=parseFloat($('eA').value);
   if(!c||i===''||isNaN(q)||isNaN(a)||q<=0||a<=0){alert('Fill all required fields');return;}
+
+  // Require project selection
+  const projEl = $('eProj');
+  const projId = projEl ? projEl.value : '';
+  if (!projId) { alert('Please select a project first.'); return; }
+  const proj = (state.projects || []).find(p => p.id === projId);
+
   const m=MATERIALS[c],t=m.types[i],mass=q*m.massFactor;
   const rd=parseFloat($('eR').value)||0,se=parseFloat($('eS').value)||0,tr=parseFloat($('eT').value)||0;
   const b=(q*t.baseline)/1000,ac=(q*a)/1000,a4=(mass*rd*TEF.road+mass*se*TEF.sea+mass*tr*TEF.train)/1000;
@@ -214,6 +255,7 @@ function addToBatch() {
     road:rd,sea:se,train:tr,a13B:b,a13A:ac,a4,a14:ac+a4,pct:b>0?((b-ac)/b)*100:0,
     year:yr,month:mo,monthKey:yr+'-'+mo,monthLabel:MONTHS[parseInt(mo)-1]+' '+yr,
     district:$('eD').value,contract:$('eC').value,notes:$('eN').value,
+    projectId:projId,projectName:proj?proj.name:'',
     addedAt:new Date().toISOString()};
 
   DB.addDraftEntry(entry);
@@ -242,6 +284,7 @@ function renderBatch() {
 
   tbl.innerHTML = drafts.length
     ? drafts.map(e=>`<tr>
+        <td style="font-weight:600;color:var(--blue);font-size:11px">${e.projectName||'--'}</td>
         <td>${e.monthLabel}</td><td>${e.category}</td><td>${e.type}</td>
         <td class="r mono">${fmtI(e.qty)}</td>
         <td class="r mono">${fmt(e.a13B)}</td>
@@ -250,7 +293,7 @@ function renderBatch() {
         <td class="r mono" style="font-weight:700">${fmt(e.a14)}</td>
         <td><button class="btn btn-danger btn-sm" onclick="removeDraftEntry(${e.id})">\u2715</button></td>
       </tr>`).join('')
-    : '<tr><td colspan="9" class="empty">No items in batch — add entries above</td></tr>';
+    : '<tr><td colspan="10" class="empty">No items in batch — add entries above</td></tr>';
 }
 
 // Submit all draft entries to the server at once, then notify consultants
@@ -264,7 +307,7 @@ async function submitBatch() {
   if (msgEl) msgEl.innerHTML = '<div style="padding:10px 14px;background:rgba(96,165,250,0.08);border-radius:10px;color:var(--blue);font-weight:600">Submitting batch...</div>';
 
   try {
-    // Stamp status + submitter before sending
+    // Stamp status + submitter before sending (projectId already set per entry in addToBatch)
     const stamped = drafts.map(e => ({
       ...e,
       status: 'pending',
@@ -298,6 +341,13 @@ async function submitBatch() {
 async function submitEntry(){
   const c=$('eCat').value,i=$('eType').value,q=parseFloat($('eQ').value),a=parseFloat($('eA').value);
   if(!c||i===''||isNaN(q)||isNaN(a)||q<=0||a<=0){alert('Fill all required fields');return;}
+
+  // Require project selection
+  const projEl = $('eProj');
+  const projId = projEl ? projEl.value : '';
+  if (!projId) { alert('Please select a project first.'); return; }
+  const proj = (state.projects || []).find(p => p.id === projId);
+
   const m=MATERIALS[c],t=m.types[i],mass=q*m.massFactor;
   const rd=parseFloat($('eR').value)||0,se=parseFloat($('eS').value)||0,tr=parseFloat($('eT').value)||0;
   const b=(q*t.baseline)/1000,ac=(q*a)/1000,a4=(mass*rd*TEF.road+mass*se*TEF.sea+mass*tr*TEF.train)/1000;
@@ -307,6 +357,7 @@ async function submitEntry(){
     road:rd,sea:se,train:tr,a13B:b,a13A:ac,a4,a14:ac+a4,pct:b>0?((b-ac)/b)*100:0,
     year:yr,month:mo,monthKey:yr+'-'+mo,monthLabel:MONTHS[parseInt(mo)-1]+' '+yr,
     district:$('eD').value,contract:$('eC').value,notes:$('eN').value,
+    projectId:projId,projectName:proj?proj.name:'',
     status:'pending',submittedBy:state.name,role:state.role,submittedAt:new Date().toISOString()};
 
   await DB.saveEntry(entry);
@@ -318,7 +369,7 @@ async function submitEntry(){
 function renderRecent(){
   const t=$('reTbl');if(!t)return;
   const r=[...state.entries].reverse().slice(0,15);
-  t.innerHTML=r.length?r.map(e=>`<tr><td>${e.monthLabel}</td><td>${e.category}</td><td>${e.type}</td><td class="r mono">${fmtI(e.qty)}</td><td class="r mono">${fmt(e.a13B)}</td><td class="r mono">${fmt(e.a13A)}</td><td class="r mono">${fmt(e.a4)}</td><td class="r mono" style="font-weight:700">${fmt(e.a14)}</td><td><span class="badge ${e.status}">${e.status}</span></td><td>${e.status==='pending'?`<button class="btn btn-danger btn-sm" onclick="delEntry(${e.id})">\u2715</button>`:''}</td></tr>`).join(''):'<tr><td colspan="10" class="empty">No entries</td></tr>';
+  t.innerHTML=r.length?r.map(e=>`<tr><td style="font-weight:600;color:var(--blue);font-size:11px">${e.projectName||'--'}</td><td>${e.monthLabel}</td><td>${e.category}</td><td>${e.type}</td><td class="r mono">${fmtI(e.qty)}</td><td class="r mono">${fmt(e.a13B)}</td><td class="r mono">${fmt(e.a13A)}</td><td class="r mono">${fmt(e.a4)}</td><td class="r mono" style="font-weight:700">${fmt(e.a14)}</td><td><span class="badge ${e.status}">${e.status}</span></td><td>${e.status==='pending'?`<button class="btn btn-danger btn-sm" onclick="delEntry(${e.id})">\u2715</button>`:''}</td></tr>`).join(''):'<tr><td colspan="11" class="empty">No entries</td></tr>';
 }
 
 async function delEntry(id){await DB.deleteEntry(id);state.entries=state.entries.filter(e=>e.id!==id);navigate(state.page);}
@@ -326,7 +377,21 @@ async function delEntry(id){await DB.deleteEntry(id);state.entries=state.entries
 // ===== A5 =====
 function renderA5(el){
   const yr=new Date().getFullYear(),mo=String(new Date().getMonth()+1).padStart(2,'0');
+  const myProjects = (state.projects || []).filter(p => p.status === 'active');
+  const projOptions = myProjects.map(p => `<option value="${p.id}" ${state.selectedProjectId === p.id ? 'selected' : ''}>${p.name}${p.code ? ' (' + p.code + ')' : ''}</option>`).join('');
+
   el.innerHTML=`<div class="card"><div class="card-title">A5 \u2014 Site Energy & Water</div>
+  ${myProjects.length > 0 ? `<div class="form-row" style="margin-bottom:12px">
+    <div class="fg" style="max-width:400px">
+      <label style="font-weight:700;color:var(--blue)">Project <span style="color:var(--red)">*</span></label>
+      <select id="a5Proj" onchange="onProjectSelect(this.value)">
+        <option value="">Select project...</option>
+        ${projOptions}
+      </select>
+    </div>
+  </div>` : `<div style="padding:10px 14px;background:rgba(248,113,113,0.08);border:1px solid rgba(248,113,113,0.2);border-radius:10px;margin-bottom:14px;font-size:13px;color:var(--red)">
+    No projects assigned to you yet. Contact your administrator to assign you to a project before entering data.
+  </div>`}
   <div class="form-row c3"><div class="fg"><label>Year</label><select id="a5Y">${[yr-1,yr,yr+1].map(y=>`<option ${y===yr?'selected':''}>${y}</option>`).join('')}</select></div>
   <div class="fg"><label>Month</label><select id="a5M">${MONTHS.map((m,i)=>`<option value="${String(i+1).padStart(2,'0')}" ${String(i+1).padStart(2,'0')===mo?'selected':''}>${m}</option>`).join('')}</select></div>
   <div class="fg"><label>Source</label><select id="a5S" onchange="onA5S()"><optgroup label="Energy">${A5_EFS.energy.map((e,i)=>`<option value="e${i}">${e.name}</option>`).join('')}</optgroup><optgroup label="Water">${A5_EFS.water.map((e,i)=>`<option value="w${i}">${e.name}</option>`).join('')}</optgroup></select></div></div>
@@ -334,14 +399,18 @@ function renderA5(el){
   <div class="fg"><label>EF (auto)</label><input id="a5E" class="fg-readonly" readonly></div>
   <div class="fg"><label>Emission</label><input id="a5R" class="fg-readonly" readonly></div></div>
   <div class="btn-row"><button class="btn btn-primary" onclick="subA5()">\ud83d\udcbe Submit</button></div></div>
-  <div class="card"><div class="card-title">A5 Entries</div><div class="tbl-wrap"><table><thead><tr><th>Month</th><th>Source</th><th class="r">Qty</th><th>Unit</th><th class="r">Emission</th><th></th></tr></thead><tbody id="a5B"></tbody></table></div></div>`;
+  <div class="card"><div class="card-title">A5 Entries</div><div class="tbl-wrap"><table><thead><tr><th>Project</th><th>Month</th><th>Source</th><th class="r">Qty</th><th>Unit</th><th class="r">Emission</th><th></th></tr></thead><tbody id="a5B"></tbody></table></div></div>`;
   onA5S(); rA5();
 }
 function getA5S(){const v=$('a5S').value;const t=v[0],i=parseInt(v.slice(1));return t==='e'?A5_EFS.energy[i]:A5_EFS.water[i];}
 function onA5S(){const s=getA5S();$('a5E').value=s.ef+' '+s.efUnit;$('a5U').textContent=s.unit;calcA5();}
 function calcA5(){const s=getA5S(),q=parseFloat($('a5Q').value);$('a5R').value=isNaN(q)?'':fmt((q*s.ef)/1000)+' tCO\u2082eq';}
-async function subA5(){const s=getA5S(),q=parseFloat($('a5Q').value);if(isNaN(q)||q<=0){alert('Enter quantity');return;}const yr=$('a5Y').value,mo=$('a5M').value;const e={id:Date.now(),source:s.name,qty:q,unit:s.unit,ef:s.ef,emission:(q*s.ef)/1000,year:yr,month:mo,monthKey:yr+'-'+mo,monthLabel:MONTHS[parseInt(mo)-1]+' '+yr};await DB.saveA5Entry(e);state.a5entries.push(e);rA5();$('a5Q').value='';$('a5R').value='\u2705 Saved';}
-function rA5(){const t=$('a5B');if(!t)return;const a=[...state.a5entries].reverse();t.innerHTML=a.length?a.map(e=>`<tr><td>${e.monthLabel}</td><td>${e.source}</td><td class="r mono">${fmtI(e.qty)}</td><td>${e.unit}</td><td class="r mono" style="font-weight:700">${fmt(e.emission)}</td><td><button class="btn btn-danger btn-sm" onclick="dA5(${e.id})">\u2715</button></td></tr>`).join(''):'<tr><td colspan="6" class="empty">No entries</td></tr>';}
+async function subA5(){const s=getA5S(),q=parseFloat($('a5Q').value);if(isNaN(q)||q<=0){alert('Enter quantity');return;}
+  const projEl=$('a5Proj');const projId=projEl?projEl.value:'';
+  if(!projId){alert('Please select a project first.');return;}
+  const proj=(state.projects||[]).find(p=>p.id===projId);
+  const yr=$('a5Y').value,mo=$('a5M').value;const e={id:Date.now(),source:s.name,qty:q,unit:s.unit,ef:s.ef,emission:(q*s.ef)/1000,year:yr,month:mo,monthKey:yr+'-'+mo,monthLabel:MONTHS[parseInt(mo)-1]+' '+yr,projectId:projId,projectName:proj?proj.name:'',submittedBy:state.name,role:state.role};await DB.saveA5Entry(e);state.a5entries.push(e);rA5();$('a5Q').value='';$('a5R').value='\u2705 Saved';}
+function rA5(){const t=$('a5B');if(!t)return;const a=[...state.a5entries].reverse();t.innerHTML=a.length?a.map(e=>`<tr><td style="font-weight:600;color:var(--blue);font-size:11px">${e.projectName||'--'}</td><td>${e.monthLabel}</td><td>${e.source}</td><td class="r mono">${fmtI(e.qty)}</td><td>${e.unit}</td><td class="r mono" style="font-weight:700">${fmt(e.emission)}</td><td><button class="btn btn-danger btn-sm" onclick="dA5(${e.id})">\u2715</button></td></tr>`).join(''):'<tr><td colspan="7" class="empty">No entries</td></tr>';}
 async function dA5(id){await DB.deleteA5Entry(id);state.a5entries=state.a5entries.filter(e=>e.id!==id);rA5();}
 
 // ===== APPROVALS =====
@@ -358,26 +427,46 @@ function renderApprovals(el){
 
   el.innerHTML=`${assignInfo}<div class="card"><div class="card-title">Workflow</div>
   <div class="flow-steps"><div class="flow-step"><div class="flow-dot done">\ud83c\udfd7\ufe0f</div><div class="flow-label">Contractor</div></div><div class="flow-line done"></div><div class="flow-step"><div class="flow-dot ${r==='consultant'?'current':'done'}">\ud83d\udccb</div><div class="flow-label">Consultant</div></div><div class="flow-line ${r==='client'||r==='consultant'?'done':''}"></div><div class="flow-step"><div class="flow-dot ${r==='client'?'current':(r==='consultant'?'done':'')}">\ud83d\udc54</div><div class="flow-label">Client</div></div></div></div>
-  <div class="card"><div class="card-title">${items.length} Items</div><div class="tbl-wrap"><table><thead><tr><th>Month</th><th>Material</th><th>Type</th><th>By</th><th>Org</th><th class="r">Baseline</th><th class="r">Actual</th><th class="r">Reduction</th><th>Status</th>${r!=='contractor'?'<th>Actions</th>':''}</tr></thead><tbody>${items.length?items.map(e=>`<tr><td>${e.monthLabel}</td><td>${e.category}</td><td>${e.type}</td><td>${e.submittedBy||'\u2014'}</td><td style="font-size:11px;color:var(--slate5)">${e.organizationName||'\u2014'}</td><td class="r mono">${fmt(e.a13B)}</td><td class="r mono">${fmt(e.a13A)}</td><td class="r mono" style="color:${e.pct>20?'var(--green)':'var(--orange)'};font-weight:700">${fmt(e.pct)}%</td><td><span class="badge ${e.status}">${e.status}</span></td>${r==='consultant'?`<td>${e.status==='pending'?`<button class="btn btn-approve btn-sm" onclick="appr(${e.id},'review')">\u2713 Forward</button> `:''}${e.status==='pending'||e.status==='review'?`<button class="btn btn-primary btn-sm" onclick="appr(${e.id},'approved')">\u2713 Approve</button> `:''}<button class="btn btn-danger btn-sm" onclick="appr(${e.id},'rejected')">\u2715 Reject</button></td>`:''}${r==='client'?`<td><button class="btn btn-approve btn-sm" onclick="appr(${e.id},'approved')">\u2713 Approve</button> <button class="btn btn-danger btn-sm" onclick="appr(${e.id},'rejected')">\u2715 Reject</button></td>`:''}</tr>`).join(''):'<tr><td colspan="10" class="empty">No pending items</td></tr>'}</tbody></table></div></div>`;
+  <div class="card"><div class="card-title">${items.length} Items</div><div class="tbl-wrap"><table><thead><tr><th>Project</th><th>Month</th><th>Material</th><th>Type</th><th>By</th><th>Org</th><th class="r">Baseline</th><th class="r">Actual</th><th class="r">Reduction</th><th>Status</th>${r!=='contractor'?'<th>Actions</th>':''}</tr></thead><tbody>${items.length?items.map(e=>`<tr><td style="font-weight:600;color:var(--blue);font-size:11px">${e.projectName||'--'}</td><td>${e.monthLabel}</td><td>${e.category}</td><td>${e.type}</td><td>${e.submittedBy||'\u2014'}</td><td style="font-size:11px;color:var(--slate5)">${e.organizationName||'\u2014'}</td><td class="r mono">${fmt(e.a13B)}</td><td class="r mono">${fmt(e.a13A)}</td><td class="r mono" style="color:${e.pct>20?'var(--green)':'var(--orange)'};font-weight:700">${fmt(e.pct)}%</td><td><span class="badge ${e.status}">${e.status}</span></td>${r==='consultant'?`<td>${e.status==='pending'?`<button class="btn btn-approve btn-sm" onclick="appr(${e.id},'review')">\u2713 Forward</button> `:''}${e.status==='pending'||e.status==='review'?`<button class="btn btn-primary btn-sm" onclick="appr(${e.id},'approved')">\u2713 Approve</button> `:''}<button class="btn btn-danger btn-sm" onclick="appr(${e.id},'rejected')">\u2715 Reject</button></td>`:''}${r==='client'?`<td><button class="btn btn-approve btn-sm" onclick="appr(${e.id},'approved')">\u2713 Approve</button> <button class="btn btn-danger btn-sm" onclick="appr(${e.id},'rejected')">\u2715 Reject</button></td>`:''}</tr>`).join(''):'<tr><td colspan="11" class="empty">No pending items</td></tr>'}</tbody></table></div></div>`;
 }
 async function appr(id,s){await DB.updateEntry(id,{status:s,[state.role+'At']:new Date().toISOString(),[state.role+'By']:state.name,[state.role+'ByUid']:state.uid});const e=state.entries.find(x=>x.id===id);if(e)e.status=s;buildSidebar();navigate('approvals');}
 
+// ===== PROJECT FILTER HELPER =====
+function buildProjectFilterHtml(selectId, onchangeFn) {
+  const myProjects = state.projects || [];
+  if (myProjects.length === 0) return '';
+  return `<div style="margin-bottom:12px;display:flex;align-items:center;gap:10px">
+    <label style="font-size:13px;font-weight:600;color:var(--blue);white-space:nowrap">Filter by Project:</label>
+    <select id="${selectId}" onchange="${onchangeFn}" style="max-width:300px">
+      <option value="">All Projects</option>
+      ${myProjects.map(p => `<option value="${p.id}" ${state.selectedProjectId === p.id ? 'selected' : ''}>${p.name}${p.code ? ' (' + p.code + ')' : ''}</option>`).join('')}
+    </select>
+  </div>`;
+}
+
+function getFilteredEntries() {
+  if (!state.selectedProjectId) return state.entries;
+  return state.entries.filter(e => e.projectId === state.selectedProjectId);
+}
+
 // ===== MONTHLY =====
 function renderMonthly(el){
-  const map={};state.entries.forEach(e=>{if(!map[e.monthKey])map[e.monthKey]={l:e.monthLabel,n:0,b:0,a:0,a4:0,t:0};const m=map[e.monthKey];m.n++;m.b+=e.a13B;m.a+=e.a13A;m.a4+=e.a4;m.t+=e.a14;});
+  const entries = getFilteredEntries();
+  const map={};entries.forEach(e=>{if(!map[e.monthKey])map[e.monthKey]={l:e.monthLabel,n:0,b:0,a:0,a4:0,t:0};const m=map[e.monthKey];m.n++;m.b+=e.a13B;m.a+=e.a13A;m.a4+=e.a4;m.t+=e.a14;});
   const arr=Object.entries(map).sort((a,b)=>a[0].localeCompare(b[0]));
   let gB=0,gA=0,gA4=0,gT=0;
-  el.innerHTML=`<div class="card"><div class="card-title">Monthly Summary</div><div class="tbl-wrap"><table><thead><tr><th>Month</th><th class="r">Entries</th><th class="r">A1-A3 Baseline</th><th class="r">A1-A3 Actual</th><th class="r">A4</th><th class="r">A1-A4 Total</th><th class="r">Reduction</th></tr></thead><tbody>${arr.length?arr.map(([k,m])=>{gB+=m.b;gA+=m.a;gA4+=m.a4;gT+=m.t;const p=m.b>0?((m.b-m.a)/m.b)*100:0;return`<tr><td>${m.l}</td><td class="r">${m.n}</td><td class="r mono">${fmt(m.b)}</td><td class="r mono">${fmt(m.a)}</td><td class="r mono">${fmt(m.a4)}</td><td class="r mono" style="font-weight:700">${fmt(m.t)}</td><td class="r mono" style="color:${p>20?'var(--green)':'var(--orange)'};font-weight:700">${fmt(p)}%</td></tr>`;}).join('')+(arr.length>1?`<tr class="total-row"><td>Total</td><td class="r">${state.entries.length}</td><td class="r">${fmt(gB)}</td><td class="r">${fmt(gA)}</td><td class="r">${fmt(gA4)}</td><td class="r">${fmt(gT)}</td><td class="r" style="color:var(--green)">${fmt(gB>0?((gB-gA)/gB)*100:0)}%</td></tr>`:''):'<tr><td colspan="7" class="empty">No data</td></tr>'}</tbody></table></div></div>`;
+  el.innerHTML=`${buildProjectFilterHtml('monthlyProjFilter','state.selectedProjectId=this.value;renderMonthly(document.getElementById(\"pageBody\"))')}<div class="card"><div class="card-title">Monthly Summary${state.selectedProjectId ? ' — ' + ((state.projects||[]).find(p=>p.id===state.selectedProjectId)||{}).name : ''}</div><div class="tbl-wrap"><table><thead><tr><th>Month</th><th class="r">Entries</th><th class="r">A1-A3 Baseline</th><th class="r">A1-A3 Actual</th><th class="r">A4</th><th class="r">A1-A4 Total</th><th class="r">Reduction</th></tr></thead><tbody>${arr.length?arr.map(([k,m])=>{gB+=m.b;gA+=m.a;gA4+=m.a4;gT+=m.t;const p=m.b>0?((m.b-m.a)/m.b)*100:0;return`<tr><td>${m.l}</td><td class="r">${m.n}</td><td class="r mono">${fmt(m.b)}</td><td class="r mono">${fmt(m.a)}</td><td class="r mono">${fmt(m.a4)}</td><td class="r mono" style="font-weight:700">${fmt(m.t)}</td><td class="r mono" style="color:${p>20?'var(--green)':'var(--orange)'};font-weight:700">${fmt(p)}%</td></tr>`;}).join('')+(arr.length>1?`<tr class="total-row"><td>Total</td><td class="r">${entries.length}</td><td class="r">${fmt(gB)}</td><td class="r">${fmt(gA)}</td><td class="r">${fmt(gA4)}</td><td class="r">${fmt(gT)}</td><td class="r" style="color:var(--green)">${fmt(gB>0?((gB-gA)/gB)*100:0)}%</td></tr>`:''):'<tr><td colspan="7" class="empty">No data</td></tr>'}</tbody></table></div></div>`;
 }
 
 // ===== CUMULATIVE =====
 function renderCumulative(el){
-  const map={};state.entries.forEach(e=>{if(!map[e.monthKey])map[e.monthKey]={l:e.monthLabel,b:0,a:0,a4:0};map[e.monthKey].b+=e.a13B;map[e.monthKey].a+=e.a13A;map[e.monthKey].a4+=e.a4;});
+  const entries = getFilteredEntries();
+  const map={};entries.forEach(e=>{if(!map[e.monthKey])map[e.monthKey]={l:e.monthLabel,b:0,a:0,a4:0};map[e.monthKey].b+=e.a13B;map[e.monthKey].a+=e.a13A;map[e.monthKey].a4+=e.a4;});
   const arr=Object.entries(map).sort((a,b)=>a[0].localeCompare(b[0]));
   let cB=0,cA=0,cA4=0;
   const cum=arr.map(([k,v])=>{cB+=v.b;cA+=v.a;cA4+=v.a4;return{l:v.l,mb:v.b,ma:v.a,cB,cA,cA4,cT:cA+cA4,cP:cB>0?((cB-cA)/cB)*100:0};});
   const mx=Math.max(...cum.map(c=>Math.max(c.cB,c.cA)),1);
-  el.innerHTML=`<div class="card"><div class="card-title">Cumulative Tracking</div>${cum.length?`<div class="chart-legend"><span><span class="chart-legend-dot" style="background:rgba(148,163,184,0.4)"></span> Baseline</span><span><span class="chart-legend-dot" style="background:rgba(96,165,250,0.5)"></span> Actual</span></div><div class="bar-chart" style="height:180px">${cum.map(c=>`<div class="bar-group"><div class="bar-pair"><div class="bar baseline" style="height:${(c.cB/mx)*160}px"></div><div class="bar actual" style="height:${(c.cA/mx)*160}px"></div></div><div class="bar-label">${c.l}</div></div>`).join('')}</div>`:''}
+  el.innerHTML=`${buildProjectFilterHtml('cumProjFilter','state.selectedProjectId=this.value;renderCumulative(document.getElementById(\"pageBody\"))')}<div class="card"><div class="card-title">Cumulative Tracking${state.selectedProjectId ? ' — ' + ((state.projects||[]).find(p=>p.id===state.selectedProjectId)||{}).name : ''}</div>${cum.length?`<div class="chart-legend"><span><span class="chart-legend-dot" style="background:rgba(148,163,184,0.4)"></span> Baseline</span><span><span class="chart-legend-dot" style="background:rgba(96,165,250,0.5)"></span> Actual</span></div><div class="bar-chart" style="height:180px">${cum.map(c=>`<div class="bar-group"><div class="bar-pair"><div class="bar baseline" style="height:${(c.cB/mx)*160}px"></div><div class="bar actual" style="height:${(c.cA/mx)*160}px"></div></div><div class="bar-label">${c.l}</div></div>`).join('')}</div>`:''}
   <div class="tbl-wrap" style="margin-top:16px"><table><thead><tr><th>Month</th><th class="r">Mth Base</th><th class="r">Mth Actual</th><th class="r">Cum Base</th><th class="r">Cum Actual</th><th class="r">Cum A4</th><th class="r">Cum Total</th><th class="r">Cum Red%</th></tr></thead><tbody>${cum.length?cum.map(c=>`<tr><td>${c.l}</td><td class="r mono">${fmt(c.mb)}</td><td class="r mono">${fmt(c.ma)}</td><td class="r mono" style="font-weight:700">${fmt(c.cB)}</td><td class="r mono" style="font-weight:700;color:var(--blue)">${fmt(c.cA)}</td><td class="r mono">${fmt(c.cA4)}</td><td class="r mono" style="font-weight:700;color:var(--green)">${fmt(c.cT)}</td><td class="r mono" style="color:${c.cP>20?'var(--green)':'var(--orange)'};font-weight:700">${fmt(c.cP)}%</td></tr>`).join(''):'<tr><td colspan="8" class="empty">No data</td></tr>'}</tbody></table></div></div>`;
 }
 
