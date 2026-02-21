@@ -1,5 +1,5 @@
 // ===== APPLICATION STATE & UTILITIES =====
-let state = { role:null, name:'', uid:null, organizationId:null, organizationName:null, page:'dashboard', entries:[], a5entries:[], invitations:[], tenderScenarios:[], organizations:[], orgLinks:[], assignments:[], users:[], projects:[], projectAssignments:[], projectOrgLinks:[], packageTemplates:[], consultantPermissions:{}, editRequests:[], selectedProjectId:null, reductionTarget:20 };
+let state = { role:null, name:'', uid:null, organizationId:null, organizationName:null, page:'dashboard', entries:[], a5entries:[], invitations:[], tenderScenarios:[], organizations:[], orgLinks:[], assignments:[], users:[], projects:[], projectAssignments:[], projectOrgLinks:[], packageTemplates:[], consultantPermissions:{}, editRequests:[], selectedProjectId:null, reductionTarget:20, documents:[], analysisResults:[] };
 
 const fmt=v=>(v==null||isNaN(v))?"\u2014":v.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});
 const fmtI=v=>(v==null||isNaN(v))?"\u2014":Math.round(v).toLocaleString();
