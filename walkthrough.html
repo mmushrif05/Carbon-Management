@@ -1,0 +1,642 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CarbonIQ — Product Walkthrough</title>
+<style>
+  :root {
+    --green: #34d399; --green2: #059669;
+    --green-dim: rgba(52,211,153,0.10);
+    --blue: #60a5fa; --purple: #a78bfa;
+    --orange: #fb923c; --cyan: #22d3ee; --red: #f87171;
+    --bg: #0b0f0e; --bg2: #111916; --bg3: #16201b; --bg4: #1c2a23;
+    --border: rgba(52,211,153,0.10);
+    --text: #ecfdf5; --text2: #a7f3d0; --text3: #94a3b8; --slate: #64748b;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html { scroll-behavior: smooth; }
+  body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; }
+
+  /* ── SIDEBAR ── */
+  .layout { display: flex; min-height: 100vh; }
+  .sidebar {
+    width: 250px; flex-shrink: 0;
+    background: var(--bg2); border-right: 1px solid var(--border);
+    padding: 20px 0; position: fixed; top: 0; left: 0; height: 100vh;
+    overflow-y: auto; z-index: 100;
+  }
+  .sidebar-brand { padding: 0 18px 18px; border-bottom: 1px solid var(--border); margin-bottom: 12px; }
+  .sidebar-brand-name { font-size: 16px; font-weight: 900; color: var(--text); }
+  .sidebar-brand-name span { color: var(--green); }
+  .sidebar-brand-tag { font-size: 9px; color: var(--green); font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; margin-top: 2px; }
+  .sidebar-section-label { font-size: 9px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: var(--slate); padding: 10px 18px 5px; }
+  .sidebar-link {
+    display: flex; align-items: center; gap: 9px;
+    padding: 8px 18px; font-size: 12px; font-weight: 500;
+    color: var(--text3); cursor: pointer; transition: all 0.15s;
+    border-left: 3px solid transparent; text-decoration: none;
+  }
+  .sidebar-link:hover { color: var(--text); background: var(--bg3); }
+  .sidebar-link.active { color: var(--green); border-left-color: var(--green); background: var(--green-dim); }
+
+  /* ── MAIN ── */
+  .main { margin-left: 250px; flex: 1; }
+
+  /* ── HERO ── */
+  .hero {
+    background: radial-gradient(ellipse 80% 50% at 50% 30%, rgba(52,211,153,0.07) 0%, transparent 65%),
+                linear-gradient(180deg, var(--bg2) 0%, var(--bg) 100%);
+    padding: 56px 56px 48px; border-bottom: 1px solid var(--border);
+  }
+  .hero-label { font-size: 10px; font-weight: 700; letter-spacing: 2.5px; text-transform: uppercase; color: var(--green); margin-bottom: 10px; }
+  .hero-title { font-size: 42px; font-weight: 900; line-height: 1.1; margin-bottom: 14px; }
+  .hero-title span { color: var(--green); }
+  .hero-sub { font-size: 15px; color: var(--text3); max-width: 580px; margin-bottom: 24px; }
+  .hero-pills { display: flex; gap: 8px; flex-wrap: wrap; }
+  .pill {
+    display: inline-flex; align-items: center; gap: 5px;
+    background: var(--bg3); border: 1px solid var(--border);
+    border-radius: 20px; padding: 5px 12px; font-size: 11px; font-weight: 600; color: var(--text3);
+  }
+  .pill-g { border-color: rgba(52,211,153,0.25); color: var(--green); background: var(--green-dim); }
+  .pill-b { border-color: rgba(96,165,250,0.2); color: var(--blue); background: rgba(96,165,250,0.07); }
+  .pill-p { border-color: rgba(167,139,250,0.2); color: var(--purple); background: rgba(167,139,250,0.07); }
+  .pill-o { border-color: rgba(251,146,60,0.2); color: var(--orange); background: rgba(251,146,60,0.07); }
+
+  /* ── SECTION ── */
+  .section { padding: 52px 56px; border-bottom: 1px solid var(--border); }
+  .section:last-child { border-bottom: none; }
+  .section-eyebrow { font-size: 9px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: var(--green); margin-bottom: 6px; }
+  .section-title { font-size: 28px; font-weight: 800; line-height: 1.2; margin-bottom: 8px; }
+  .section-title span { color: var(--green); }
+  .section-desc { font-size: 13px; color: var(--text3); max-width: 720px; margin-bottom: 28px; line-height: 1.7; }
+
+  /* ── SCREEN FRAME ── */
+  .screen-frame {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    overflow: hidden;
+    box-shadow: 0 12px 48px rgba(0,0,0,0.5);
+    margin-bottom: 12px;
+  }
+  .screen-bar {
+    background: var(--bg3);
+    border-bottom: 1px solid var(--border);
+    padding: 10px 14px;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+  .dot-r { background: #f87171; }
+  .dot-y { background: #fbbf24; }
+  .dot-g { background: #34d399; }
+  .screen-url { font-size: 10px; color: var(--slate); margin-left: 8px; font-family: monospace; }
+  .screen-body img {
+    width: 100%; height: auto; display: block;
+  }
+  /* Placeholder shown while image is missing / loading */
+  .screen-body .placeholder {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    min-height: 260px; gap: 10px;
+    background: var(--bg3);
+    color: var(--slate); font-size: 12px;
+  }
+  .placeholder-icon { font-size: 36px; opacity: 0.3; }
+  .placeholder-name { font-size: 11px; font-weight: 600; color: var(--slate); opacity: 0.7; font-family: monospace; }
+  .screen-caption {
+    font-size: 11px; color: var(--slate); padding: 8px 4px;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .screen-caption::before { content: '↑'; color: var(--green); font-weight: 700; }
+
+  /* ── SCREENSHOT GRID ── */
+  .screen-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 12px; }
+  .screen-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-bottom: 12px; }
+
+  /* ── SCREEN TABS ROW ── */
+  .tab-row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 20px; }
+  .tab-chip {
+    padding: 6px 14px; border-radius: 20px; font-size: 11px; font-weight: 700;
+    background: var(--bg3); border: 1px solid var(--border); color: var(--text3); cursor: default;
+  }
+  .tab-chip.active { background: var(--green-dim); border-color: rgba(52,211,153,0.3); color: var(--green); }
+  .tab-chip.purple { background: rgba(167,139,250,0.08); border-color: rgba(167,139,250,0.2); color: var(--purple); }
+  .tab-chip.blue { background: rgba(96,165,250,0.07); border-color: rgba(96,165,250,0.2); color: var(--blue); }
+  .tab-chip.orange { background: rgba(251,146,60,0.07); border-color: rgba(251,146,60,0.2); color: var(--orange); }
+
+  /* ── INFO BOX ── */
+  .info-box {
+    border-radius: 12px; padding: 14px 18px; margin-bottom: 20px;
+    display: flex; gap: 12px; align-items: flex-start;
+  }
+  .info-box-g { background: rgba(52,211,153,0.05); border: 1px solid rgba(52,211,153,0.15); }
+  .info-box-p { background: rgba(167,139,250,0.05); border: 1px solid rgba(167,139,250,0.15); }
+  .info-box-b { background: rgba(96,165,250,0.05); border: 1px solid rgba(96,165,250,0.15); }
+  .info-box-o { background: rgba(251,146,60,0.05); border: 1px solid rgba(251,146,60,0.15); }
+  .info-icon { font-size: 20px; flex-shrink: 0; margin-top: 1px; }
+  .info-text { font-size: 12px; color: var(--text3); line-height: 1.6; }
+  .info-text strong { color: var(--text); }
+
+  /* ── PHASE TABLE ── */
+  .phase-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+  .phase-table th { font-size: 9px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: var(--green); padding: 10px 14px; text-align: left; border-bottom: 1px solid var(--border); }
+  .phase-table td { font-size: 12px; padding: 10px 14px; border-bottom: 1px solid rgba(255,255,255,0.04); color: var(--text3); }
+  .phase-table td:first-child { font-weight: 800; color: var(--green); font-family: monospace; font-size: 13px; }
+  .phase-table td:nth-child(2) { font-weight: 600; color: var(--text); }
+
+  /* ── IOT TABLE ── */
+  .iot-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 20px; }
+  .iot-card { background: var(--bg3); border: 1px solid var(--border); border-radius: 12px; padding: 16px; }
+  .iot-card-label { font-size: 9px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: var(--slate); margin-bottom: 8px; }
+  .iot-card-title { font-size: 14px; font-weight: 800; color: var(--text); margin-bottom: 6px; }
+  .iot-card ul { list-style: none; display: flex; flex-direction: column; gap: 4px; }
+  .iot-card li { font-size: 11px; color: var(--text3); display: flex; gap: 7px; }
+  .iot-card li::before { content: '→'; color: var(--green); font-weight: 700; flex-shrink: 0; }
+
+  /* ── RESPONSIVE ── */
+  @media (max-width: 900px) {
+    .sidebar { display: none; }
+    .main { margin-left: 0; }
+    .hero, .section { padding: 32px 24px; }
+    .screen-grid, .screen-grid-3 { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<div class="layout">
+
+<!-- ══════════ SIDEBAR ══════════ -->
+<nav class="sidebar">
+  <div class="sidebar-brand">
+    <div class="sidebar-brand-name">Carbon<span>IQ</span></div>
+    <div class="sidebar-brand-tag">Product Walkthrough</div>
+  </div>
+
+  <div class="sidebar-section-label">Platform</div>
+  <a class="sidebar-link active" href="#overview">📊 Overview</a>
+  <a class="sidebar-link" href="#architecture">🏗️ Data Architecture</a>
+
+  <div class="sidebar-section-label">By Role</div>
+  <a class="sidebar-link" href="#client">🏢 Client / Owner</a>
+  <a class="sidebar-link" href="#consultant">🔬 Consultant / Engineer</a>
+  <a class="sidebar-link" href="#contractor">👷 Contractor / Builder</a>
+
+  <div class="sidebar-section-label">AI Features</div>
+  <a class="sidebar-link" href="#boq">📋 BOQ / Tender Parser</a>
+  <a class="sidebar-link" href="#intelligence">🔍 Doc Intelligence</a>
+  <a class="sidebar-link" href="#advisor">🧠 Carbon Advisor</a>
+
+  <div class="sidebar-section-label">Platform</div>
+  <a class="sidebar-link" href="#certifications">🏆 Certifications</a>
+  <a class="sidebar-link" href="#iot">📡 IoT Roadmap</a>
+</nav>
+
+<!-- ══════════ MAIN ══════════ -->
+<div class="main">
+
+  <!-- HERO -->
+  <div class="hero">
+    <div class="hero-label">Product Walkthrough</div>
+    <div class="hero-title">CarbonIQ — <span>Live Platform</span></div>
+    <div class="hero-sub">A full end-to-end walkthrough of the CarbonIQ platform as built and deployed. Every screen shown below is from the live, working system.</div>
+    <div class="hero-pills">
+      <span class="pill pill-g">✅ 3 AI Engines Live</span>
+      <span class="pill pill-b">🔗 3 Stakeholder Roles</span>
+      <span class="pill pill-p">🏆 5 Certifications</span>
+      <span class="pill pill-o">📡 IoT Architecture Ready</span>
+      <span class="pill">📋 BOQ Parser</span>
+      <span class="pill">🔍 RAG Intelligence</span>
+    </div>
+  </div>
+
+  <!-- ══════════ SECTION 0 — OVERVIEW ══════════ -->
+  <div class="section" id="overview">
+    <div class="section-eyebrow">Platform Overview</div>
+    <div class="section-title">Invitation-only. <span>Role-based.</span> Live.</div>
+    <div class="section-desc">CarbonIQ is an invitation-only platform. Each user is assigned a role — Client (owner), Consultant (engineer), or Contractor (builder). The dashboard, tools, and data each role sees are scoped entirely to their responsibilities.</div>
+
+    <div class="screen-grid">
+      <div>
+        <div class="screen-frame">
+          <div class="screen-bar"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div><span class="screen-url">carboniq.app/login</span></div>
+          <div class="screen-body">
+            <img src="screenshots/00-login.png" alt="CarbonIQ Login" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+            <div class="placeholder"><div class="placeholder-icon">🔐</div><div class="placeholder-name">screenshots/00-login.png</div></div>
+          </div>
+        </div>
+        <div class="screen-caption">Login screen — invitation-only access with role selection</div>
+      </div>
+      <div>
+        <div class="screen-frame">
+          <div class="screen-bar"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div><span class="screen-url">carboniq.app/dashboard</span></div>
+          <div class="screen-body">
+            <img src="screenshots/00-sidebar.png" alt="Sidebar Navigation" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+            <div class="placeholder"><div class="placeholder-icon">🗂️</div><div class="placeholder-name">screenshots/00-sidebar.png</div></div>
+          </div>
+        </div>
+        <div class="screen-caption">Sidebar navigation — sections vary by role (Client / Consultant / Contractor)</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════ SECTION 1 — ARCHITECTURE ══════════ -->
+  <div class="section" id="architecture">
+    <div class="section-eyebrow">Data Architecture</div>
+    <div class="section-title">ISO 21930 aligned — <span>A1 to A5</span> lifecycle</div>
+    <div class="section-desc">CarbonIQ tracks the full embodied carbon lifecycle from material production through site construction, aligned with ISO 21930 and the ICE Database emission factors.</div>
+
+    <table class="phase-table">
+      <thead><tr><th>Phase</th><th>Name</th><th>What is tracked</th><th>Who submits</th></tr></thead>
+      <tbody>
+        <tr><td>A1–A3</td><td>Product Stage</td><td>Raw material extraction, manufacturing, transport to factory. ICE DB baseline EF vs supplier EPD actual EF — per material, per month.</td><td>Contractor</td></tr>
+        <tr><td>A4</td><td>Transport to Site</td><td>Delivery distance and transport mode. Auto-calculated alongside each A1–A3 entry.</td><td>Contractor</td></tr>
+        <tr><td>A5</td><td>Construction Process</td><td>Monthly fuel, grid electricity and water consumption on site. Separate entry form.</td><td>Contractor</td></tr>
+      </tbody>
+    </table>
+
+    <div class="screen-frame">
+      <div class="screen-bar"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div><span class="screen-url">carboniq.app — A1-A5 data model</span></div>
+      <div class="screen-body">
+        <img src="screenshots/01-architecture.png" alt="Data Architecture" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+        <div class="placeholder"><div class="placeholder-icon">🏗️</div><div class="placeholder-name">screenshots/01-architecture.png</div></div>
+      </div>
+    </div>
+    <div class="screen-caption">A1–A5 lifecycle coverage — material entry form showing ICE DB baseline vs actual EPD emission factor</div>
+  </div>
+
+  <!-- ══════════ SECTION 2 — CLIENT DASHBOARD ══════════ -->
+  <div class="section" id="client">
+    <div class="section-eyebrow">Role — Client / Owner</div>
+    <div class="section-title">Executive <span>portfolio dashboard</span></div>
+    <div class="section-desc">The Client role sees the full portfolio: all projects, all contractors, all carbon data — live. KPI bar, project cards with reduction gauges, trend chart, materials breakdown, approval pipeline, and contractor performance ranking.</div>
+
+    <!-- Main dashboard -->
+    <div class="screen-frame">
+      <div class="screen-bar"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div><span class="screen-url">carboniq.app/dashboard — Client view</span></div>
+      <div class="screen-body">
+        <img src="screenshots/02-client-dashboard.png" alt="Client Dashboard" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+        <div class="placeholder"><div class="placeholder-icon">📊</div><div class="placeholder-name">screenshots/02-client-dashboard.png</div></div>
+      </div>
+    </div>
+    <div class="screen-caption">Client portfolio dashboard — live KPI bar, project cards with reduction gauges, trend chart, contractor performance</div>
+
+    <!-- Project modal tabs -->
+    <div style="margin-top: 32px; margin-bottom: 12px;">
+      <div class="section-eyebrow" style="margin-bottom:6px">Project Detail — bottom sheet modal</div>
+      <p style="font-size:13px;color:var(--text3);margin-bottom:16px">Click any project card to open the detail sheet. Five tabs give full drill-down: Overview, Contractors, Materials, Contributors, and AI Advisor.</p>
+      <div class="tab-row">
+        <span class="tab-chip active">Overview</span>
+        <span class="tab-chip">Contractors</span>
+        <span class="tab-chip">Materials</span>
+        <span class="tab-chip">Contributors</span>
+        <span class="tab-chip orange">Requests</span>
+        <span class="tab-chip purple">AI Advisor</span>
+      </div>
+    </div>
+
+    <div class="screen-frame">
+      <div class="screen-bar"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div><span class="screen-url">Project modal — Overview tab</span></div>
+      <div class="screen-body">
+        <img src="screenshots/03-project-overview.png" alt="Project Overview Tab" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+        <div class="placeholder"><div class="placeholder-icon">📈</div><div class="placeholder-name">screenshots/03-project-overview.png</div></div>
+      </div>
+    </div>
+    <div class="screen-caption">Overview tab — BAU baseline vs actual, reduction gauge, BAU/actual trend line, materials donut chart</div>
+
+    <div class="screen-grid" style="margin-top:20px">
+      <div>
+        <div class="screen-frame">
+          <div class="screen-bar"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div><span class="screen-url">Project modal — Contractors tab</span></div>
+          <div class="screen-body">
+            <img src="screenshots/04-contractors-tab.png" alt="Contractors Tab" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+            <div class="placeholder"><div class="placeholder-icon">👷</div><div class="placeholder-name">screenshots/04-contractors-tab.png</div></div>
+          </div>
+        </div>
+        <div class="screen-caption">Contractors tab — per-contractor baseline, actual, savings, reduction % and on-track status</div>
+      </div>
+      <div>
+        <div class="screen-frame">
+          <div class="screen-bar"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div><span class="screen-url">Project modal — Materials tab</span></div>
+          <div class="screen-body">
+            <img src="screenshots/05-materials-tab.png" alt="Materials Tab" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+            <div class="placeholder"><div class="placeholder-icon">🧱</div><div class="placeholder-name">screenshots/05-materials-tab.png</div></div>
+          </div>
+        </div>
+        <div class="screen-caption">Materials tab — carbon by category (Concrete, Steel, Asphalt, Aluminum…) with reduction per material</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════ SECTION 3 — CONSULTANT DASHBOARD ══════════ -->
+  <div class="section" id="consultant">
+    <div class="section-eyebrow">Role — Consultant / Engineer</div>
+    <div class="section-title">Project intelligence — <span>AI-powered review</span></div>
+    <div class="section-desc">The Consultant role sees their assigned projects, reviews contractor submissions, manages edit/delete requests, runs the AI Carbon Advisor, and uses the Document Intelligence and Tender tools.</div>
+
+    <div class="screen-frame">
+      <div class="screen-bar"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div><span class="screen-url">carboniq.app/dashboard — Consultant view</span></div>
+      <div class="screen-body">
+        <img src="screenshots/06-consultant-dashboard.png" alt="Consultant Dashboard" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+        <div class="placeholder"><div class="placeholder-icon">🔬</div><div class="placeholder-name">screenshots/06-consultant-dashboard.png</div></div>
+      </div>
+    </div>
+    <div class="screen-caption">Consultant dashboard — pending review queue, approval status, trend chart, edit/delete request alerts</div>
+
+    <div class="screen-grid" style="margin-top:20px">
+      <div>
+        <div class="screen-frame">
+          <div class="screen-bar"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div><span class="screen-url">Project modal — Contributors tab</span></div>
+          <div class="screen-body">
+            <img src="screenshots/07-contributors-tab.png" alt="Contributors Tab" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+            <div class="placeholder"><div class="placeholder-icon">📋</div><div class="placeholder-name">screenshots/07-contributors-tab.png</div></div>
+          </div>
+        </div>
+        <div class="screen-caption">Contributors tab — full audit table with month/contractor/material/status filters, baseline EF vs actual EF</div>
+      </div>
+      <div>
+        <div class="screen-frame">
+          <div class="screen-bar"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div><span class="screen-url">Project modal — Requests tab</span></div>
+          <div class="screen-body">
+            <img src="screenshots/08-requests-tab.png" alt="Requests Tab" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+            <div class="placeholder"><div class="placeholder-icon">📝</div><div class="placeholder-name">screenshots/08-requests-tab.png</div></div>
+          </div>
+        </div>
+        <div class="screen-caption">Requests tab — contractor edit/delete requests with approve/reject workflow</div>
+      </div>
+    </div>
+
+    <!-- Approvals -->
+    <div style="margin-top:28px">
+      <div class="section-eyebrow" style="margin-bottom:8px">Approval Workflow</div>
+      <div class="screen-frame">
+        <div class="screen-bar"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div><span class="screen-url">carboniq.app/approvals</span></div>
+        <div class="screen-body">
+          <img src="screenshots/09-approvals.png" alt="Approvals Workflow" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+          <div class="placeholder"><div class="placeholder-icon">✅</div><div class="placeholder-name">screenshots/09-approvals.png</div></div>
+        </div>
+      </div>
+      <div class="screen-caption">Approvals screen — review pending submissions, approve or reject with notes, full history log</div>
+    </div>
+  </div>
+
+  <!-- ══════════ SECTION 4 — CONTRACTOR REPORTING ══════════ -->
+  <div class="section" id="contractor">
+    <div class="section-eyebrow">Role — Contractor / Builder</div>
+    <div class="section-title">Structured <span>carbon reporting</span></div>
+    <div class="section-desc">Contractors submit A1–A3 material entries with ICE DB pre-filled baseline emission factors, their supplier EPD actual EF, and transport (A4). A5 site emissions are logged separately by month.</div>
+
+    <div class="screen-grid">
+      <div>
+        <div class="screen-frame">
+          <div class="screen-bar"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div><span class="screen-url">carboniq.app/entry_a13</span></div>
+          <div class="screen-body">
+            <img src="screenshots/10-a13-entry.png" alt="A1-3 Material Entry" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+            <div class="placeholder"><div class="placeholder-icon">🧱</div><div class="placeholder-name">screenshots/10-a13-entry.png</div></div>
+          </div>
+        </div>
+        <div class="screen-caption">A1–A3 entry form — category, type, quantity, ICE DB baseline EF (pre-filled), actual EPD EF, A4 transport</div>
+      </div>
+      <div>
+        <div class="screen-frame">
+          <div class="screen-bar"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div><span class="screen-url">carboniq.app/entry_a5</span></div>
+          <div class="screen-body">
+            <img src="screenshots/11-a5-entry.png" alt="A5 Site Emissions" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+            <div class="placeholder"><div class="placeholder-icon">⚡</div><div class="placeholder-name">screenshots/11-a5-entry.png</div></div>
+          </div>
+        </div>
+        <div class="screen-caption">A5 site emissions — monthly diesel, grid electricity and water consumption on construction site</div>
+      </div>
+    </div>
+
+    <div style="margin-top:20px">
+      <div class="screen-frame">
+        <div class="screen-bar"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div><span class="screen-url">carboniq.app — Contractor dashboard</span></div>
+        <div class="screen-body">
+          <img src="screenshots/12-contractor-dashboard.png" alt="Contractor Dashboard" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+          <div class="placeholder"><div class="placeholder-icon">👷</div><div class="placeholder-name">screenshots/12-contractor-dashboard.png</div></div>
+        </div>
+      </div>
+      <div class="screen-caption">Contractor dashboard — my submissions, pending/approved/rejected status, edit request tracker</div>
+    </div>
+  </div>
+
+  <!-- ══════════ SECTION 5 — BOQ PARSER ══════════ -->
+  <div class="section" id="boq">
+    <div class="section-eyebrow">AI Engine 1</div>
+    <div class="section-title">BOQ / <span>Tender Parser</span></div>
+    <div class="section-desc">Upload a Bill of Quantities (PDF, Excel, or CSV). The AI extracts material quantities, maps each line to an ICE DB emission factor, and builds a carbon forecast scenario — before any procurement order is placed.</div>
+
+    <div class="info-box info-box-g">
+      <div class="info-icon">📋</div>
+      <div class="info-text"><strong>What it does:</strong> Reads raw BOQ documents, extracts quantities, fuzzy-matches materials to the ICE database, converts units, and outputs a full carbon forecast with scenario comparison. Weeks of manual work → seconds.</div>
+    </div>
+
+    <div class="screen-frame">
+      <div class="screen-bar"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div><span class="screen-url">carboniq.app/tender_entry — BOQ upload</span></div>
+      <div class="screen-body">
+        <img src="screenshots/13-boq-upload.png" alt="BOQ Upload" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+        <div class="placeholder"><div class="placeholder-icon">📤</div><div class="placeholder-name">screenshots/13-boq-upload.png</div></div>
+      </div>
+    </div>
+    <div class="screen-caption">BOQ upload — drag and drop PDF / Excel / CSV, AI detects document type automatically</div>
+
+    <div class="screen-grid" style="margin-top:20px">
+      <div>
+        <div class="screen-frame">
+          <div class="screen-bar"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div><span class="screen-url">AI extraction results</span></div>
+          <div class="screen-body">
+            <img src="screenshots/14-boq-results.png" alt="BOQ AI Results" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+            <div class="placeholder"><div class="placeholder-icon">🤖</div><div class="placeholder-name">screenshots/14-boq-results.png</div></div>
+          </div>
+        </div>
+        <div class="screen-caption">AI extraction — quantities pulled from document, matched to ICE DB, carbon calculated per line item</div>
+      </div>
+      <div>
+        <div class="screen-frame">
+          <div class="screen-bar"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div><span class="screen-url">Scenario comparison</span></div>
+          <div class="screen-body">
+            <img src="screenshots/15-boq-scenarios.png" alt="Scenario Comparison" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+            <div class="placeholder"><div class="placeholder-icon">📊</div><div class="placeholder-name">screenshots/15-boq-scenarios.png</div></div>
+          </div>
+        </div>
+        <div class="screen-caption">Scenario comparison — side-by-side carbon forecast for different material specifications</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════ SECTION 6 — DOCUMENT INTELLIGENCE ══════════ -->
+  <div class="section" id="intelligence">
+    <div class="section-eyebrow">AI Engine 2</div>
+    <div class="section-title">Document <span>Intelligence</span> — RAG</div>
+    <div class="section-desc">Upload any project document. The AI analyses it across 5 dimensions — material compliance, reduction opportunities, cross-document consistency, certification gaps, and actionable recommendations — with every finding cited to the exact source page.</div>
+
+    <div class="info-box info-box-p">
+      <div class="info-icon">🔍</div>
+      <div class="info-text"><strong>RAG pipeline:</strong> Documents are chunked, embedded, and stored. At query time, the most relevant chunks are retrieved and injected with live project carbon context — so findings reference both the document and real project numbers simultaneously.</div>
+    </div>
+
+    <div class="screen-frame">
+      <div class="screen-bar"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div><span class="screen-url">carboniq.app/intelligence — document upload</span></div>
+      <div class="screen-body">
+        <img src="screenshots/16-doc-upload.png" alt="Document Intelligence Upload" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+        <div class="placeholder"><div class="placeholder-icon">📄</div><div class="placeholder-name">screenshots/16-doc-upload.png</div></div>
+      </div>
+    </div>
+    <div class="screen-caption">Document Intelligence — upload any project document for AI analysis</div>
+
+    <div class="screen-grid" style="margin-top:20px">
+      <div>
+        <div class="screen-frame">
+          <div class="screen-bar"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div><span class="screen-url">5-dimension AI analysis</span></div>
+          <div class="screen-body">
+            <img src="screenshots/17-doc-analysis.png" alt="Document Analysis" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+            <div class="placeholder"><div class="placeholder-icon">🧠</div><div class="placeholder-name">screenshots/17-doc-analysis.png</div></div>
+          </div>
+        </div>
+        <div class="screen-caption">5-dimension analysis — material compliance, reduction opportunities, consistency, certification gaps, recommendations</div>
+      </div>
+      <div>
+        <div class="screen-frame">
+          <div class="screen-bar"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div><span class="screen-url">Page-level citations</span></div>
+          <div class="screen-body">
+            <img src="screenshots/18-doc-citations.png" alt="Source Citations" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+            <div class="placeholder"><div class="placeholder-icon">📌</div><div class="placeholder-name">screenshots/18-doc-citations.png</div></div>
+          </div>
+        </div>
+        <div class="screen-caption">Page-level citations — every AI finding linked to the exact page in the source document</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════ SECTION 7 — CARBON ADVISOR ══════════ -->
+  <div class="section" id="advisor">
+    <div class="section-eyebrow">AI Engine 3 — Real Integration Proof</div>
+    <div class="section-title"><span>Carbon Advisor</span> — AI reduction strategy</div>
+    <div class="section-desc">The Carbon Advisor is a live AI integration inside every project. It reads the actual project carbon data — totals, materials, contractor performance — and generates a specific, prioritised reduction strategy. This is not a static report. It is a real call to Claude AI with live project data as context.</div>
+
+    <div class="info-box info-box-p">
+      <div class="info-icon">🧠</div>
+      <div class="info-text"><strong>How it works:</strong> On click, the platform builds a structured payload — total baseline, actual, materials breakdown, contractor gap analysis — and sends it to the AI. The response is rendered live in the project modal under the AI Advisor tab.</div>
+    </div>
+
+    <div class="screen-frame">
+      <div class="screen-bar"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div><span class="screen-url">Project modal — AI Advisor tab (before generation)</span></div>
+      <div class="screen-body">
+        <img src="screenshots/19-advisor-panel.png" alt="AI Advisor Panel" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+        <div class="placeholder"><div class="placeholder-icon">🧠</div><div class="placeholder-name">screenshots/19-advisor-panel.png</div></div>
+      </div>
+    </div>
+    <div class="screen-caption">AI Advisor tab — live project stats, material contribution bars, contractor performance gap, Generate Strategy button</div>
+
+    <div style="margin-top:20px">
+      <div class="screen-frame">
+        <div class="screen-bar"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div><span class="screen-url">AI Advisor — live strategy output</span></div>
+        <div class="screen-body">
+          <img src="screenshots/20-advisor-result.png" alt="AI Advisor Result" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+          <div class="placeholder"><div class="placeholder-icon">✨</div><div class="placeholder-name">screenshots/20-advisor-result.png</div></div>
+        </div>
+      </div>
+      <div class="screen-caption">Live AI output — specific reduction strategy, contractor actions, material switches — powered by Claude AI, cited "Powered by Claude AI"</div>
+    </div>
+  </div>
+
+  <!-- ══════════ SECTION 8 — CERTIFICATIONS ══════════ -->
+  <div class="section" id="certifications">
+    <div class="section-eyebrow">Green Certifications</div>
+    <div class="section-title">Five frameworks — <span>live credit tracking</span></div>
+    <div class="section-desc">CarbonIQ tracks credit progress across five green certification frameworks simultaneously. Credit targets are set per project and updated automatically as carbon data is submitted and approved.</div>
+
+    <div class="screen-frame">
+      <div class="screen-bar"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div><span class="screen-url">carboniq.app/certifications</span></div>
+      <div class="screen-body">
+        <img src="screenshots/21-certifications.png" alt="Certifications" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+        <div class="placeholder"><div class="placeholder-icon">🏆</div><div class="placeholder-name">screenshots/21-certifications.png</div></div>
+      </div>
+    </div>
+    <div class="screen-caption">Certifications screen — Envision, Mostadam, LEED, BREEAM, WELL — live credit progress per project</div>
+  </div>
+
+  <!-- ══════════ SECTION 9 — IOT ROADMAP ══════════ -->
+  <div class="section" id="iot">
+    <div class="section-eyebrow">Phase 2 Roadmap</div>
+    <div class="section-title">IoT — <span>real-time site monitoring</span></div>
+    <div class="section-desc">The platform architecture is designed to receive live IoT sensor data. Phase 2 replaces manual A5 entries with real-time readings from fuel flow meters, electricity sub-meters, and water sensors on site.</div>
+
+    <div class="iot-grid">
+      <div class="iot-card">
+        <div class="iot-card-label">Current — Phase 1</div>
+        <div class="iot-card-title">Manual A5 Entry</div>
+        <ul>
+          <li>Monthly fuel and electricity consumption entered manually</li>
+          <li>Contractor submits, consultant reviews</li>
+          <li>Full audit trail and approval workflow</li>
+          <li>Complete and working today</li>
+        </ul>
+      </div>
+      <div class="iot-card" style="border-color:rgba(251,146,60,0.2)">
+        <div class="iot-card-label" style="color:var(--orange)">Phase 2 — IoT</div>
+        <div class="iot-card-title">Live Sensor Feeds</div>
+        <ul>
+          <li>Fuel flow meters → live diesel consumption</li>
+          <li>Smart sub-meters → real-time electricity data</li>
+          <li>Water sensors → site usage monitoring</li>
+          <li>Same data model, same accountability chain</li>
+        </ul>
+      </div>
+      <div class="iot-card" style="border-color:rgba(96,165,250,0.2)">
+        <div class="iot-card-label" style="color:var(--blue)">Phase 2 Extension — Oil &amp; Gas</div>
+        <div class="iot-card-title">Operational Emissions</div>
+        <ul>
+          <li>IoT sensor network extends to pipelines and wellheads</li>
+          <li>Fugitive methane detection in real time</li>
+          <li>Same platform — different data source</li>
+          <li>Aramco net-zero 2050 accountability layer</li>
+        </ul>
+      </div>
+      <div class="iot-card" style="border-color:rgba(167,139,250,0.2)">
+        <div class="iot-card-label" style="color:var(--purple)">Phase 3 — ML Forecasting</div>
+        <div class="iot-card-title">Predictive Intelligence</div>
+        <ul>
+          <li>ML forecasting from historical sensor patterns</li>
+          <li>Anomaly detection and threshold alerts</li>
+          <li>Digital twin integration</li>
+          <li>White-label for national regulators</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="screen-frame">
+      <div class="screen-bar"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div><span class="screen-url">carboniq.app — IoT integration roadmap</span></div>
+      <div class="screen-body">
+        <img src="screenshots/22-iot-roadmap.png" alt="IoT Roadmap" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+        <div class="placeholder"><div class="placeholder-icon">📡</div><div class="placeholder-name">screenshots/22-iot-roadmap.png</div></div>
+      </div>
+    </div>
+    <div class="screen-caption">IoT roadmap screen — current manual A5 entry vs Phase 2 real-time sensor architecture</div>
+
+    <div style="margin-top:40px;padding:20px 24px;background:var(--green-dim);border:1px solid rgba(52,211,153,0.2);border-radius:14px;text-align:center">
+      <div style="font-size:13px;font-weight:800;color:var(--green);margin-bottom:8px">Platform is live. Every screen above is from the running system.</div>
+      <div style="font-size:12px;color:var(--text3);margin-bottom:16px">The full end-to-end workflow — from contractor material entry through AI carbon reduction advice — is operational and demonstrable today.</div>
+      <a href="index.html" style="display:inline-flex;align-items:center;gap:8px;background:var(--green2);color:#fff;font-size:13px;font-weight:700;padding:12px 28px;border-radius:30px;text-decoration:none">🚀 Launch Platform →</a>
+    </div>
+  </div>
+
+</div><!-- /main -->
+</div><!-- /layout -->
+
+<script>
+  // Sidebar active link on scroll
+  const links = document.querySelectorAll('.sidebar-link[href^="#"]');
+  const sections = [...links].map(l => document.querySelector(l.getAttribute('href'))).filter(Boolean);
+  const obs = new IntersectionObserver(entries => {
+    entries.forEach(e => {
+      if (e.isIntersecting) {
+        links.forEach(l => l.classList.toggle('active', l.getAttribute('href') === '#' + e.target.id));
+      }
+    });
+  }, { threshold: 0.25 });
+  sections.forEach(s => obs.observe(s));
+</script>
+</body>
+</html>

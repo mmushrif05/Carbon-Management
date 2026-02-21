@@ -88,6 +88,25 @@ async function handleSave(event, body) {
   if (!entry.category || !entry.type) return respond(400, { error: 'Category and type are required' });
   if (!entry.qty || entry.qty <= 0) return respond(400, { error: 'Valid quantity is required' });
 
+  // ===== ANOMALY GUARD — Block extreme EF values =====
+  const baseEF = Number(entry.baselineEF || entry.baseline || 0);
+  const actEF = Number(entry.actualEF || entry.actual || 0);
+  if (baseEF > 0 && actEF > 0) {
+    const ratio = actEF / baseEF;
+    if (ratio > 100) {
+      return respond(400, {
+        error: 'BLOCKED: Actual EF (' + actEF + ') is ' + Math.round(ratio) + 'x the baseline (' + baseEF + '). ' +
+          'You likely entered the TOTAL carbon instead of the per-unit emission factor. ' +
+          'Please enter the EF from the EPD (per ' + (entry.unit || 'unit') + '), not the total.'
+      });
+    }
+    // Flag suspicious entries (10x-100x) so consultant sees warning
+    if (ratio > 10) {
+      entry._anomalyFlag = 'EF_RATIO_' + Math.round(ratio) + 'X';
+      entry._anomalyRatio = ratio;
+    }
+  }
+
   try {
     const db = getDb();
     const profile = await getUserProfile(decoded.uid);
@@ -303,6 +322,27 @@ async function handleListRequests(event) {
       } else {
         requests = requests.filter(r => r.requestedByUid === decoded.uid);
       }
+    } else if (profile && profile.role === 'consultant') {
+      // Consultant sees requests for projects they have access to
+      const assignedContractors = await getAssignedContractorUids(decoded.uid);
+      const assignedProjectIds = await getAssignedProjectIds(decoded.uid, profile);
+
+      // Also include projects the consultant created
+      const projSnap = await db.ref('projects').once('value');
+      const projData = projSnap.val() || {};
+      Object.values(projData).forEach(p => {
+        if (p && p.id && p.createdBy === decoded.uid) assignedProjectIds.add(String(p.id));
+      });
+
+      if (assignedContractors.length > 0 || assignedProjectIds.size > 0) {
+        requests = requests.filter(r =>
+          r.status === 'pending' || // ALWAYS show all pending requests to consultant
+          r.requestedByUid === decoded.uid ||
+          assignedContractors.includes(r.requestedByUid) ||
+          (r.projectId && assignedProjectIds.has(String(r.projectId)))
+        );
+      }
+      // If no assignments, consultant sees all (backward compatible)
     }
     // Consultants and clients see ALL requests — project-level filtering
     // is handled in the frontend when displaying per-project views
@@ -434,6 +474,120 @@ async function handleApplyEdit(event, body) {
   }
 }
 
+// ===== FORCE DELETE — Consultant/Client can delete ANY entry (even approved) =====
+async function handleForceDelete(event, body) {
+  const decoded = await verifyToken(event);
+  if (!decoded) return respond(401, { error: 'Unauthorized' });
+
+  const { id, reason } = body;
+  if (!id) return respond(400, { error: 'Entry ID required' });
+
+  try {
+    const db = getDb();
+    const profile = await getUserProfile(decoded.uid);
+
+    // Only consultant and client can force-delete
+    if (!profile || (profile.role !== 'consultant' && profile.role !== 'client')) {
+      return respond(403, { error: 'Only consultants and clients can force-delete entries' });
+    }
+
+    const snap = await db.ref('projects/ksia/entries/' + id).once('value');
+    const entry = snap.val();
+    if (!entry) return respond(404, { error: 'Entry not found' });
+
+    // Log the deletion for audit trail
+    const auditId = Date.now() + '_' + Math.random().toString(36).substr(2, 6);
+    await db.ref('projects/ksia/auditLog/' + auditId).set({
+      action: 'force-delete',
+      entryId: id,
+      entryCategory: entry.category,
+      entryType: entry.type,
+      entryActualEF: entry.actualEF || entry.actual,
+      entryBaselineEF: entry.baselineEF || entry.baseline,
+      entryQty: entry.qty,
+      previousStatus: entry.status,
+      reason: reason || 'No reason provided',
+      deletedBy: decoded.name || decoded.email,
+      deletedByUid: decoded.uid,
+      deletedByRole: profile.role,
+      deletedAt: new Date().toISOString()
+    });
+
+    // Remove the entry
+    await db.ref('projects/ksia/entries/' + id).remove();
+
+    // Also clean up any pending edit requests for this entry
+    const reqSnap = await db.ref('projects/ksia/editRequests').orderByChild('entryId').equalTo(String(id)).once('value');
+    const requests = reqSnap.val() || {};
+    for (const reqId of Object.keys(requests)) {
+      await db.ref('projects/ksia/editRequests/' + reqId).update({ status: 'resolved_by_delete', resolvedAt: new Date().toISOString() });
+    }
+
+    return respond(200, { success: true });
+  } catch (e) {
+    return respond(500, { error: 'Failed to force-delete: ' + e.message });
+  }
+}
+
+// ===== FORCE CORRECT — Consultant/Client can fix an entry's EF directly =====
+async function handleForceCorrect(event, body) {
+  const decoded = await verifyToken(event);
+  if (!decoded) return respond(401, { error: 'Unauthorized' });
+
+  const { id, corrections, reason } = body;
+  if (!id || !corrections) return respond(400, { error: 'Entry ID and corrections required' });
+
+  try {
+    const db = getDb();
+    const profile = await getUserProfile(decoded.uid);
+
+    // Only consultant and client
+    if (!profile || (profile.role !== 'consultant' && profile.role !== 'client')) {
+      return respond(403, { error: 'Only consultants and clients can force-correct entries' });
+    }
+
+    const entryRef = db.ref('projects/ksia/entries/' + id);
+    const snap = await entryRef.once('value');
+    const entry = snap.val();
+    if (!entry) return respond(404, { error: 'Entry not found' });
+
+    // Only allow correcting data fields
+    const allowedCorrectionFields = ['actualEF', 'actual', 'qty', 'a13A', 'a13B', 'a4', 'a14', 'pct', 'notes'];
+    const safeFixes = {};
+    for (const key of Object.keys(corrections)) {
+      if (allowedCorrectionFields.includes(key)) {
+        safeFixes[key] = corrections[key];
+      }
+    }
+
+    if (Object.keys(safeFixes).length === 0) return respond(400, { error: 'No valid corrections' });
+
+    // Audit trail
+    const auditId = Date.now() + '_' + Math.random().toString(36).substr(2, 6);
+    await db.ref('projects/ksia/auditLog/' + auditId).set({
+      action: 'force-correct',
+      entryId: id,
+      previousValues: Object.fromEntries(Object.keys(safeFixes).map(k => [k, entry[k]])),
+      newValues: safeFixes,
+      reason: reason || 'Data correction',
+      correctedBy: decoded.name || decoded.email,
+      correctedByUid: decoded.uid,
+      correctedByRole: profile.role,
+      correctedAt: new Date().toISOString()
+    });
+
+    // Apply corrections
+    safeFixes._correctedBy = decoded.name || decoded.email;
+    safeFixes._correctedAt = new Date().toISOString();
+    safeFixes._anomalyFlag = null; // Clear anomaly flag after correction
+
+    await entryRef.update(safeFixes);
+    return respond(200, { success: true });
+  } catch (e) {
+    return respond(500, { error: 'Failed to force-correct: ' + e.message });
+  }
+}
+
 exports.handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return optionsResponse();
 
@@ -451,6 +605,8 @@ exports.handler = async (event) => {
         case 'batch-save':      return await handleBatchSave(event, body);
         case 'update':          return await handleUpdate(event, body);
         case 'delete':          return await handleDelete(event, body);
+        case 'force-delete':    return await handleForceDelete(event, body);
+        case 'force-correct':   return await handleForceCorrect(event, body);
         case 'request-change':  return await handleRequestChange(event, body);
         case 'list-requests':   return await handleListRequests(event);
         case 'resolve-request': return await handleResolveRequest(event, body);

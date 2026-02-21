@@ -1,0 +1,774 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CarbonIQ — Competition Presentation</title>
+<style>
+  :root {
+    --green: #22c55e;
+    --green2: #16a34a;
+    --green-dim: rgba(34,197,94,0.12);
+    --green-glow: rgba(34,197,94,0.25);
+    --blue: #60a5fa;
+    --purple: #a78bfa;
+    --orange: #fb923c;
+    --cyan: #22d3ee;
+    --red: #f87171;
+    --bg: #0a0e1a;
+    --bg2: #0f1626;
+    --bg3: #141d2e;
+    --bg4: #1a2540;
+    --border: rgba(255,255,255,0.08);
+    --text: #f1f5f9;
+    --text2: #cbd5e1;
+    --text3: #94a3b8;
+    --slate: #64748b;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    overflow: hidden;
+    height: 100vh;
+    width: 100vw;
+  }
+
+  .deck { width: 100%; height: 100vh; position: relative; }
+
+  .slide {
+    position: absolute; inset: 0;
+    display: none;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    padding: 52px 64px 72px;
+    animation: fadeIn 0.35s ease;
+  }
+  .slide.active { display: flex; }
+
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+  .nav {
+    position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%);
+    display: flex; align-items: center; gap: 16px;
+    background: rgba(15,22,38,0.95); border: 1px solid var(--border);
+    border-radius: 40px; padding: 10px 24px;
+    backdrop-filter: blur(12px); z-index: 100;
+  }
+  .nav button {
+    background: none; border: none; color: var(--text3);
+    font-size: 18px; cursor: pointer; padding: 4px 8px;
+    border-radius: 8px; transition: all 0.2s;
+  }
+  .nav button:hover { color: var(--green); background: var(--green-dim); }
+  .nav-counter { font-size: 12px; color: var(--text3); min-width: 60px; text-align: center; font-weight: 600; }
+  .nav-dots { display: flex; gap: 6px; }
+  .nav-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--slate); cursor: pointer; transition: all 0.2s; }
+  .nav-dot.active { background: var(--green); width: 18px; border-radius: 3px; }
+
+  .slide-num { position: fixed; top: 24px; right: 32px; font-size: 11px; color: var(--slate); font-weight: 600; letter-spacing: 1px; }
+
+  .brand { position: fixed; top: 20px; left: 32px; display: flex; align-items: center; gap: 10px; }
+  .brand-icon { width: 32px; height: 32px; border-radius: 8px; background: linear-gradient(135deg, var(--green), #0d9488); display: flex; align-items: center; justify-content: center; font-size: 16px; }
+  .brand-name { font-size: 14px; font-weight: 800; color: var(--text); letter-spacing: 0.5px; }
+  .brand-tag { font-size: 9px; color: var(--green); font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; }
+
+  .slide-label { font-size: 10px; font-weight: 700; letter-spacing: 2.5px; text-transform: uppercase; color: var(--green); margin-bottom: 10px; }
+  .slide-title { font-size: clamp(22px, 3.2vw, 40px); font-weight: 900; line-height: 1.15; text-align: center; color: var(--text); margin-bottom: 18px; }
+  .slide-title span { color: var(--green); }
+
+  /* Source footnote */
+  .src {
+    position: absolute; bottom: 68px; left: 64px; right: 64px;
+    font-size: 9px; color: var(--slate); line-height: 1.6;
+    border-top: 1px solid rgba(255,255,255,0.05); padding-top: 6px;
+  }
+
+  /* Cover */
+  #s1 { background: radial-gradient(ellipse 80% 60% at 50% 40%, rgba(34,197,94,0.07) 0%, transparent 70%), var(--bg); }
+  .cover-badge { background: var(--green-dim); border: 1px solid rgba(34,197,94,0.3); color: var(--green); font-size: 11px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; padding: 6px 18px; border-radius: 20px; margin-bottom: 24px; }
+  .cover-title { font-size: clamp(48px, 8vw, 88px); font-weight: 900; line-height: 1.0; text-align: center; margin-bottom: 12px; }
+  .cover-title .word-carbon { color: var(--text); }
+  .cover-title .word-iq { color: var(--green); }
+  .cover-tagline { font-size: clamp(13px, 1.5vw, 17px); color: var(--text3); text-align: center; max-width: 600px; line-height: 1.6; margin-bottom: 32px; }
+  .cover-stats { display: flex; gap: 20px; flex-wrap: wrap; justify-content: center; }
+  .cover-stat { text-align: center; padding: 14px 22px; background: var(--bg3); border: 1px solid var(--border); border-radius: 12px; min-width: 110px; }
+  .cover-stat-val { font-size: 24px; font-weight: 900; color: var(--green); }
+  .cover-stat-label { font-size: 10px; color: var(--text3); font-weight: 600; margin-top: 4px; letter-spacing: 0.5px; }
+
+  /* Grids */
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; width: 100%; max-width: 980px; }
+  .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; width: 100%; max-width: 980px; }
+  .grid-4 { display: grid; grid-template-columns: repeat(4,1fr); gap: 12px; width: 100%; max-width: 1020px; }
+
+  /* Cards */
+  .card { background: var(--bg3); border: 1px solid var(--border); border-radius: 14px; padding: 18px; }
+  .card-accent { border-top: 3px solid var(--green); }
+  .card-blue   { border-top: 3px solid var(--blue); }
+  .card-purple { border-top: 3px solid var(--purple); }
+  .card-orange { border-top: 3px solid var(--orange); }
+  .card-cyan   { border-top: 3px solid var(--cyan); }
+  .card-title { font-size: 12px; font-weight: 800; color: var(--text); margin-bottom: 6px; }
+  .card-body  { font-size: 11px; color: var(--text3); line-height: 1.6; }
+
+  /* Problem stats */
+  .problem-stat { text-align: center; padding: 16px 12px; background: rgba(248,113,113,0.06); border: 1px solid rgba(248,113,113,0.15); border-radius: 14px; }
+  .problem-stat-val { font-size: 30px; font-weight: 900; color: #f87171; }
+  .problem-stat-label { font-size: 10.5px; color: var(--text3); margin-top: 6px; line-height: 1.4; }
+
+  /* Bullet list */
+  .bullet-list { list-style: none; display: flex; flex-direction: column; gap: 5px; }
+  .bullet-list li { font-size: 11px; color: var(--text3); display: flex; align-items: flex-start; gap: 8px; line-height: 1.4; }
+  .bullet-list li::before { content: '→'; color: var(--green); flex-shrink: 0; font-weight: 700; }
+
+  /* Projection table */
+  .proj-table { width: 100%; border-collapse: collapse; }
+  .proj-table th { font-size: 9.5px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--text3); padding: 8px 14px; text-align: left; border-bottom: 1px solid var(--border); }
+  .proj-table td { font-size: 11.5px; padding: 8px 14px; border-bottom: 1px solid rgba(255,255,255,0.04); color: var(--text2); }
+  .proj-table tr:last-child td { border-bottom: none; font-weight: 800; color: var(--green); }
+  .proj-table td:first-child { font-weight: 700; color: var(--text); }
+
+  /* Comparison table */
+  .comp-table { width: 100%; max-width: 900px; border-collapse: collapse; }
+  .comp-table th { font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--text3); padding: 10px 16px; text-align: left; border-bottom: 1px solid var(--border); }
+  .comp-table td { font-size: 12px; padding: 10px 16px; border-bottom: 1px solid rgba(255,255,255,0.04); color: var(--text2); }
+  .comp-table tr:last-child td { border-bottom: none; }
+  .comp-table td:first-child { font-weight: 700; color: var(--text); }
+  .comp-yes { color: var(--green); font-weight: 700; }
+  .comp-no { color: var(--slate); }
+  .comp-ours { background: rgba(34,197,94,0.04); }
+
+  /* CTA */
+  #s10 { background: radial-gradient(ellipse 70% 50% at 50% 50%, rgba(34,197,94,0.1) 0%, transparent 70%), var(--bg); }
+  .cta-title { font-size: clamp(28px,4.5vw,52px); font-weight: 900; text-align: center; line-height: 1.15; margin-bottom: 12px; }
+  .cta-sub { font-size: 15px; color: var(--text3); text-align: center; max-width: 560px; margin-bottom: 28px; line-height: 1.6; }
+  .cta-btn { display: inline-flex; align-items: center; gap: 10px; background: var(--green); color: #000; font-size: 14px; font-weight: 800; padding: 14px 30px; border-radius: 40px; border: none; cursor: pointer; letter-spacing: 0.5px; text-decoration: none; }
+  .cta-secondary { display: inline-flex; align-items: center; gap: 8px; color: var(--text3); font-size: 13px; font-weight: 600; background: var(--bg3); border: 1px solid var(--border); padding: 14px 26px; border-radius: 40px; cursor: pointer; text-decoration: none; }
+  .cta-row { display: flex; gap: 14px; flex-wrap: wrap; justify-content: center; }
+
+  @media print {
+    body { overflow: auto; height: auto; background: #fff; color: #000; }
+    .slide { position: relative; display: flex !important; page-break-after: always; height: 100vh; }
+    .nav, .brand, .slide-num { display: none; }
+    .slide-title, .cover-title { color: #000; }
+    .card-body, .bullet-list li { color: #444; }
+    .card { border-color: #ddd; background: #f9f9f9; }
+  }
+</style>
+</head>
+<body>
+
+<div class="brand">
+  <div class="brand-icon">🌿</div>
+  <div>
+    <div class="brand-name">CarbonIQ</div>
+    <div class="brand-tag">Construction Intelligence</div>
+  </div>
+</div>
+
+<div class="slide-num" id="slideNum">1 / 10</div>
+
+<div class="deck" id="deck">
+
+  <!-- ══════════ SLIDE 1 — COVER ══════════ -->
+  <div class="slide active" id="s1">
+    <div class="cover-badge">🏆 Mega Project Carbon Intelligence Platform</div>
+    <div class="cover-title">
+      <span class="word-carbon">Carbon</span><span class="word-iq">IQ</span>
+    </div>
+    <div class="cover-tagline">
+      Carbon accountability for mega construction projects — every material tracked, attributed, and reported from first tender to final day on site.
+    </div>
+    <div class="cover-stats">
+      <div class="cover-stat">
+        <div class="cover-stat-val">38%</div>
+        <div class="cover-stat-label">Global CO₂<br>from Construction</div>
+      </div>
+      <div class="cover-stat">
+        <div class="cover-stat-val">$15.5T</div>
+        <div class="cover-stat-label">Global Construction<br>Market by 2030</div>
+      </div>
+      <div class="cover-stat">
+        <div class="cover-stat-val">3 AI</div>
+        <div class="cover-stat-label">Engines<br>Live Today</div>
+      </div>
+      <div class="cover-stat">
+        <div class="cover-stat-val">IoT+</div>
+        <div class="cover-stat-label">Phase 2<br>Architecture Ready</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════ SLIDE 2 — PROBLEM / MARKET NEED ══════════ -->
+  <div class="slide" id="s2">
+    <div class="slide-label">Problem / Market Need</div>
+    <div class="slide-title">Construction is the world's <span>largest carbon source.</span><br>No project can prove what it emits.</div>
+
+    <div class="grid-4" style="max-width:940px; margin-bottom:14px">
+      <div class="problem-stat">
+        <div class="problem-stat-val">38%</div>
+        <div class="problem-stat-label">of global CO₂ from buildings & construction — the single largest emitting sector</div>
+      </div>
+      <div class="problem-stat">
+        <div class="problem-stat-val">80%</div>
+        <div class="problem-stat-label">of embodied carbon is locked in at design & procurement — before any measurement begins</div>
+      </div>
+      <div class="problem-stat">
+        <div class="problem-stat-val">Zero</div>
+        <div class="problem-stat-label">unified carbon accountability systems linking owners, engineers and contractors today</div>
+      </div>
+      <div class="problem-stat">
+        <div class="problem-stat-val">2027</div>
+        <div class="problem-stat-label">EU mandatory embodied carbon reporting — Gulf regulations actively following</div>
+      </div>
+    </div>
+
+    <div style="background:rgba(248,113,113,0.06);border:1px solid rgba(248,113,113,0.15);border-radius:12px;padding:14px 24px;max-width:900px;width:100%;text-align:center">
+      <div style="font-size:12.5px;color:var(--text2);line-height:1.6">
+        Mega project owners cannot prove their carbon commitments. &nbsp;Engineers make billion-dollar material decisions with no carbon visibility. &nbsp;Contractors face regulatory exposure with no compliant reporting tool.
+        <br><strong style="color:#f87171">The problem is not awareness — it is the complete absence of infrastructure to act.</strong>
+      </div>
+    </div>
+
+    <div class="src">
+      Sources: UNEP Global Status Report for Buildings and Construction 2022 · World Green Building Council, "Bringing Embodied Carbon Upfront" (2019) · EU CSRD / CBAM Regulation (2020)
+    </div>
+  </div>
+
+  <!-- ══════════ SLIDE 3 — SOLUTION & VALUE PROPOSITION ══════════ -->
+  <div class="slide" id="s3">
+    <div class="slide-label">Solution &amp; Value Proposition</div>
+    <div class="slide-title">One platform. Three stakeholders. <span>Full accountability chain.</span></div>
+
+    <div class="grid-3" style="max-width:960px; margin-bottom:12px">
+      <div class="card card-accent">
+        <div style="font-size:9px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--green);margin-bottom:6px">For Owners / Developers</div>
+        <div style="font-size:13px;font-weight:800;margin-bottom:8px">Portfolio carbon control</div>
+        <ul class="bullet-list">
+          <li>Live carbon view across all projects</li>
+          <li>Carbon targets enforced at procurement</li>
+          <li>Contractor performance ranked &amp; transparent</li>
+          <li>Certification progress tracked automatically</li>
+        </ul>
+      </div>
+      <div class="card card-purple">
+        <div style="font-size:9px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--purple);margin-bottom:6px">For Engineers / Consultants</div>
+        <div style="font-size:13px;font-weight:800;margin-bottom:8px">AI intelligence at procurement</div>
+        <ul class="bullet-list">
+          <li>AI reads project documents in seconds</li>
+          <li>Reduction opportunities before orders placed</li>
+          <li>Structured approval workflows built in</li>
+          <li>Every decision source-cited and auditable</li>
+        </ul>
+      </div>
+      <div class="card card-blue">
+        <div style="font-size:9px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--blue);margin-bottom:6px">For Builders / Contractors</div>
+        <div style="font-size:13px;font-weight:800;margin-bottom:8px">Compliant, audit-ready reporting</div>
+        <ul class="bullet-list">
+          <li>Materials, transport &amp; site energy in one place</li>
+          <li>Submissions reviewed via structured workflow</li>
+          <li>Full audit trail from day one</li>
+          <li>Certification-ready records built automatically</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="grid-4" style="max-width:960px">
+      <div style="background:var(--bg3);border:1px solid var(--border);border-radius:12px;padding:11px;text-align:center">
+        <div style="font-size:17px;margin-bottom:4px">📋</div>
+        <div style="font-size:10.5px;font-weight:800">AI Document Parser</div>
+        <div style="font-size:9.5px;color:var(--text3);margin-top:2px">BOQ → carbon data in seconds</div>
+      </div>
+      <div style="background:var(--bg3);border:1px solid var(--border);border-radius:12px;padding:11px;text-align:center">
+        <div style="font-size:17px;margin-bottom:4px">🔍</div>
+        <div style="font-size:10.5px;font-weight:800">Document Intelligence</div>
+        <div style="font-size:9.5px;color:var(--text3);margin-top:2px">RAG analysis with page citations</div>
+      </div>
+      <div style="background:var(--bg3);border:1px solid var(--border);border-radius:12px;padding:11px;text-align:center">
+        <div style="font-size:17px;margin-bottom:4px">🧠</div>
+        <div style="font-size:10.5px;font-weight:800">Carbon Advisor</div>
+        <div style="font-size:9.5px;color:var(--text3);margin-top:2px">Per-project reduction recommendations</div>
+      </div>
+      <div style="background:var(--bg3);border:1px solid var(--border);border-radius:12px;padding:11px;text-align:center">
+        <div style="font-size:17px;margin-bottom:4px">🏆</div>
+        <div style="font-size:10.5px;font-weight:800">5 Certifications</div>
+        <div style="font-size:9.5px;color:var(--text3);margin-top:2px">LEED, BREEAM, Mostadam, Envision, WELL</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════ SLIDE 4 — MARKET SIZE / OPPORTUNITY ══════════ -->
+  <div class="slide" id="s4">
+    <div class="slide-label">Market Size / Opportunity</div>
+    <div class="slide-title">A <span>$15.5 trillion industry</span> forced to act — starting now</div>
+
+    <div class="grid-3" style="max-width:960px; margin-bottom:12px">
+      <div class="card card-accent" style="text-align:center">
+        <div style="font-size:30px;font-weight:900;color:var(--green);margin-bottom:6px">$15.5T</div>
+        <div class="card-title">Global Construction Market</div>
+        <div class="card-body">Projected market by 2030. Primary target: mega projects and large buildings above $100M capex — requiring carbon accountability by law or by commitment.</div>
+      </div>
+      <div class="card card-orange" style="text-align:center">
+        <div style="font-size:30px;font-weight:900;color:var(--orange);margin-bottom:6px">12% CAGR</div>
+        <div class="card-title">Green Building Materials</div>
+        <div class="card-body">Fastest-growing construction segment. Driven by ESG mandates, government procurement requirements and regulatory compliance obligations.</div>
+      </div>
+      <div class="card card-blue" style="text-align:center">
+        <div style="font-size:30px;font-weight:900;color:var(--blue);margin-bottom:6px">2027</div>
+        <div class="card-title">EU Mandatory Reporting</div>
+        <div class="card-body">CSRD requires Scope 1, 2 &amp; 3 disclosure. CBAM targets embedded carbon in materials. Gulf and KSA regulations are actively following.</div>
+      </div>
+    </div>
+
+    <div class="grid-3" style="max-width:960px">
+      <div style="background:rgba(251,146,60,0.06);border:1px solid rgba(251,146,60,0.15);border-radius:12px;padding:13px 15px">
+        <div style="font-size:9px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--orange);margin-bottom:5px">🇸🇦 Primary Market — Gulf Region</div>
+        <ul class="bullet-list">
+          <li>Saudi Vision 2030 mega project pipeline</li>
+          <li>UAE national net-zero commitments</li>
+          <li>Mostadam certification required on KSA government projects</li>
+          <li>Zero compliant carbon systems exist today → no competition</li>
+        </ul>
+      </div>
+      <div style="background:rgba(34,197,94,0.06);border:1px solid rgba(34,197,94,0.15);border-radius:12px;padding:13px 15px">
+        <div style="font-size:9px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--green);margin-bottom:5px">📋 Regulatory Tailwind</div>
+        <ul class="bullet-list">
+          <li>EU CSRD — supply chain carbon disclosure</li>
+          <li>CBAM — embedded carbon in construction materials</li>
+          <li>Every new regulation = forced acquisition event</li>
+          <li>Demand is inescapable, not optional</li>
+        </ul>
+      </div>
+      <div style="background:rgba(96,165,250,0.06);border:1px solid rgba(96,165,250,0.15);border-radius:12px;padding:13px 15px">
+        <div style="font-size:9px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--blue);margin-bottom:5px">🏢 Target Customer</div>
+        <ul class="bullet-list">
+          <li>Government mega project owners</li>
+          <li>National real estate developers</li>
+          <li>Engineering consultancies</li>
+          <li>Main contractors on multi-billion portfolios</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="src">
+      Sources: Oxford Economics / Global Construction Perspectives, "Global Construction 2030" Report · Market Research Future, Green Building Materials Market Report (2022) · EU CSRD (2020) · EU CBAM Regulation
+    </div>
+  </div>
+
+  <!-- ══════════ SLIDE 5 — BUSINESS MODEL ══════════ -->
+  <div class="slide" id="s5">
+    <div class="slide-label">Business Model (Revenue)</div>
+    <div class="slide-title">Three payers. <span>Recurring SaaS revenue.</span> Specific projections below.</div>
+
+    <div style="display:flex;gap:16px;max-width:980px;width:100%;flex-wrap:wrap">
+
+      <!-- Pricing tiers -->
+      <div style="flex:1.1;min-width:280px;display:flex;flex-direction:column;gap:8px">
+        <div style="font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--green);margin-bottom:2px">SaaS Pricing Tiers</div>
+        <div style="background:rgba(34,197,94,0.06);border:1px solid rgba(34,197,94,0.15);border-radius:11px;padding:11px 14px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px">
+            <span style="font-size:11.5px;font-weight:800">Tier 1 — Owner / Developer</span>
+            <span style="font-size:8px;font-weight:700;background:var(--green-dim);color:var(--green);padding:2px 8px;border-radius:10px">$60K–$120K / YEAR</span>
+          </div>
+          <div style="font-size:10.5px;color:var(--text3)">Annual portfolio subscription. Unlimited projects. Executive dashboard + certification tracking.</div>
+        </div>
+        <div style="background:rgba(167,139,250,0.06);border:1px solid rgba(167,139,250,0.15);border-radius:11px;padding:11px 14px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px">
+            <span style="font-size:11.5px;font-weight:800">Tier 2 — Engineer / Consultant</span>
+            <span style="font-size:8px;font-weight:700;background:rgba(167,139,250,0.12);color:var(--purple);padding:2px 8px;border-radius:10px">$12K / PROJECT</span>
+          </div>
+          <div style="font-size:10.5px;color:var(--text3)">Per active project. AI document analysis, Carbon Advisor and approval tools. Scales with project volume.</div>
+        </div>
+        <div style="background:rgba(96,165,250,0.06);border:1px solid rgba(96,165,250,0.15);border-radius:11px;padding:11px 14px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px">
+            <span style="font-size:11.5px;font-weight:800">Tier 3 — Builder / Contractor</span>
+            <span style="font-size:8px;font-weight:700;background:rgba(96,165,250,0.1);color:var(--blue);padding:2px 8px;border-radius:10px">$3.5K / SEAT / YEAR</span>
+          </div>
+          <div style="font-size:10.5px;color:var(--text3)">Per-organisation seat licence. Material tracking, delivery logging, site energy and compliant reporting.</div>
+        </div>
+      </div>
+
+      <!-- Projection table -->
+      <div style="flex:1;min-width:260px;display:flex;flex-direction:column;gap:8px">
+        <div style="font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--orange);margin-bottom:2px">Revenue Projection (ARR)</div>
+        <div style="background:var(--bg3);border:1px solid var(--border);border-radius:11px;overflow:hidden">
+          <table class="proj-table">
+            <thead>
+              <tr>
+                <th></th>
+                <th>Year 1</th>
+                <th>Year 2</th>
+                <th>Year 3</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Owner orgs</td>
+                <td style="color:var(--text3)">2 × $80K</td>
+                <td style="color:var(--text3)">6 × $80K</td>
+                <td style="color:var(--text3)">15 × $80K</td>
+              </tr>
+              <tr>
+                <td>Active projects</td>
+                <td style="color:var(--text3)">8 × $12K</td>
+                <td style="color:var(--text3)">25 × $12K</td>
+                <td style="color:var(--text3)">70 × $12K</td>
+              </tr>
+              <tr>
+                <td>Contractor seats</td>
+                <td style="color:var(--text3)">20 × $3.5K</td>
+                <td style="color:var(--text3)">60 × $3.5K</td>
+                <td style="color:var(--text3)">180 × $3.5K</td>
+              </tr>
+              <tr>
+                <td>Total ARR</td>
+                <td>~$326K</td>
+                <td>~$990K</td>
+                <td>~$2.7M</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div style="background:var(--bg3);border:1px solid var(--border);border-radius:11px;padding:11px 14px">
+          <div style="font-size:9px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--cyan);margin-bottom:6px">Growth Mechanics</div>
+          <ul class="bullet-list">
+            <li>Network effects — project data improves AI accuracy for all</li>
+            <li>Data moat — proprietary benchmark database, hard to replicate</li>
+            <li>Regulatory tailwind — every new law forces customer acquisition</li>
+            <li>API integration fees — BIM, ERP and procurement systems</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════ SLIDE 6 — SCALABILITY & GROWTH ══════════ -->
+  <div class="slide" id="s6">
+    <div class="slide-label">Scalability &amp; Growth Potential</div>
+    <div class="slide-title">Starts in construction. <span>Scales to every emitting industry.</span></div>
+
+    <div class="grid-3" style="max-width:960px; margin-bottom:12px">
+      <div class="card card-accent">
+        <div style="font-size:20px;margin-bottom:6px">🏗️</div>
+        <div style="font-size:9px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--green);margin-bottom:4px">Phase 1 — Now</div>
+        <div class="card-title">Construction Mega Projects</div>
+        <ul class="bullet-list" style="margin-top:4px">
+          <li>Gulf region first — zero competition</li>
+          <li>EU expansion — driven by CSRD mandate</li>
+          <li>SaaS across 3 stakeholder tiers</li>
+          <li>Network effects compound as data grows</li>
+        </ul>
+      </div>
+      <div class="card card-orange">
+        <div style="font-size:20px;margin-bottom:6px">🛢️</div>
+        <div style="font-size:9px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--orange);margin-bottom:4px">Phase 2 — IoT Expansion</div>
+        <div class="card-title">Oil &amp; Gas Operations</div>
+        <ul class="bullet-list" style="margin-top:4px">
+          <li>IoT sensor network extends to pipelines</li>
+          <li>Fugitive methane detection in real time</li>
+          <li>15% of global GHG from oil &amp; gas operations</li>
+          <li>Aramco net-zero 2050 — accountability needed now</li>
+        </ul>
+      </div>
+      <div class="card card-blue">
+        <div style="font-size:20px;margin-bottom:6px">🌐</div>
+        <div style="font-size:9px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--blue);margin-bottom:4px">Phase 3 — Platform</div>
+        <div class="card-title">Any Emitting Industry</div>
+        <ul class="bullet-list" style="margin-top:4px">
+          <li>API-first architecture — deploy to any sector</li>
+          <li>Manufacturing, logistics, mining</li>
+          <li>White-label for national regulators</li>
+          <li>One accountability engine — unlimited verticals</li>
+        </ul>
+      </div>
+    </div>
+
+    <div style="display:flex;gap:12px;max-width:960px;width:100%">
+      <div style="flex:1;background:var(--bg3);border:1px solid var(--border);border-radius:12px;padding:13px 16px;text-align:center">
+        <div style="font-size:22px;font-weight:900;color:var(--orange)">15%</div>
+        <div style="font-size:9.5px;color:var(--slate);margin-top:2px">of global GHG from oil &amp; gas operations</div>
+      </div>
+      <div style="flex:1;background:var(--bg3);border:1px solid var(--border);border-radius:12px;padding:13px 16px;text-align:center">
+        <div style="font-size:22px;font-weight:900;color:var(--orange)">80×</div>
+        <div style="font-size:9.5px;color:var(--slate);margin-top:2px">more potent than CO₂ — methane's 20-year climate impact</div>
+      </div>
+      <div style="flex:1;background:var(--bg3);border:1px solid var(--border);border-radius:12px;padding:13px 16px;text-align:center">
+        <div style="font-size:22px;font-weight:900;color:var(--green)">2050</div>
+        <div style="font-size:9.5px;color:var(--slate);margin-top:2px">Aramco net-zero Scope 1 &amp; 2 commitment</div>
+      </div>
+      <div style="flex:2;background:rgba(251,146,60,0.06);border:1px solid rgba(251,146,60,0.15);border-radius:12px;padding:13px 16px">
+        <div style="font-size:9px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--orange);margin-bottom:5px">Why This Matters for CarbonIQ</div>
+        <div style="font-size:10.5px;color:var(--text3);line-height:1.6">CarbonIQ enters oil &amp; gas through construction projects already on the platform. The IoT sensor architecture and accountability engine are the same — just extended to operational emissions. No rebuild required.</div>
+      </div>
+    </div>
+
+    <div class="src">
+      Sources: IEA, World Energy Outlook 2022 (15% oil &amp; gas GHG) · IPCC Sixth Assessment Report AR6, 2021 (methane 80× potency) · Saudi Aramco, official net-zero announcement, October 2021
+    </div>
+  </div>
+
+  <!-- ══════════ SLIDE 7 — TRACTION / VALIDATION ══════════ -->
+  <div class="slide" id="s7">
+    <div class="slide-label">Traction / Validation</div>
+    <div class="slide-title">Not a prototype. <span>A fully working platform</span> — live today.</div>
+
+    <div class="grid-2" style="max-width:900px; gap:14px">
+      <div class="card card-accent">
+        <div style="font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--green);margin-bottom:8px">Platform — What's Live</div>
+        <ul class="bullet-list">
+          <li>3 AI engines built, tested and in production</li>
+          <li>Full Owner → Engineer → Builder workflow operational</li>
+          <li>AI BOQ parser validated on real project documents</li>
+          <li>Document Intelligence — RAG with page-level source citations</li>
+          <li>Carbon Advisor — live reduction recommendations per project</li>
+          <li>5 certification frameworks: LEED, BREEAM, Mostadam, Envision, WELL</li>
+          <li>200+ materials with ICE DB emission factors pre-loaded</li>
+          <li>Complete audit trail — every submission, approval and edit logged</li>
+          <li><strong style="color:var(--green)">Live demo available — every feature demonstrable now</strong></li>
+        </ul>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <div class="card card-blue">
+          <div style="font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--blue);margin-bottom:8px">Market Signals — Demand Is Locked In</div>
+          <div style="display:flex;flex-direction:column;gap:6px">
+            <div style="background:var(--bg4);border-radius:8px;padding:9px 13px;display:flex;align-items:center;gap:12px">
+              <div style="font-size:13px;font-weight:900;color:var(--green);flex-shrink:0;min-width:60px">2027 Law</div>
+              <div style="font-size:10.5px;color:var(--text3)">EU CSRD — embodied carbon disclosure already legislated</div>
+            </div>
+            <div style="background:var(--bg4);border-radius:8px;padding:9px 13px;display:flex;align-items:center;gap:12px">
+              <div style="font-size:13px;font-weight:900;color:var(--orange);flex-shrink:0;min-width:60px">KSA Law</div>
+              <div style="font-size:10.5px;color:var(--text3)">Mostadam certification required on all KSA government projects (Vision 2030 / SEEC)</div>
+            </div>
+            <div style="background:var(--bg4);border-radius:8px;padding:9px 13px;display:flex;align-items:center;gap:12px">
+              <div style="font-size:13px;font-weight:900;color:var(--purple);flex-shrink:0;min-width:60px">Gulf Gap</div>
+              <div style="font-size:10.5px;color:var(--text3)">Zero existing compliant systems for mega projects in the region — first-mover advantage</div>
+            </div>
+          </div>
+        </div>
+        <div style="background:rgba(34,197,94,0.06);border:1px solid rgba(34,197,94,0.15);border-radius:12px;padding:13px 15px">
+          <div style="font-size:9px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--green);margin-bottom:5px">Competitive Position</div>
+          <ul class="bullet-list">
+            <li>No competitor connects the full owner → engineer → builder chain</li>
+            <li>No competitor built for mega project scale with AI</li>
+            <li>No competitor has pre-procurement carbon forecasting</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <div class="src">
+      Sources: EU CSRD (2020) · Saudi SEEC Mostadam Program requirements · EU CBAM Regulation
+    </div>
+  </div>
+
+  <!-- ══════════ SLIDE 8 — TEAM CAPABILITY ══════════ -->
+  <div class="slide" id="s8">
+    <div class="slide-label">Team Capability</div>
+    <div class="slide-title">Domain expertise meets <span>AI engineering.</span> Platform proves it.</div>
+
+    <div class="grid-3" style="max-width:960px; margin-bottom:12px">
+      <div class="card card-accent">
+        <div style="font-size:18px;margin-bottom:6px">🤖</div>
+        <div style="font-size:9px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--green);margin-bottom:4px">AI &amp; Engineering</div>
+        <ul class="bullet-list">
+          <li>LLM integration &amp; prompt engineering</li>
+          <li>RAG pipeline architecture</li>
+          <li>AI document parsing (PDF, Excel, CSV)</li>
+          <li>Serverless cloud-native SaaS</li>
+          <li>Multi-tenant &amp; role-based access</li>
+        </ul>
+      </div>
+      <div class="card card-orange">
+        <div style="font-size:18px;margin-bottom:6px">🏗️</div>
+        <div style="font-size:9px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--orange);margin-bottom:4px">Construction Domain</div>
+        <ul class="bullet-list">
+          <li>Full project lifecycle (A1–A5 ISO 21930)</li>
+          <li>BOQ &amp; tender procurement workflows</li>
+          <li>ICE database emission factors (200+ materials)</li>
+          <li>Multi-contractor approval workflows</li>
+          <li>Audit trail &amp; regulatory reporting</li>
+        </ul>
+      </div>
+      <div class="card card-blue">
+        <div style="font-size:18px;margin-bottom:6px">🌿</div>
+        <div style="font-size:9px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--blue);margin-bottom:4px">Sustainability &amp; Standards</div>
+        <ul class="bullet-list">
+          <li>LEED, BREEAM, Mostadam, Envision, WELL</li>
+          <li>ISO 21930 lifecycle alignment (A1–A5)</li>
+          <li>Embodied + operational carbon methodology</li>
+          <li>Regulatory compliance (CSRD, CBAM)</li>
+          <li>Certification credit tracking built in</li>
+        </ul>
+      </div>
+    </div>
+
+    <div style="background:var(--bg3);border:1px solid rgba(34,197,94,0.2);border-radius:14px;padding:16px 22px;max-width:960px;width:100%">
+      <div style="font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--green);margin-bottom:10px">Evidence — What the Team Has Built</div>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px">
+        <div style="text-align:center;padding:10px;background:var(--bg4);border-radius:10px">
+          <div style="font-size:18px;font-weight:900;color:var(--green)">3</div>
+          <div style="font-size:9.5px;color:var(--text3);margin-top:2px">AI Engines in production</div>
+        </div>
+        <div style="text-align:center;padding:10px;background:var(--bg4);border-radius:10px">
+          <div style="font-size:18px;font-weight:900;color:var(--blue)">5</div>
+          <div style="font-size:9.5px;color:var(--text3);margin-top:2px">Certification frameworks integrated</div>
+        </div>
+        <div style="text-align:center;padding:10px;background:var(--bg4);border-radius:10px">
+          <div style="font-size:18px;font-weight:900;color:var(--orange)">200+</div>
+          <div style="font-size:9.5px;color:var(--text3);margin-top:2px">Materials with ICE DB factors</div>
+        </div>
+        <div style="text-align:center;padding:10px;background:var(--bg4);border-radius:10px">
+          <div style="font-size:18px;font-weight:900;color:var(--purple)">Full</div>
+          <div style="font-size:9.5px;color:var(--text3);margin-top:2px">End-to-end platform live today</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════ SLIDE 9 — IMPACT (SUSTAINABILITY) ══════════ -->
+  <div class="slide" id="s9">
+    <div class="slide-label">Impact — Sustainability</div>
+    <div class="slide-title">Accountability is the <span>prerequisite for reduction.</span></div>
+
+    <div class="grid-3" style="max-width:960px; margin-bottom:12px">
+      <div style="background:rgba(34,197,94,0.06);border:1px solid rgba(34,197,94,0.15);border-radius:14px;padding:20px;text-align:center">
+        <div style="font-size:38px;font-weight:900;color:var(--green);line-height:1">38%</div>
+        <div style="font-size:11px;color:var(--text3);margin-top:8px;line-height:1.5">of global CO₂ directly addressable by making construction emissions visible — the single largest climate lever available today</div>
+      </div>
+      <div style="background:rgba(96,165,250,0.06);border:1px solid rgba(96,165,250,0.15);border-radius:14px;padding:20px;text-align:center">
+        <div style="font-size:28px;font-weight:900;color:var(--blue);line-height:1.2">Weeks<br>→ Seconds</div>
+        <div style="font-size:11px;color:var(--text3);margin-top:8px;line-height:1.5">Carbon analysis time per project document — decisions made at procurement, when lower-carbon choices are still possible</div>
+      </div>
+      <div style="background:rgba(251,146,60,0.06);border:1px solid rgba(251,146,60,0.15);border-radius:14px;padding:20px;text-align:center">
+        <div style="font-size:38px;font-weight:900;color:var(--orange);line-height:1">Proof</div>
+        <div style="font-size:11px;color:var(--text3);margin-top:8px;line-height:1.5">Every project produces auditable, certification-ready records — not estimates. Verifiable proof aligned with LEED, BREEAM, Mostadam and regulatory requirements</div>
+      </div>
+    </div>
+
+    <div class="grid-3" style="max-width:960px">
+      <div style="background:var(--bg3);border:1px solid var(--border);border-radius:12px;padding:13px 15px">
+        <div style="font-size:9px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--green);margin-bottom:5px">Saudi Vision 2030</div>
+        <ul class="bullet-list">
+          <li>Mostadam certification enabled end-to-end</li>
+          <li>Green building commitments made provable</li>
+          <li>Net-zero construction targets tracked at project level</li>
+        </ul>
+      </div>
+      <div style="background:var(--bg3);border:1px solid var(--border);border-radius:12px;padding:13px 15px">
+        <div style="font-size:9px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--orange);margin-bottom:5px">Aramco Net-Zero 2050</div>
+        <ul class="bullet-list">
+          <li>Scope 1 &amp; 2 net-zero target — officially committed Oct 2021</li>
+          <li>CarbonIQ provides the accountability layer</li>
+          <li>Commitment made actionable and provable — not just stated</li>
+        </ul>
+      </div>
+      <div style="background:var(--bg3);border:1px solid var(--border);border-radius:12px;padding:13px 15px">
+        <div style="font-size:9px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--blue);margin-bottom:5px">The Scale Multiplier</div>
+        <ul class="bullet-list">
+          <li>1,000 projects on CarbonIQ = measurable climate infrastructure</li>
+          <li>Accountability at this scale changes industry behaviour</li>
+          <li>The platform that makes net-zero construction achievable</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="src">
+      Sources: UNEP Global Status Report for Buildings and Construction 2022 (38% CO₂) · Saudi Aramco official net-zero announcement, October 2021 · SEEC Mostadam Program
+    </div>
+  </div>
+
+  <!-- ══════════ SLIDE 10 — CTA ══════════ -->
+  <div class="slide" id="s10">
+    <div class="cover-badge" style="background:var(--green-dim);color:var(--green)">Mega Project Carbon Intelligence Platform</div>
+    <div class="cta-title">
+      Make mega project carbon<br><span style="color:var(--green)">visible, accountable,</span><br>and provable.
+    </div>
+    <div class="cta-sub">CarbonIQ connects every stakeholder, eliminates the data bottleneck with AI, and ensures every carbon decision is made before it becomes irreversible.</div>
+
+    <div class="cta-row">
+      <a class="cta-btn" href="walkthrough.html">📖 View Platform Walkthrough →</a>
+      <a class="cta-secondary" href="index.html">🚀 Launch Platform</a>
+    </div>
+
+    <div style="margin-top:28px;display:flex;gap:20px;flex-wrap:wrap;justify-content:center">
+      <div style="text-align:center">
+        <div style="font-size:22px;font-weight:900;color:var(--red)">38%</div>
+        <div style="font-size:9px;color:var(--slate);margin-top:2px">Global CO₂<br>Addressable</div>
+      </div>
+      <div style="text-align:center">
+        <div style="font-size:22px;font-weight:900;color:var(--blue)">$15.5T</div>
+        <div style="font-size:9px;color:var(--slate);margin-top:2px">Market<br>Opportunity</div>
+      </div>
+      <div style="text-align:center">
+        <div style="font-size:22px;font-weight:900;color:var(--purple)">3 AI</div>
+        <div style="font-size:9px;color:var(--slate);margin-top:2px">Engines<br>Live Today</div>
+      </div>
+      <div style="text-align:center">
+        <div style="font-size:22px;font-weight:900;color:var(--orange)">~$2.7M</div>
+        <div style="font-size:9px;color:var(--slate);margin-top:2px">Projected<br>Year 3 ARR</div>
+      </div>
+      <div style="text-align:center">
+        <div style="font-size:22px;font-weight:900;color:var(--green)">IoT+</div>
+        <div style="font-size:9px;color:var(--slate);margin-top:2px">Oil &amp; Gas<br>Phase 2 Ready</div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /deck -->
+
+<div class="nav">
+  <button onclick="prevSlide()" title="Previous (←)">←</button>
+  <div class="nav-dots" id="navDots"></div>
+  <span class="nav-counter" id="navCounter">1 / 10</span>
+  <button onclick="nextSlide()" title="Next (→)">→</button>
+</div>
+
+<script>
+  const TOTAL = 10;
+  let current = 1;
+
+  function goTo(n) {
+    if (n < 1 || n > TOTAL) return;
+    document.getElementById('s' + current).classList.remove('active');
+    current = n;
+    document.getElementById('s' + current).classList.add('active');
+    document.getElementById('navCounter').textContent = current + ' / ' + TOTAL;
+    document.getElementById('slideNum').textContent = current + ' / ' + TOTAL;
+    updateDots();
+  }
+
+  function nextSlide() { goTo(current + 1); }
+  function prevSlide() { goTo(current - 1); }
+
+  function updateDots() {
+    const d = document.getElementById('navDots');
+    d.innerHTML = '';
+    for (let i = 1; i <= TOTAL; i++) {
+      const dot = document.createElement('div');
+      dot.className = 'nav-dot' + (i === current ? ' active' : '');
+      dot.onclick = () => goTo(i);
+      d.appendChild(dot);
+    }
+  }
+
+  document.addEventListener('keydown', e => {
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.key === ' ') { e.preventDefault(); nextSlide(); }
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') { e.preventDefault(); prevSlide(); }
+    if (e.key >= '1' && e.key <= '9') goTo(+e.key);
+  });
+
+  let touchX = 0;
+  document.addEventListener('touchstart', e => { touchX = e.touches[0].clientX; });
+  document.addEventListener('touchend', e => {
+    const dx = e.changedTouches[0].clientX - touchX;
+    if (Math.abs(dx) > 50) dx < 0 ? nextSlide() : prevSlide();
+  });
+
+  updateDots();
+</script>
+</body>
+</html>

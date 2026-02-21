@@ -60,6 +60,28 @@ const DB = {
     localStorage.setItem('ct_entries', JSON.stringify(entries));
   },
 
+  async forceDeleteEntry(id, reason) {
+    await ensureDbConnected();
+    const res = await apiCall('/entries', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'force-delete', id, reason })
+    });
+    const data = await safeJsonParse(res);
+    if (!res.ok) throw new Error(data.error || 'Force delete failed');
+    return data;
+  },
+
+  async forceCorrectEntry(id, corrections, reason) {
+    await ensureDbConnected();
+    const res = await apiCall('/entries', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'force-correct', id, corrections, reason })
+    });
+    const data = await safeJsonParse(res);
+    if (!res.ok) throw new Error(data.error || 'Force correct failed');
+    return data;
+  },
+
   async getA5Entries() {
     if (dbConnected) {
       try {
@@ -784,5 +806,91 @@ const DB = {
     const data = await safeJsonParse(res);
     if (!res.ok) throw new Error(data.error || 'Failed to save settings.');
     return data;
+  },
+
+  // === DOCUMENT INTELLIGENCE ===
+  async getDocuments(projectId) {
+    if (!dbConnected) return [];
+    try {
+      const res = await apiCall('/documents', {
+        method: 'POST',
+        body: JSON.stringify({ action: 'list', projectId })
+      });
+      if (res.ok) {
+        const data = await safeJsonParse(res);
+        return data.documents || [];
+      }
+    } catch (e) { console.warn('API error (getDocuments):', e); }
+    return [];
+  },
+
+  async uploadDocument(text, fileName, projectId, docType) {
+    await ensureDbConnected();
+    const res = await apiCall('/documents', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'upload', text, fileName, projectId, docType })
+    });
+    const data = await safeJsonParse(res);
+    if (!res.ok) throw new Error(data.error || 'Failed to upload document.');
+    return data;
+  },
+
+  async deleteDocument(projectId, docId) {
+    await ensureDbConnected();
+    const res = await apiCall('/documents', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'delete', projectId, docId })
+    });
+    const data = await safeJsonParse(res);
+    if (!res.ok) throw new Error(data.error || 'Failed to delete document.');
+    return data;
+  },
+
+  async retrieveChunks(projectId, scope, options) {
+    await ensureDbConnected();
+    const res = await apiCall('/documents', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'retrieve', projectId, scope, ...(options || {}) })
+    });
+    const data = await safeJsonParse(res);
+    if (!res.ok) throw new Error(data.error || 'Failed to retrieve chunks.');
+    return data;
+  },
+
+  async runAnalysis(dimension, chunks, docMeta, projectContext) {
+    await ensureDbConnected();
+    const res = await apiCall('/carbon-intelligence', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'analyze', dimension, chunks, docMeta, projectContext })
+    });
+    const data = await safeJsonParse(res);
+    if (!res.ok) throw new Error(data.error || 'Analysis failed.');
+    return data;
+  },
+
+  async saveAnalysisResult(projectId, analysisId, dimension, analysis) {
+    await ensureDbConnected();
+    const res = await apiCall('/carbon-intelligence', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'save-result', projectId, analysisId, dimension, analysis, timestamp: new Date().toISOString() })
+    });
+    const data = await safeJsonParse(res);
+    if (!res.ok) throw new Error(data.error || 'Failed to save analysis.');
+    return data;
+  },
+
+  async getAnalysisResults(projectId) {
+    if (!dbConnected) return [];
+    try {
+      const res = await apiCall('/carbon-intelligence', {
+        method: 'POST',
+        body: JSON.stringify({ action: 'list-results', projectId })
+      });
+      if (res.ok) {
+        const data = await safeJsonParse(res);
+        return data.results || [];
+      }
+    } catch (e) { console.warn('API error (getAnalysisResults):', e); }
+    return [];
   }
 };
