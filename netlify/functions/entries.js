@@ -401,7 +401,6 @@ async function handleApplyEdit(event, body) {
     const isOwner = entry.submittedByUid === decoded.uid ||
       (profile && profile.organizationId && entry.organizationId === profile.organizationId);
     if (!isOwner) return respond(403, { error: 'Not your entry' });
-    if (entry.editRequestStatus !== 'approved') return respond(403, { error: 'Edit not approved' });
 
     // Only allow updating data fields (not status/metadata)
     const editableFields = ['qty', 'actual', 'actualEF', 'road', 'sea', 'train', 'notes',
