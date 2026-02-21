@@ -296,37 +296,16 @@ async function handleListRequests(event) {
     const data = snap.val();
     let requests = data ? Object.values(data) : [];
 
-    // Filter by role
+    // Filter by role — only contractors are restricted to their own requests
     if (profile && profile.role === 'contractor') {
-      // Contractor sees own requests only
       if (profile.organizationId) {
         requests = requests.filter(r => r.organizationId === profile.organizationId);
       } else {
         requests = requests.filter(r => r.requestedByUid === decoded.uid);
       }
-    } else if (profile && profile.role === 'consultant') {
-      // Consultant sees requests for projects they have access to
-      // Use the same logic as project listing: assignments, org links, AND created projects
-      const assignedContractors = await getAssignedContractorUids(decoded.uid);
-      const assignedProjectIds = await getAssignedProjectIds(decoded.uid, profile);
-
-      // Also include projects the consultant created (same as handleListProjects)
-      const projSnap = await db.ref('projects').once('value');
-      const projData = projSnap.val() || {};
-      Object.values(projData).forEach(p => {
-        if (p && p.id && p.createdBy === decoded.uid) assignedProjectIds.add(String(p.id));
-      });
-
-      if (assignedContractors.length > 0 || assignedProjectIds.size > 0) {
-        requests = requests.filter(r =>
-          r.requestedByUid === decoded.uid ||
-          assignedContractors.includes(r.requestedByUid) ||
-          (r.projectId && assignedProjectIds.has(String(r.projectId)))
-        );
-      }
-      // If no assignments, consultant sees all (backward compatible)
     }
-    // Client sees all
+    // Consultants and clients see ALL requests — project-level filtering
+    // is handled in the frontend when displaying per-project views
 
     return respond(200, { requests });
   } catch (e) {

@@ -1172,6 +1172,17 @@ function renderRecent(){
       } else if (e.status !== 'pending') {
         actionHtml = `<button class="btn btn-sm" onclick="requestEditEntry('${e.id}')" style="font-size:8px;padding:2px 5px;background:rgba(96,165,250,0.12);color:var(--blue);border:1px solid rgba(96,165,250,0.2)" title="Request Edit">Edit</button><button class="btn btn-sm" onclick="requestDeleteEntry('${e.id}')" style="font-size:8px;padding:2px 5px;background:rgba(248,113,113,0.12);color:var(--red);border:1px solid rgba(248,113,113,0.2);margin-left:2px" title="Request Delete">Del</button>`;
       }
+    } else if (state.role === 'consultant') {
+      // Consultant sees approve/reject for entries with pending edit/delete requests
+      if (e.editRequestStatus === 'pending' && e.editRequestId) {
+        actionHtml = `<span style="font-size:8px;color:var(--orange);font-weight:700">${e.editRequestType==='delete'?'DEL':'EDIT'} REQ</span> `
+          + `<button class="btn btn-sm" onclick="resolveEditRequestFromEntry('${e.id}','approved')" style="font-size:8px;padding:1px 5px;background:rgba(52,211,153,0.15);color:var(--green);border:1px solid rgba(52,211,153,0.3)">Approve</button> `
+          + `<button class="btn btn-sm" onclick="resolveEditRequestFromEntry('${e.id}','rejected')" style="font-size:8px;padding:1px 5px;background:rgba(248,113,113,0.15);color:var(--red);border:1px solid rgba(248,113,113,0.3)">Reject</button>`;
+      } else if (e.editRequestStatus === 'approved' && e.editRequestType === 'edit') {
+        actionHtml = `<span class="badge approved" style="font-size:8px">Edit Approved</span>`;
+      } else if (e.status === 'pending') {
+        actionHtml = `<button class="btn btn-danger btn-sm" onclick="delEntry('${e.id}')">\u2715</button>`;
+      }
     } else {
       if (e.status === 'pending') actionHtml = `<button class="btn btn-danger btn-sm" onclick="delEntry('${e.id}')">\u2715</button>`;
     }
@@ -1480,7 +1491,25 @@ function renderApprovals(el){
     ? `<div class="card"><div class="card-title">Your Assignments</div><div style="padding:10px 14px;background:rgba(96,165,250,0.08);border:1px solid rgba(96,165,250,0.2);border-radius:10px;font-size:13px;color:var(--blue)">You are reviewing submissions from <strong>${state.assignments.map(a=>a.contractorName).join(', ')}</strong>. Only their entries appear here.</div></div>`
     : '';
 
-  el.innerHTML=`${assignInfo}<div class="card"><div class="card-title">Workflow</div>
+  // Build edit/delete requests section for consultant
+  const editReqHtml = r === 'consultant' ? (() => {
+    const editReqEntries = state.entries.filter(e => e.editRequestStatus === 'pending' && e.editRequestId);
+    if (editReqEntries.length === 0) return '';
+    return `<div class="card" style="border:1px solid rgba(251,146,60,0.3);background:rgba(251,146,60,0.03)"><div class="card-title" style="color:var(--orange)">Edit / Delete Requests (${editReqEntries.length})</div>
+    <div style="font-size:11px;color:var(--slate5);margin:-8px 14px 10px 14px">Contractors are requesting permission to edit or delete entries below</div>
+    <div class="tbl-wrap"><table><thead><tr><th>Project</th><th>Material</th><th>Type</th><th>Request</th><th>By</th><th>Reason</th><th class="r">Qty</th><th class="r">Actual</th><th>Actions</th></tr></thead>
+    <tbody>${editReqEntries.map(e => `<tr>
+      <td style="font-weight:600;color:var(--blue);font-size:11px">${e.projectName||'--'}</td>
+      <td>${e.category||'--'}</td><td>${e.type||'--'}</td>
+      <td><span class="badge ${e.editRequestType==='delete'?'rejected':'review'}" style="font-size:8px;text-transform:uppercase">${e.editRequestType||'edit'}</span></td>
+      <td style="font-size:11px">${e.editRequestBy||e.submittedBy||'--'}<br><span style="font-size:9px;color:var(--slate5)">${e.editRequestByOrg||e.organizationName||''}</span></td>
+      <td style="font-size:11px;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${(e.editRequestReason||'').replace(/"/g,'&quot;')}">${e.editRequestReason||'--'}</td>
+      <td class="r mono">${fmtI(e.qty)}</td><td class="r mono">${fmt(e.a13A)}</td>
+      <td><button class="btn btn-sm" onclick="resolveEditRequestFromEntry('${e.id}','approved')" style="font-size:9px;padding:2px 8px;background:rgba(52,211,153,0.15);color:var(--green);border:1px solid rgba(52,211,153,0.3);font-weight:700">Approve</button> <button class="btn btn-sm" onclick="resolveEditRequestFromEntry('${e.id}','rejected')" style="font-size:9px;padding:2px 8px;background:rgba(248,113,113,0.15);color:var(--red);border:1px solid rgba(248,113,113,0.3);font-weight:700">Reject</button></td>
+    </tr>`).join('')}</tbody></table></div></div>`;
+  })() : '';
+
+  el.innerHTML=`${assignInfo}${editReqHtml}<div class="card"><div class="card-title">Workflow</div>
   <div class="flow-steps"><div class="flow-step"><div class="flow-dot done">\ud83c\udfd7\ufe0f</div><div class="flow-label">Contractor</div></div><div class="flow-line done"></div><div class="flow-step"><div class="flow-dot ${r==='consultant'?'current':'done'}">\ud83d\udccb</div><div class="flow-label">Consultant</div></div><div class="flow-line ${r==='client'||r==='consultant'?'done':''}"></div><div class="flow-step"><div class="flow-dot ${r==='client'?'current':(r==='consultant'?'done':'')}">\ud83d\udc54</div><div class="flow-label">Client</div></div></div></div>
   <div class="card"><div class="card-title">${items.length} Items</div><div class="tbl-wrap"><table><thead><tr><th>Project</th><th>Month</th><th>Material</th><th>Type</th><th>By</th><th>Org</th><th class="r">Baseline</th><th class="r">Actual</th><th class="r">Reduction</th><th>Status</th>${r!=='contractor'?'<th>Actions</th>':''}</tr></thead><tbody>${items.length?items.map(e=>`<tr><td style="font-weight:600;color:var(--blue);font-size:11px">${e.projectName||'--'}</td><td>${e.monthLabel}</td><td>${e.category}</td><td>${e.type}</td><td>${e.submittedBy||'\u2014'}</td><td style="font-size:11px;color:var(--slate5)">${e.organizationName||'\u2014'}</td><td class="r mono">${fmt(e.a13B)}</td><td class="r mono">${fmt(e.a13A)}</td><td class="r mono" style="color:${e.pct>20?'var(--green)':'var(--orange)'};font-weight:700">${fmt(e.pct)}%</td><td><span class="badge ${e.status}">${e.status}</span></td>${r==='consultant'?`<td>${e.status==='pending'?`<button class="btn btn-approve btn-sm" onclick="appr('${e.id}','review')">\u2713 Forward</button> `:''}${e.status==='pending'||e.status==='review'?`<button class="btn btn-primary btn-sm" onclick="appr('${e.id}','approved')">\u2713 Approve</button> `:''}<button class="btn btn-danger btn-sm" onclick="appr('${e.id}','rejected')">\u2715 Reject</button></td>`:''}${r==='client'?`<td><button class="btn btn-approve btn-sm" onclick="appr('${e.id}','approved')">\u2713 Approve</button> <button class="btn btn-danger btn-sm" onclick="appr('${e.id}','rejected')">\u2715 Reject</button></td>`:''}</tr>`).join(''):'<tr><td colspan="11" class="empty">No pending items</td></tr>'}</tbody></table></div></div>`;
 }
