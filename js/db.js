@@ -500,12 +500,12 @@ const DB = {
     return data.projects || [];
   },
 
-  async createProject(name, description, code, pkg) {
+  async createProject(name, description, code, packageIds) {
     await ensureDbConnected();
     console.log('[DB] Creating project:', name);
     const res = await apiCall('/projects', {
       method: 'POST',
-      body: JSON.stringify({ action: 'create', name, description, code, package: pkg })
+      body: JSON.stringify({ action: 'create', name, description, code, packageIds: packageIds || {} })
     });
     const data = await safeJsonParse(res);
     if (!res.ok) {
@@ -637,5 +637,50 @@ const DB = {
       }
     } catch (e) { console.warn('API error (getProjectSummary):', e); }
     return null;
+  },
+
+  // === PACKAGE TEMPLATES ===
+  async getPackageTemplates(includeInactive) {
+    if (!dbConnected) return state.packageTemplates || [];
+    const res = await apiCall('/packageTemplates', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'list', includeInactive: !!includeInactive })
+    });
+    const data = await safeJsonParse(res);
+    if (!res.ok) throw new Error(data.error || 'Failed to load package templates.');
+    return data.templates || [];
+  },
+
+  async createPackageTemplate(name, code) {
+    await ensureDbConnected();
+    const res = await apiCall('/packageTemplates', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'create', name, code: code || '' })
+    });
+    const data = await safeJsonParse(res);
+    if (!res.ok) throw new Error(data.error || 'Failed to create package template.');
+    return data;
+  },
+
+  async updatePackageTemplate(templateId, updates) {
+    await ensureDbConnected();
+    const res = await apiCall('/packageTemplates', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'update', templateId, ...updates })
+    });
+    const data = await safeJsonParse(res);
+    if (!res.ok) throw new Error(data.error || 'Failed to update package template.');
+    return data;
+  },
+
+  async migratePackages() {
+    await ensureDbConnected();
+    const res = await apiCall('/packageTemplates', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'migrate' })
+    });
+    const data = await safeJsonParse(res);
+    if (!res.ok) throw new Error(data.error || 'Failed to run package migration.');
+    return data;
   }
 };

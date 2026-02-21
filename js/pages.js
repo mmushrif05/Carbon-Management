@@ -1062,6 +1062,33 @@ async function renderProjects(el) {
   </div>
 
   ${canManage ? `
+  <!-- Package Templates Management -->
+  <div class="card">
+    <div class="card-title">Package Templates</div>
+    <div style="padding:10px 14px;background:rgba(139,92,246,0.06);border:1px solid rgba(139,92,246,0.15);border-radius:10px;margin-bottom:14px;font-size:13px;color:var(--purple)">
+      Define reusable package templates for your tenant. Projects select from these templates.
+    </div>
+    <div id="pkgTplList" style="margin-bottom:12px"><div style="font-size:12px;color:var(--slate5);text-align:center;padding:8px">Loading templates...</div></div>
+    <div class="form-row" style="display:grid;grid-template-columns:1fr 1fr auto;gap:12px">
+      <div class="fg">
+        <label>Template Name</label>
+        <input id="pkgTplName" placeholder="e.g. Airfield, Terminal, Utilities" />
+      </div>
+      <div class="fg">
+        <label>Code (optional)</label>
+        <input id="pkgTplCode" placeholder="e.g. AF, TRM, UTL" />
+      </div>
+      <div class="fg" style="display:flex;align-items:flex-end">
+        <button class="btn btn-primary" onclick="createPackageTemplate()">+ Add Template</button>
+      </div>
+    </div>
+    <div class="login-error" id="pkgTplError" style="margin-top:12px"></div>
+    <div class="login-error" id="pkgTplSuccess" style="margin-top:12px"></div>
+    <div id="pkgMigrationBar" style="display:none;margin-top:12px;padding:10px 14px;background:rgba(251,191,36,0.08);border:1px solid rgba(251,191,36,0.2);border-radius:10px;font-size:12px;color:var(--yellow)">
+      Legacy package data detected. <button class="btn btn-sm" onclick="runPackageMigration()" style="margin-left:8px">Migrate Now</button>
+    </div>
+  </div>
+
   <!-- Create Project -->
   <div class="card">
     <div class="card-title">Create New Project</div>
@@ -1075,29 +1102,21 @@ async function renderProjects(el) {
         <input id="projCode" placeholder="e.g. PA-PH1, T2-EXP" />
       </div>
       <div class="fg">
-        <label>Package</label>
-        <select id="projPackage">
-          <option value="">Select package...</option>
-          <option value="Package 1">Package 1</option>
-          <option value="Package 2">Package 2</option>
-          <option value="Package 3">Package 3</option>
-          <option value="Package 4">Package 4</option>
-          <option value="Package 5">Package 5</option>
-          <option value="Package 6">Package 6</option>
-          <option value="Package 7">Package 7</option>
-          <option value="Package 8">Package 8</option>
-        </select>
-      </div>
-    </div>
-    <div class="form-row c3" style="margin-top:0">
-      <div class="fg">
         <label>Description (optional)</label>
         <input id="projDesc" placeholder="Brief description of the project" />
       </div>
-      <div class="fg"></div>
-      <div class="fg"></div>
     </div>
-    <div class="btn-row">
+    <div style="margin-top:8px">
+      <label style="font-size:13px;font-weight:600;margin-bottom:6px;display:block">Packages (select from templates)</label>
+      <div id="projPkgSelect" style="display:flex;flex-wrap:wrap;gap:8px;padding:10px 14px;background:var(--bg3);border-radius:10px;min-height:40px">
+        <span style="font-size:12px;color:var(--slate5)">Loading templates...</span>
+      </div>
+      <div style="margin-top:8px;display:flex;gap:8px;align-items:center">
+        <input id="projPkgInlineName" placeholder="New package name..." style="flex:1;max-width:250px;font-size:12px" />
+        <button class="btn btn-sm" onclick="inlineCreatePackageTemplate()" style="font-size:11px;white-space:nowrap">+ Add &amp; Select</button>
+      </div>
+    </div>
+    <div class="btn-row" style="margin-top:12px">
       <button class="btn btn-primary" id="projCreateBtn" onclick="createProject()">+ Create Project</button>
     </div>
     <div class="login-error" id="projError" style="margin-top:12px"></div>
@@ -1210,12 +1229,13 @@ async function loadProjectData() {
   // Track errors so we can show a warning banner if something goes wrong
   const errors = [];
 
-  const [projects, users, orgs, projAssignments, projOrgLinks] = await Promise.all([
+  const [projects, users, orgs, projAssignments, projOrgLinks, pkgTemplates] = await Promise.all([
     DB.getProjects().catch(e => { errors.push('Projects: ' + (e.message || 'failed')); return state.projects || []; }),
     DB.getUsers().catch(e => { errors.push('Users: ' + (e.message || 'failed')); return state.users || []; }),
     DB.getOrganizations().catch(e => { errors.push('Organizations: ' + (e.message || 'failed')); return state.organizations || []; }),
     DB.getProjectAssignments().catch(e => { errors.push('Assignments: ' + (e.message || 'failed')); return state.projectAssignments || []; }),
-    DB.getProjectOrgLinks().catch(e => { errors.push('Org links: ' + (e.message || 'failed')); return state.projectOrgLinks || []; })
+    DB.getProjectOrgLinks().catch(e => { errors.push('Org links: ' + (e.message || 'failed')); return state.projectOrgLinks || []; }),
+    DB.getPackageTemplates(state.role === 'client').catch(e => { errors.push('Pkg templates: ' + (e.message || 'failed')); return state.packageTemplates || []; })
   ]);
 
   state.projects = projects;
@@ -1223,11 +1243,19 @@ async function loadProjectData() {
   state.organizations = orgs;
   state.projectAssignments = projAssignments;
   state.projectOrgLinks = projOrgLinks;
+  state.packageTemplates = pkgTemplates;
 
   renderProjectList(projects);
   renderProjectOrgLinks(projOrgLinks);
   renderProjectUserAssignments(projAssignments);
+  renderPackageTemplatesList(pkgTemplates);
+  renderPackageCheckboxes(pkgTemplates);
   populateProjectDropdowns(projects, users, orgs);
+
+  // Detect legacy package data for migration banner
+  const hasLegacy = projects.some(p => p.package && typeof p.package === 'string' && !p.packageIds);
+  const migBar = $('pkgMigrationBar');
+  if (migBar) migBar.style.display = hasLegacy ? 'block' : 'none';
 
   // Show warning banner if any API calls failed
   const bannerEl = $('projDataWarning');
@@ -1275,11 +1303,28 @@ function renderProjectList(projects) {
       const statusClass = p.status === 'active' ? 'approved' : p.status === 'completed' ? 'review' : 'pending';
       const consOrgNames = consOrgs.map(l => '<span class="badge approved" style="font-size:10px;margin:1px">' + l.orgName + ' (' + (l.role || 'Consultant') + ')</span>').join(' ') || '<span style="color:var(--slate5);font-size:11px">--</span>';
       const contOrgNames = contOrgs.map(l => '<span class="badge review" style="font-size:10px;margin:1px">' + l.orgName + '</span>').join(' ') || '<span style="color:var(--slate5);font-size:11px">--</span>';
+      // Resolve packageIds to names using templates
+      const tplMap = {};
+      (state.packageTemplates || []).forEach(t => { tplMap[t.id] = t; });
+      let pkgBadges = '--';
+      if (p.packageIds && typeof p.packageIds === 'object') {
+        const ids = Object.keys(p.packageIds);
+        if (ids.length > 0) {
+          pkgBadges = ids.map(id => {
+            const tpl = tplMap[id];
+            const name = tpl ? tpl.name : id;
+            return '<span class="badge" style="background:rgba(139,92,246,0.1);color:var(--purple);font-size:10px;margin:1px">' + name + '</span>';
+          }).join(' ');
+        }
+      } else if (p.package) {
+        // Legacy single string (pre-migration)
+        pkgBadges = '<span class="badge" style="background:rgba(139,92,246,0.1);color:var(--purple);font-size:10px">' + p.package + '</span>';
+      }
       return `<tr>
         ${canManage ? `<td><input type="checkbox" class="proj-sel" value="${p.id}" onchange="updateProjSelection()" /></td>` : ''}
         <td style="font-weight:600">${p.name || ''}</td>
         <td style="color:var(--blue);font-family:monospace;font-size:12px">${p.code || '--'}</td>
-        <td><span class="badge" style="background:rgba(139,92,246,0.1);color:var(--purple);font-size:11px">${p.package || '--'}</span></td>
+        <td style="font-size:11px">${pkgBadges}</td>
         <td style="color:var(--slate5);font-size:12px;max-width:200px;overflow:hidden;text-overflow:ellipsis">${p.description || '--'}</td>
         <td style="font-size:11px">${consOrgNames}</td>
         <td style="font-size:11px">${contOrgNames}</td>
@@ -1432,22 +1477,27 @@ async function createProject() {
   const name = ($('projName') && $('projName').value || '').trim();
   const code = ($('projCode') && $('projCode').value || '').trim();
   const desc = ($('projDesc') && $('projDesc').value || '').trim();
-  const pkg = ($('projPackage') && $('projPackage').value || '').trim();
+
+  // Collect selected package template IDs from checkboxes
+  const packageIds = {};
+  document.querySelectorAll('.proj-pkg-cb:checked').forEach(cb => {
+    packageIds[cb.value] = true;
+  });
 
   if (!name) { showError('projError', 'Please enter a project name.'); return; }
 
   // Disable button and show loading state
   if (btn) { btn.disabled = true; btn.textContent = 'Creating...'; }
-  console.log('[PROJECT] Creating project:', name, code, pkg, desc);
+  console.log('[PROJECT] Creating project:', name, code, packageIds, desc);
 
   try {
-    const result = await DB.createProject(name, desc, code, pkg);
+    const result = await DB.createProject(name, desc, code, packageIds);
     console.log('[PROJECT] Create result:', result);
     showSuccess('projSuccess', 'Project "' + name + '" created successfully.');
     if ($('projName')) $('projName').value = '';
     if ($('projCode')) $('projCode').value = '';
     if ($('projDesc')) $('projDesc').value = '';
-    if ($('projPackage')) $('projPackage').value = '';
+    document.querySelectorAll('.proj-pkg-cb').forEach(cb => { cb.checked = false; });
 
     // Immediately add to state for instant UI feedback
     if (result && result.project) {
@@ -1464,6 +1514,132 @@ async function createProject() {
   } finally {
     // Always re-enable the button
     if (btn) { btn.disabled = false; btn.textContent = '+ Create Project'; }
+  }
+}
+
+// === PACKAGE TEMPLATE FUNCTIONS ===
+
+function renderPackageTemplatesList(templates) {
+  const el = $('pkgTplList');
+  if (!el) return;
+
+  if (!templates.length) {
+    el.innerHTML = '<div style="font-size:12px;color:var(--slate5);text-align:center;padding:8px">No package templates yet. Create one below.</div>';
+    return;
+  }
+
+  el.innerHTML = `<div class="tbl-wrap"><table>
+    <thead><tr><th>Name</th><th>Code</th><th>Status</th><th>Created</th><th>Actions</th></tr></thead>
+    <tbody>${templates.map(t => `<tr>
+      <td style="font-weight:600">${t.name}</td>
+      <td style="color:var(--blue);font-family:monospace;font-size:12px">${t.code || '--'}</td>
+      <td><span class="badge ${t.isActive !== false ? 'approved' : 'pending'}">${t.isActive !== false ? 'Active' : 'Inactive'}</span></td>
+      <td style="color:var(--slate5);font-size:11px">${t.createdAt ? new Date(t.createdAt).toLocaleDateString() : '--'}</td>
+      <td>${t.isActive !== false
+        ? '<button class="btn btn-danger btn-sm" onclick="deactivatePackageTemplate(\'' + t.id + '\')">Deactivate</button>'
+        : '<button class="btn btn-sm" onclick="reactivatePackageTemplate(\'' + t.id + '\')">Reactivate</button>'
+      }</td>
+    </tr>`).join('')}</tbody>
+  </table></div>`;
+}
+
+function renderPackageCheckboxes(templates) {
+  const el = $('projPkgSelect');
+  if (!el) return;
+
+  const active = templates.filter(t => t.isActive !== false);
+  if (!active.length) {
+    el.innerHTML = '<span style="font-size:12px;color:var(--slate5)">No active templates. Create one in Package Templates above.</span>';
+    return;
+  }
+
+  el.innerHTML = active.map(t =>
+    `<label style="display:flex;align-items:center;gap:4px;cursor:pointer;padding:4px 10px;background:var(--bg2);border:1px solid var(--border);border-radius:6px;font-size:12px;user-select:none">
+      <input type="checkbox" class="proj-pkg-cb" value="${t.id}" style="margin:0" />
+      <span>${t.name}</span>${t.code ? '<span style="color:var(--blue);font-size:10px;margin-left:2px">(' + t.code + ')</span>' : ''}
+    </label>`
+  ).join('');
+}
+
+async function createPackageTemplate() {
+  const errEl = $('pkgTplError');
+  const sucEl = $('pkgTplSuccess');
+  if (errEl) errEl.style.display = 'none';
+  if (sucEl) sucEl.style.display = 'none';
+
+  const name = ($('pkgTplName') && $('pkgTplName').value || '').trim();
+  const code = ($('pkgTplCode') && $('pkgTplCode').value || '').trim();
+
+  if (!name) { showError('pkgTplError', 'Template name is required.'); return; }
+
+  try {
+    await DB.createPackageTemplate(name, code);
+    showSuccess('pkgTplSuccess', 'Package template "' + name + '" created.');
+    if ($('pkgTplName')) $('pkgTplName').value = '';
+    if ($('pkgTplCode')) $('pkgTplCode').value = '';
+    await loadProjectData();
+  } catch (e) {
+    console.error('[PKG_TPL] Create failed:', e);
+    showError('pkgTplError', e.message || 'Failed to create package template.');
+  }
+}
+
+async function inlineCreatePackageTemplate() {
+  const nameEl = $('projPkgInlineName');
+  const name = (nameEl && nameEl.value || '').trim();
+  if (!name) return;
+
+  try {
+    const result = await DB.createPackageTemplate(name, '');
+    if (nameEl) nameEl.value = '';
+    // Reload templates and re-render checkboxes
+    const templates = await DB.getPackageTemplates(false);
+    state.packageTemplates = templates;
+    renderPackageTemplatesList(templates);
+    renderPackageCheckboxes(templates);
+    // Auto-select the newly created template
+    if (result && result.template) {
+      setTimeout(() => {
+        const cb = document.querySelector('.proj-pkg-cb[value="' + result.template.id + '"]');
+        if (cb) cb.checked = true;
+      }, 50);
+    }
+  } catch (e) {
+    console.error('[PKG_TPL] Inline create failed:', e);
+    showError('projError', e.message || 'Failed to create package template.');
+  }
+}
+
+async function deactivatePackageTemplate(templateId) {
+  if (!confirm('Deactivate this package template? It will no longer appear for new projects.')) return;
+  try {
+    await DB.updatePackageTemplate(templateId, { isActive: false });
+    await loadProjectData();
+  } catch (e) {
+    console.error('[PKG_TPL] Deactivate failed:', e);
+    alert(e.message || 'Failed to deactivate package template.');
+  }
+}
+
+async function reactivatePackageTemplate(templateId) {
+  try {
+    await DB.updatePackageTemplate(templateId, { isActive: true });
+    await loadProjectData();
+  } catch (e) {
+    console.error('[PKG_TPL] Reactivate failed:', e);
+    alert(e.message || 'Failed to reactivate package template.');
+  }
+}
+
+async function runPackageMigration() {
+  if (!confirm('Migrate legacy package data to templates? This will create templates from existing package names and link them to projects.')) return;
+  try {
+    const result = await DB.migratePackages();
+    alert('Migration complete: ' + (result.migrated || 0) + ' projects migrated, ' + (result.templatesCreated || 0) + ' templates created.');
+    await loadProjectData();
+  } catch (e) {
+    console.error('[PKG_TPL] Migration failed:', e);
+    alert(e.message || 'Failed to run migration.');
   }
 }
 
