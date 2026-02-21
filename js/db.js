@@ -237,6 +237,58 @@ const DB = {
     localStorage.setItem('ct_tender', JSON.stringify(scenarios));
   },
 
+  // === EDIT/DELETE REQUESTS ===
+  async getEditRequests() {
+    if (dbConnected) {
+      try {
+        const res = await apiCall('/entries', {
+          method: 'POST',
+          body: JSON.stringify({ action: 'list-requests' })
+        });
+        if (res.ok) {
+          const data = await res.json();
+          return data.requests || [];
+        }
+      } catch (e) { console.warn('API error (getEditRequests):', e); }
+    }
+    return [];
+  },
+
+  async requestChange(entryId, requestType, reason, proposedChanges) {
+    if (!dbConnected) throw new Error('Server connection required.');
+    const payload = { action: 'request-change', entryId, requestType, reason };
+    if (proposedChanges) payload.proposedChanges = proposedChanges;
+    const res = await apiCall('/entries', {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to create request.');
+    return data;
+  },
+
+  async resolveRequest(requestId, resolution) {
+    if (!dbConnected) throw new Error('Server connection required.');
+    const res = await apiCall('/entries', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'resolve-request', requestId, resolution })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to resolve request.');
+    return data;
+  },
+
+  async applyEdit(entryId, changes) {
+    if (!dbConnected) throw new Error('Server connection required.');
+    const res = await apiCall('/entries', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'apply-edit', entryId, changes })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to apply edit.');
+    return data;
+  },
+
   // === DRAFT (LOCAL BATCH) ENTRIES ===
   // Draft entries are stored only in localStorage until the contractor explicitly submits the batch.
   getDraftEntries() {

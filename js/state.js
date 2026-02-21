@@ -1,5 +1,5 @@
 // ===== APPLICATION STATE & UTILITIES =====
-let state = { role:null, name:'', uid:null, organizationId:null, organizationName:null, page:'dashboard', entries:[], a5entries:[], invitations:[], tenderScenarios:[], organizations:[], orgLinks:[], assignments:[], users:[], projects:[], projectAssignments:[], projectOrgLinks:[], packageTemplates:[], consultantPermissions:{}, selectedProjectId:null, reductionTarget:20 };
+let state = { role:null, name:'', uid:null, organizationId:null, organizationName:null, page:'dashboard', entries:[], a5entries:[], invitations:[], tenderScenarios:[], organizations:[], orgLinks:[], assignments:[], users:[], projects:[], projectAssignments:[], projectOrgLinks:[], packageTemplates:[], consultantPermissions:{}, editRequests:[], selectedProjectId:null, reductionTarget:20 };
 
 const fmt=v=>(v==null||isNaN(v))?"\u2014":v.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});
 const fmtI=v=>(v==null||isNaN(v))?"\u2014":Math.round(v).toLocaleString();
@@ -41,6 +41,11 @@ async function loadAllData() {
   } catch (e) {
     state.reductionTarget = 20;
   }
+  try {
+    state.editRequests = await DB.getEditRequests();
+  } catch (e) {
+    state.editRequests = [];
+  }
 
   // Setup real-time listeners
   // IMPORTANT: Never re-render via navigate() while user is editing a tender form (_tenderEdit !== null).
@@ -52,4 +57,11 @@ async function loadAllData() {
   DB.onEntriesChange(data => { state.entries = data; if (state.page && _safeToRefresh()) navigate(state.page); });
   DB.onA5Change(data => { state.a5entries = data; if ((state.page === 'entry_a5' || state.page === 'dashboard') && _safeToRefresh()) navigate(state.page); });
   DB.onTenderChange(data => { state.tenderScenarios = data; if ((state.page === 'tender_entry' || state.page === 'tender_compare') && _safeToRefresh()) navigate(state.page); });
+
+  // Poll edit requests for consultants and contractors
+  if (dbConnected) {
+    setInterval(async () => {
+      try { state.editRequests = await DB.getEditRequests(); } catch (e) {}
+    }, 30000);
+  }
 }

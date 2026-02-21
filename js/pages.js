@@ -194,6 +194,20 @@ function openProjectModal(idx, opts) {
 
   // --- TAB: Contributors (raw traceability table) ---
   const sorted=[...pe].sort((a,b)=>(b.a13A||0)-(a.a13A||0));
+  const isContr = r === 'contractor';
+  const _ctbActions = (e) => {
+    if (!isContr) return '';
+    // If edit is approved, show Edit button
+    if (e.editRequestStatus === 'approved' && e.editRequestType === 'edit') {
+      return `<td><button class="btn btn-sm btn-primary" onclick="openEditEntryForm(${e.id})" style="font-size:8px;padding:2px 6px">Edit Now</button></td>`;
+    }
+    // If request is pending, show waiting badge
+    if (e.editRequestStatus === 'pending') {
+      return `<td><span class="badge review" style="font-size:8px">${e.editRequestType==='delete'?'Del':'Edit'} Requested</span></td>`;
+    }
+    // Otherwise, show request buttons (only if entry is not already deleted)
+    return `<td class="edit-req-actions"><button class="btn btn-sm" onclick="requestEditEntry(${e.id})" style="font-size:8px;padding:2px 5px;background:rgba(96,165,250,0.12);color:var(--blue);border:1px solid rgba(96,165,250,0.2)" title="Request Edit">Edit</button><button class="btn btn-sm" onclick="requestDeleteEntry(${e.id})" style="font-size:8px;padding:2px 5px;background:rgba(248,113,113,0.12);color:var(--red);border:1px solid rgba(248,113,113,0.2);margin-left:2px" title="Request Delete">Del</button></td>`;
+  };
   const tabCtb=`<div class="pm-tab-pane" data-tab="contributors" style="display:${activeTab==='contributors'?'block':'none'}">
     ${sorted.length>0?`
     <div style="margin-bottom:8px;display:flex;gap:6px;flex-wrap:wrap;align-items:center">
@@ -211,7 +225,7 @@ function openProjectModal(idx, opts) {
       </select>
     </div>
     <div class="tbl-wrap" id="ctbTbl"><table>
-      <thead><tr><th>Month</th><th>Contractor</th><th>Material</th><th>Type</th><th class="r">Qty</th><th class="r">BL EF</th><th class="r">Act EF</th><th class="r">Baseline</th><th class="r">Actual</th><th class="r">Savings</th><th class="r">Red%</th><th>EPD</th><th>Status</th></tr></thead>
+      <thead><tr><th>Month</th><th>Contractor</th><th>Material</th><th>Type</th><th class="r">Qty</th><th class="r">BL EF</th><th class="r">Act EF</th><th class="r">Baseline</th><th class="r">Actual</th><th class="r">Savings</th><th class="r">Red%</th><th>EPD</th><th>Status</th>${isContr?'<th>Actions</th>':''}</tr></thead>
       <tbody>${sorted.map(e=>{const pct=e.a13B>0?((e.a13B-e.a13A)/e.a13B)*100:0;const sav=Math.max((e.a13B||0)-(e.a13A||0),0);
       const blEF=e.baselineEF||e.baseline;const acEF=e.actualEF||e.actual;
       const suspect=blEF&&acEF&&blEF>0&&acEF/blEF>10;
@@ -226,6 +240,7 @@ function openProjectModal(idx, opts) {
         <td class="r mono" style="font-size:10px;font-weight:700;color:${_rc(pct,target)}">${fmt(pct)}%${suspect?' !!':''}</td>
         <td style="font-size:9px;color:var(--blue)">${e.epdId||e.epdRef||'--'}</td>
         <td><span class="badge ${e.status||'pending'}" style="font-size:9px">${e.status||'pending'}</span></td>
+        ${_ctbActions(e)}
       </tr>`;}).join('')}</tbody></table></div>
     ${pa5.length>0?`<div style="margin-top:10px;font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;margin-bottom:4px">A5 Site (${pa5.length})</div>
     <div class="tbl-wrap"><table><thead><tr><th>Month</th><th>Source</th><th class="r">Qty</th><th>Unit</th><th class="r">Emission</th><th>By</th></tr></thead>
@@ -258,9 +273,67 @@ function openProjectModal(idx, opts) {
           <button class="pm-tab ${activeTab==='contractors'?'active':''}" onclick="_switchTab('contractors')">Contractors</button>
           <button class="pm-tab ${activeTab==='materials'?'active':''}" onclick="_switchTab('materials')">Materials</button>
           <button class="pm-tab ${activeTab==='contributors'?'active':''}" onclick="_switchTab('contributors')">Contributors</button>
+          ${r==='consultant'?`<button class="pm-tab ${activeTab==='requests'?'active':''}" onclick="_switchTab('requests')" style="color:var(--orange)">Requests${(state.editRequests||[]).filter(rq=>rq.status==='pending'&&rq.projectId===p.id).length>0?' <span style="background:var(--orange);color:#000;border-radius:50%;padding:0 5px;font-size:8px;font-weight:800;margin-left:3px">'+((state.editRequests||[]).filter(rq=>rq.status==='pending'&&rq.projectId===p.id).length)+'</span>':''}</button>`:''}
           ${r==='consultant'?`<button class="pm-tab ${activeTab==='advisor'?'active':''}" onclick="_switchTab('advisor')" style="color:var(--purple)">AI Advisor</button>`:''}
         </div>
         ${tabOv}${tabCon}${tabMat}${tabCtb}
+        ${r==='consultant'?(() => {
+          const projReqs = (state.editRequests||[]).filter(rq=>rq.projectId===p.id).sort((a,b)=>(a.status==='pending'?0:1)-(b.status==='pending'?0:1)||(new Date(b.requestedAt)-new Date(a.requestedAt)));
+          const pendingReqs = projReqs.filter(rq=>rq.status==='pending');
+          const resolvedReqs = projReqs.filter(rq=>rq.status!=='pending');
+          return `<div class="pm-tab-pane" data-tab="requests" style="display:${activeTab==='requests'?'block':'none'}">
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+              <div style="width:36px;height:36px;border-radius:10px;background:rgba(251,146,60,0.15);display:flex;align-items:center;justify-content:center;font-size:18px">&#x1F4DD;</div>
+              <div>
+                <div style="font-size:14px;font-weight:800;color:var(--text)">Edit / Delete Requests</div>
+                <div style="font-size:10px;color:var(--slate5)">Contractors request permission to edit or delete their submitted entries</div>
+              </div>
+            </div>
+            ${pendingReqs.length>0?`<div style="font-size:10px;font-weight:700;letter-spacing:1px;color:var(--orange);text-transform:uppercase;margin-bottom:8px">Pending Requests (${pendingReqs.length})</div>
+            ${pendingReqs.map(rq=>{
+              const origEntry = (state.entries||[]).find(e=>String(e.id)===String(rq.entryId));
+              return `<div class="edit-request-card pending">
+                <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px">
+                  <div>
+                    <span class="badge ${rq.requestType==='delete'?'rejected':'review'}" style="font-size:8px;text-transform:uppercase">${rq.requestType}</span>
+                    <span style="font-size:12px;font-weight:700;color:var(--text);margin-left:6px">${rq.entryCategory} \u2014 ${rq.entryType}</span>
+                  </div>
+                  <div style="font-size:9px;color:var(--slate5)">${rq.entryMonth||''}</div>
+                </div>
+                <div style="font-size:11px;color:var(--slate4);margin-bottom:4px">
+                  <strong>By:</strong> ${rq.requestedBy} (${rq.organizationName||'--'})
+                </div>
+                <div style="font-size:11px;color:var(--slate4);margin-bottom:8px">
+                  <strong>Reason:</strong> ${rq.reason||'No reason provided'}
+                </div>
+                ${origEntry?`<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:8px;padding:8px;background:var(--bg4);border-radius:6px">
+                  <div style="text-align:center"><div style="font-size:8px;color:var(--slate5)">Qty</div><div style="font-size:11px;font-weight:700;color:var(--text)">${fmtI(origEntry.qty)}</div></div>
+                  <div style="text-align:center"><div style="font-size:8px;color:var(--slate5)">Baseline</div><div style="font-size:11px;font-weight:700;color:var(--slate3)">${fmt(origEntry.a13B)}</div></div>
+                  <div style="text-align:center"><div style="font-size:8px;color:var(--slate5)">Actual</div><div style="font-size:11px;font-weight:700;color:var(--blue)">${fmt(origEntry.a13A)}</div></div>
+                  <div style="text-align:center"><div style="font-size:8px;color:var(--slate5)">Red%</div><div style="font-size:11px;font-weight:700;color:${_rc(origEntry.pct||0,target)}">${fmt(origEntry.pct||0)}%</div></div>
+                </div>`:''}
+                <div style="display:flex;gap:6px;justify-content:flex-end">
+                  <button class="btn btn-sm" onclick="resolveEditRequest('${rq.id}','approved')" style="background:rgba(52,211,153,0.15);color:var(--green);border:1px solid rgba(52,211,153,0.3);padding:4px 12px;font-size:10px;font-weight:700">\u2713 Approve</button>
+                  <button class="btn btn-sm" onclick="resolveEditRequest('${rq.id}','rejected')" style="background:rgba(248,113,113,0.15);color:var(--red);border:1px solid rgba(248,113,113,0.3);padding:4px 12px;font-size:10px;font-weight:700">\u2715 Reject</button>
+                </div>
+              </div>`;}).join('')}`
+            :'<div style="padding:20px;text-align:center;color:var(--green);font-size:12px;background:rgba(52,211,153,0.05);border-radius:8px;margin-bottom:14px">No pending requests</div>'}
+            ${resolvedReqs.length>0?`<div style="font-size:10px;font-weight:700;letter-spacing:1px;color:var(--slate5);text-transform:uppercase;margin:14px 0 8px">History (${resolvedReqs.length})</div>
+            ${resolvedReqs.slice(0,10).map(rq=>`<div class="edit-request-card resolved" style="opacity:0.7">
+              <div style="display:flex;justify-content:space-between;align-items:center">
+                <div>
+                  <span class="badge ${rq.requestType==='delete'?'rejected':'review'}" style="font-size:8px;text-transform:uppercase">${rq.requestType}</span>
+                  <span style="font-size:11px;font-weight:600;color:var(--text);margin-left:6px">${rq.entryCategory} \u2014 ${rq.entryType}</span>
+                  <span style="font-size:10px;color:var(--slate5);margin-left:6px">by ${rq.requestedBy}</span>
+                </div>
+                <div>
+                  <span class="badge ${rq.status}" style="font-size:8px">${rq.status}</span>
+                  <span style="font-size:9px;color:var(--slate6);margin-left:4px">by ${rq.resolvedBy||'--'}</span>
+                </div>
+              </div>
+            </div>`).join('')}`:''}
+          </div>`;
+        })():''}
         ${r==='consultant'?`<div class="pm-tab-pane" data-tab="advisor" style="display:${activeTab==='advisor'?'block':'none'}">
           <div class="ai-advisor-panel">
             <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
@@ -311,6 +384,7 @@ function openProjectModal(idx, opts) {
       </div>
     </div>`;
   document.body.appendChild(ov);
+  ov.setAttribute('data-proj-idx', idx);
   requestAnimationFrame(()=>{ov.classList.add('pm-visible');document.getElementById('pmSheet').classList.add('pm-sheet-visible');});
   ov.addEventListener('click',e=>{if(e.target===ov)closeProjectModal();});
   const escH=e=>{if(e.key==='Escape'){closeProjectModal();document.removeEventListener('keydown',escH);}};
@@ -320,8 +394,8 @@ function openProjectModal(idx, opts) {
 
 function _switchTab(tab) {
   document.querySelectorAll('.pm-tab-pane').forEach(el=>{el.style.display=el.getAttribute('data-tab')===tab?'block':'none';});
-  const tabMap={'Overview':'overview','Contractors':'contractors','Materials':'materials','Contributors':'contributors','AI Advisor':'advisor'};
-  document.querySelectorAll('.pm-tab').forEach(btn=>{btn.classList.toggle('active',(tabMap[btn.textContent]||btn.textContent.toLowerCase())===tab);});
+  const tabMap={'Overview':'overview','Contractors':'contractors','Materials':'materials','Contributors':'contributors','AI Advisor':'advisor','Requests':'requests'};
+  document.querySelectorAll('.pm-tab').forEach(btn=>{const txt=btn.textContent.trim().replace(/\s*\d+$/,'');btn.classList.toggle('active',(tabMap[txt]||txt.toLowerCase())===tab);});
 }
 
 function _filterCtb(val, field) {
@@ -922,15 +996,227 @@ async function submitEntry(){
 function renderRecent(){
   const t=$('reTbl');if(!t)return;
   const r=[...state.entries].reverse().slice(0,15);
+  const isContr = state.role === 'contractor';
   t.innerHTML=r.length?r.map(e=>{const blEF=e.baselineEF||e.baseline;const acEF=e.actualEF||e.actual;const suspect=blEF&&acEF&&blEF>0&&acEF/blEF>10;const pct=e.a13B>0?((e.a13B-e.a13A)/e.a13B)*100:0;
+    // Action column logic for contractor
+    let actionHtml = '';
+    if (isContr) {
+      if (e.status === 'pending' && !e.editRequestStatus) {
+        actionHtml = `<button class="btn btn-danger btn-sm" onclick="delEntry(${e.id})">\u2715</button>`;
+      } else if (e.editRequestStatus === 'approved' && e.editRequestType === 'edit') {
+        actionHtml = `<button class="btn btn-sm btn-primary" onclick="openEditEntryForm(${e.id})" style="font-size:9px;padding:2px 6px">Edit</button>`;
+      } else if (e.editRequestStatus === 'pending') {
+        actionHtml = `<span class="badge review" style="font-size:8px">${e.editRequestType==='delete'?'Del':'Edit'} Req</span>`;
+      } else if (e.status !== 'pending') {
+        actionHtml = `<button class="btn btn-sm" onclick="requestEditEntry(${e.id})" style="font-size:8px;padding:2px 5px;background:rgba(96,165,250,0.12);color:var(--blue);border:1px solid rgba(96,165,250,0.2)" title="Request Edit">Edit</button><button class="btn btn-sm" onclick="requestDeleteEntry(${e.id})" style="font-size:8px;padding:2px 5px;background:rgba(248,113,113,0.12);color:var(--red);border:1px solid rgba(248,113,113,0.2);margin-left:2px" title="Request Delete">Del</button>`;
+      }
+    } else {
+      if (e.status === 'pending') actionHtml = `<button class="btn btn-danger btn-sm" onclick="delEntry(${e.id})">\u2715</button>`;
+    }
     return`<tr${suspect?' style="background:rgba(248,113,113,0.06)"':''}>
     <td style="font-weight:600;color:var(--blue);font-size:11px">${e.projectName||'--'}</td><td>${e.monthLabel}</td><td>${e.category}</td><td>${e.type}</td>
     <td class="r mono">${fmtI(e.qty)}</td><td class="r mono">${fmt(e.a13B)}</td><td class="r mono"${suspect?' style="color:var(--red)"':''}>${fmt(e.a13A)}${suspect?' !':''}</td><td class="r mono">${fmt(e.a4)}</td><td class="r mono" style="font-weight:700">${fmt(e.a14)}</td>
     <td><span class="badge ${e.status}">${e.status}</span></td>
-    <td>${e.status==='pending'?`<button class="btn btn-danger btn-sm" onclick="delEntry(${e.id})">\u2715</button>`:''}</td></tr>`;}).join(''):'<tr><td colspan="11" class="empty">No entries</td></tr>';
+    <td>${actionHtml}</td></tr>`;}).join(''):'<tr><td colspan="11" class="empty">No entries</td></tr>';
 }
 
 async function delEntry(id){await DB.deleteEntry(id);state.entries=state.entries.filter(e=>e.id!==id);navigate(state.page);}
+
+// ===== EDIT/DELETE REQUEST WORKFLOW =====
+
+// Contractor requests permission to edit an entry
+async function requestEditEntry(entryId) {
+  const entry = state.entries.find(e => e.id === entryId);
+  if (!entry) { alert('Entry not found'); return; }
+  const reason = prompt('Reason for edit request:\n(e.g. "Wrong EF value entered", "Quantity correction needed")');
+  if (reason === null) return;
+  if (!reason.trim()) { alert('Please provide a reason for the edit request.'); return; }
+  try {
+    const res = await DB.requestChange(entryId, 'edit', reason.trim());
+    entry.editRequestId = res.requestId;
+    entry.editRequestType = 'edit';
+    entry.editRequestStatus = 'pending';
+    state.editRequests = await DB.getEditRequests();
+    alert('Edit request sent to consultant for approval.');
+    navigate(state.page);
+  } catch (e) { alert('Failed: ' + (e.message || 'Unknown error')); }
+}
+
+// Contractor requests permission to delete an entry
+async function requestDeleteEntry(entryId) {
+  const entry = state.entries.find(e => e.id === entryId);
+  if (!entry) { alert('Entry not found'); return; }
+  const reason = prompt('Reason for deletion request:\n(e.g. "Duplicate entry", "Wrong project")');
+  if (reason === null) return;
+  if (!reason.trim()) { alert('Please provide a reason for the delete request.'); return; }
+  if (!confirm('Request deletion of this entry?\n\n' + entry.category + ' - ' + entry.type + '\nQty: ' + fmtI(entry.qty) + ', Actual: ' + fmt(entry.a13A) + ' tCO\u2082')) return;
+  try {
+    await DB.requestChange(entryId, 'delete', reason.trim());
+    entry.editRequestId = true;
+    entry.editRequestType = 'delete';
+    entry.editRequestStatus = 'pending';
+    state.editRequests = await DB.getEditRequests();
+    alert('Delete request sent to consultant for approval.');
+    navigate(state.page);
+  } catch (e) { alert('Failed: ' + (e.message || 'Unknown error')); }
+}
+
+// Consultant approves or rejects a request
+async function resolveEditRequest(requestId, resolution) {
+  const req = state.editRequests.find(r => r.id === requestId);
+  if (!req) { alert('Request not found'); return; }
+  const action = resolution === 'approved' ? 'approve' : 'reject';
+  if (!confirm(action.charAt(0).toUpperCase() + action.slice(1) + ' this ' + req.requestType + ' request from ' + req.requestedBy + '?')) return;
+  try {
+    const res = await DB.resolveRequest(requestId, resolution);
+    req.status = resolution;
+    // If delete was approved, remove entry from local state
+    if (resolution === 'approved' && req.requestType === 'delete') {
+      state.entries = state.entries.filter(e => e.id !== req.entryId);
+    } else if (resolution === 'approved' && req.requestType === 'edit') {
+      const entry = state.entries.find(e => e.id === req.entryId);
+      if (entry) entry.editRequestStatus = 'approved';
+    } else {
+      // Rejected — clear flags
+      const entry = state.entries.find(e => e.id === req.entryId);
+      if (entry) { entry.editRequestId = null; entry.editRequestType = null; entry.editRequestStatus = null; }
+    }
+    state.editRequests = await DB.getEditRequests();
+    // Re-open the modal on the requests tab
+    const modalEl = document.getElementById('projectModalOverlay');
+    if (modalEl) {
+      const projIdx = modalEl.getAttribute('data-proj-idx');
+      if (projIdx !== null) openProjectModal(parseInt(projIdx), {tab:'requests'});
+    } else {
+      navigate(state.page);
+    }
+  } catch (e) { alert('Failed: ' + (e.message || 'Unknown error')); }
+}
+
+// Contractor opens edit form for an approved-edit entry
+function openEditEntryForm(entryId) {
+  const entry = state.entries.find(e => e.id === entryId);
+  if (!entry) { alert('Entry not found'); return; }
+  if (entry.editRequestStatus !== 'approved') { alert('Edit not yet approved.'); return; }
+
+  // Remove old edit overlay
+  const old = document.getElementById('editEntryOverlay'); if (old) old.remove();
+  const ov = document.createElement('div');
+  ov.id = 'editEntryOverlay';
+  ov.className = 'pm-overlay';
+
+  const m = MATERIALS[entry.category];
+  const efUnit = m ? m.efUnit : '';
+  const unit = m ? m.unit : '';
+
+  ov.innerHTML = `
+    <div class="pm-sheet" id="editSheet" style="max-height:70vh">
+      <div class="pm-handle" onclick="closeEditForm()"><div class="pm-handle-bar"></div></div>
+      <div class="pm-close" onclick="closeEditForm()">&times;</div>
+      <div class="pm-scroll">
+        <div style="font-size:16px;font-weight:800;color:var(--text);margin-bottom:4px">Edit Entry</div>
+        <div style="font-size:11px;color:var(--slate5);margin-bottom:14px">${entry.category} \u2014 ${entry.type} | ${entry.monthLabel} | ${entry.projectName||''}</div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:14px">
+          <div class="fg"><label style="font-size:10px;font-weight:700;color:var(--text3)">Quantity (${unit})</label>
+            <input type="number" id="editQty" value="${entry.qty}" style="width:100%;padding:8px 10px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px"></div>
+          <div class="fg"><label style="font-size:10px;font-weight:700;color:var(--text3)">Actual EF (${efUnit})</label>
+            <input type="number" id="editActEF" value="${entry.actualEF||entry.actual||''}" step="0.01" style="width:100%;padding:8px 10px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px"></div>
+          <div class="fg"><label style="font-size:10px;font-weight:700;color:var(--text3)">Baseline EF</label>
+            <input id="editBlEF" value="${entry.baselineEF||entry.baseline||''} ${efUnit}" readonly class="fg-readonly" style="width:100%;padding:8px 10px;background:var(--bg4);border:1px solid var(--border2);border-radius:8px;color:var(--slate5);font-size:13px"></div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:14px">
+          <div class="fg"><label style="font-size:10px;font-weight:700;color:var(--text3)">Road (km)</label>
+            <input type="number" id="editRoad" value="${entry.road||0}" style="width:100%;padding:8px 10px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px"></div>
+          <div class="fg"><label style="font-size:10px;font-weight:700;color:var(--text3)">Sea (km)</label>
+            <input type="number" id="editSea" value="${entry.sea||0}" style="width:100%;padding:8px 10px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px"></div>
+          <div class="fg"><label style="font-size:10px;font-weight:700;color:var(--text3)">Train (km)</label>
+            <input type="number" id="editTrain" value="${entry.train||0}" style="width:100%;padding:8px 10px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px"></div>
+        </div>
+        <div class="fg" style="margin-bottom:14px"><label style="font-size:10px;font-weight:700;color:var(--text3)">Notes</label>
+          <input id="editNotes" value="${entry.notes||''}" style="width:100%;padding:8px 10px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px"></div>
+        <div id="editPreview" style="margin-bottom:14px"></div>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-primary" onclick="applyEntryEdit(${entryId})" style="flex:1">Save Changes</button>
+          <button class="btn btn-secondary" onclick="closeEditForm()">Cancel</button>
+        </div>
+      </div>
+    </div>`;
+
+  document.body.appendChild(ov);
+  requestAnimationFrame(() => { ov.classList.add('pm-visible'); document.getElementById('editSheet').classList.add('pm-sheet-visible'); });
+  ov.addEventListener('click', e => { if (e.target === ov) closeEditForm(); });
+
+  // Preview the recalculated values
+  previewEdit(entryId);
+  ['editQty', 'editActEF', 'editRoad', 'editSea', 'editTrain'].forEach(id => {
+    const el = $(id); if (el) el.addEventListener('input', () => previewEdit(entryId));
+  });
+}
+
+function previewEdit(entryId) {
+  const entry = state.entries.find(e => e.id === entryId);
+  if (!entry) return;
+  const prev = $('editPreview'); if (!prev) return;
+  const q = parseFloat($('editQty').value), a = parseFloat($('editActEF').value);
+  if (isNaN(q) || isNaN(a) || q <= 0 || a <= 0) { prev.innerHTML = ''; return; }
+  const m = MATERIALS[entry.category]; if (!m) return;
+  const t = m.types.find(t => t.name === entry.type); if (!t) return;
+  const mass = q * m.massFactor;
+  const rd = parseFloat($('editRoad').value) || 0, se = parseFloat($('editSea').value) || 0, tr = parseFloat($('editTrain').value) || 0;
+  const b = (q * t.baseline) / 1000, ac = (q * a) / 1000, a4 = (mass * rd * TEF.road + mass * se * TEF.sea + mass * tr * TEF.train) / 1000;
+  const tot = ac + a4, pct = b > 0 ? ((b - ac) / b) * 100 : 0;
+  const rc = _rc(pct, state.reductionTarget || 20);
+  prev.innerHTML = `<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px">
+    <div style="padding:8px;background:var(--bg3);border-radius:8px;text-align:center"><div style="font-size:9px;color:var(--slate5)">Baseline</div><div style="font-size:14px;font-weight:800;color:var(--slate3)">${fmt(b)}</div></div>
+    <div style="padding:8px;background:var(--bg3);border-radius:8px;text-align:center"><div style="font-size:9px;color:var(--slate5)">Actual</div><div style="font-size:14px;font-weight:800;color:var(--blue)">${fmt(ac)}</div></div>
+    <div style="padding:8px;background:var(--bg3);border-radius:8px;text-align:center"><div style="font-size:9px;color:var(--slate5)">A4</div><div style="font-size:14px;font-weight:800;color:var(--orange)">${fmt(a4)}</div></div>
+    <div style="padding:8px;background:var(--bg3);border-radius:8px;text-align:center"><div style="font-size:9px;color:var(--slate5)">Reduction</div><div style="font-size:14px;font-weight:800;color:${rc}">${fmt(pct)}%</div></div>
+  </div>`;
+}
+
+async function applyEntryEdit(entryId) {
+  const entry = state.entries.find(e => e.id === entryId);
+  if (!entry) { alert('Entry not found'); return; }
+  const q = parseFloat($('editQty').value), a = parseFloat($('editActEF').value);
+  if (isNaN(q) || isNaN(a) || q <= 0 || a <= 0) { alert('Enter valid Quantity and Actual EF.'); return; }
+
+  const m = MATERIALS[entry.category]; if (!m) { alert('Material not found'); return; }
+  const t = m.types.find(t => t.name === entry.type); if (!t) { alert('Type not found'); return; }
+  const mass = q * m.massFactor;
+  const rd = parseFloat($('editRoad').value) || 0, se = parseFloat($('editSea').value) || 0, tr = parseFloat($('editTrain').value) || 0;
+  const b = (q * t.baseline) / 1000, ac = (q * a) / 1000, a4 = (mass * rd * TEF.road + mass * se * TEF.sea + mass * tr * TEF.train) / 1000;
+  const pct = b > 0 ? ((b - ac) / b) * 100 : 0;
+
+  const changes = {
+    qty: q, actual: a, actualEF: a,
+    road: rd, sea: se, train: tr,
+    a13B: b, a13A: ac, a4, a14: ac + a4, pct,
+    notes: $('editNotes').value || ''
+  };
+
+  if (!confirm('Apply these changes? The entry will be re-submitted for review.')) return;
+
+  try {
+    await DB.applyEdit(entryId, changes);
+    // Update local state
+    Object.assign(entry, changes);
+    entry.editRequestId = null;
+    entry.editRequestType = null;
+    entry.editRequestStatus = null;
+    entry.status = 'pending';
+    state.editRequests = await DB.getEditRequests();
+    closeEditForm();
+    alert('Changes applied. Entry re-submitted for review.');
+    navigate(state.page);
+  } catch (e) { alert('Failed: ' + (e.message || 'Unknown error')); }
+}
+
+function closeEditForm() {
+  const ov = document.getElementById('editEntryOverlay'); if (!ov) return;
+  const sh = document.getElementById('editSheet'); if (sh) sh.classList.remove('pm-sheet-visible');
+  ov.classList.remove('pm-visible'); setTimeout(() => ov.remove(), 350);
+}
 
 // ===== A5 =====
 function renderA5(el){

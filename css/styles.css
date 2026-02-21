@@ -274,4 +274,11 @@ td.mono{font-family:'Courier New',monospace;font-size:11px}
 .ai-result-body{font-size:11px;line-height:1.7;color:var(--slate3)}
 .ai-result-body strong{color:var(--text)}
 
+/* ===== EDIT/DELETE REQUESTS ===== */
+.edit-request-card{padding:12px 14px;background:var(--bg3);border-radius:10px;margin-bottom:8px;border:1px solid var(--border)}
+.edit-request-card.pending{border-left:3px solid var(--orange);background:rgba(251,146,60,0.03)}
+.edit-request-card.resolved{border-left:3px solid var(--slate6)}
+.edit-req-actions{white-space:nowrap}
+.edit-req-actions .btn{cursor:pointer;border-radius:4px}
+
 @media(max-width:768px){.pm-sheet{max-width:100%}.pm-scroll{padding:8px 14px 24px}.pcard-grid{grid-template-columns:repeat(auto-fill,minmax(160px,1fr))}.dash-decision-row{grid-template-columns:1fr 1fr}.dash-kpi-row{gap:8px}.dash-kpi-v{font-size:16px}}

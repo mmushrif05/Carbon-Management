@@ -196,6 +196,208 @@ async function handleDelete(event, body) {
   }
 }
 
+// ===== EDIT/DELETE REQUEST WORKFLOW =====
+
+// Contractor requests permission to edit or delete an entry
+async function handleRequestChange(event, body) {
+  const decoded = await verifyToken(event);
+  if (!decoded) return respond(401, { error: 'Unauthorized' });
+
+  const { entryId, requestType, reason, proposedChanges } = body;
+  if (!entryId || !requestType) return respond(400, { error: 'entryId and requestType required' });
+  if (!['edit', 'delete'].includes(requestType)) return respond(400, { error: 'requestType must be edit or delete' });
+
+  try {
+    const db = getDb();
+    const profile = await getUserProfile(decoded.uid);
+
+    // Verify the entry exists and belongs to the requester
+    const entrySnap = await db.ref('projects/ksia/entries/' + entryId).once('value');
+    const entry = entrySnap.val();
+    if (!entry) return respond(404, { error: 'Entry not found' });
+    if (entry.submittedByUid !== decoded.uid) {
+      return respond(403, { error: 'You can only request changes to your own entries' });
+    }
+
+    const requestId = Date.now() + '_' + Math.random().toString(36).substr(2, 6);
+    const request = {
+      id: requestId,
+      entryId,
+      requestType,
+      reason: reason || '',
+      proposedChanges: requestType === 'edit' ? (proposedChanges || {}) : null,
+      status: 'pending',
+      requestedBy: decoded.name || decoded.email,
+      requestedByUid: decoded.uid,
+      organizationId: profile ? profile.organizationId : null,
+      organizationName: profile ? profile.organizationName : null,
+      projectId: entry.projectId || null,
+      projectName: entry.projectName || null,
+      entryCategory: entry.category,
+      entryType: entry.type,
+      entryMonth: entry.monthLabel,
+      requestedAt: new Date().toISOString()
+    };
+
+    await db.ref('projects/ksia/editRequests/' + requestId).set(request);
+
+    // Also mark the entry with a pending request flag
+    await db.ref('projects/ksia/entries/' + entryId).update({
+      editRequestId: requestId,
+      editRequestType: requestType,
+      editRequestStatus: 'pending'
+    });
+
+    return respond(200, { success: true, requestId });
+  } catch (e) {
+    return respond(500, { error: 'Failed to create change request' });
+  }
+}
+
+// List edit/delete requests (for consultant/client approval)
+async function handleListRequests(event) {
+  const decoded = await verifyToken(event);
+  if (!decoded) return respond(401, { error: 'Unauthorized' });
+
+  try {
+    const db = getDb();
+    const profile = await getUserProfile(decoded.uid);
+    const snap = await db.ref('projects/ksia/editRequests').once('value');
+    const data = snap.val();
+    let requests = data ? Object.values(data) : [];
+
+    // Filter by role
+    if (profile && profile.role === 'contractor') {
+      requests = requests.filter(r => r.requestedByUid === decoded.uid);
+    } else if (profile && profile.role === 'consultant') {
+      const assignedContractors = await getAssignedContractorUids(decoded.uid);
+      if (assignedContractors.length > 0) {
+        requests = requests.filter(r =>
+          r.requestedByUid === decoded.uid ||
+          assignedContractors.includes(r.requestedByUid)
+        );
+      }
+    }
+    // Client sees all
+
+    return respond(200, { requests });
+  } catch (e) {
+    return respond(500, { error: 'Failed to load requests' });
+  }
+}
+
+// Consultant/client approves or rejects a change request
+async function handleResolveRequest(event, body) {
+  const decoded = await verifyToken(event);
+  if (!decoded) return respond(401, { error: 'Unauthorized' });
+
+  const { requestId, resolution } = body;
+  if (!requestId || !resolution) return respond(400, { error: 'requestId and resolution required' });
+  if (!['approved', 'rejected'].includes(resolution)) return respond(400, { error: 'resolution must be approved or rejected' });
+
+  try {
+    const db = getDb();
+    const profile = await getUserProfile(decoded.uid);
+
+    // Only consultants and clients can resolve requests
+    if (profile && profile.role === 'contractor') {
+      return respond(403, { error: 'Contractors cannot approve/reject requests' });
+    }
+
+    const reqSnap = await db.ref('projects/ksia/editRequests/' + requestId).once('value');
+    const request = reqSnap.val();
+    if (!request) return respond(404, { error: 'Request not found' });
+    if (request.status !== 'pending') return respond(400, { error: 'Request already resolved' });
+
+    // Update request status
+    await db.ref('projects/ksia/editRequests/' + requestId).update({
+      status: resolution,
+      resolvedBy: decoded.name || decoded.email,
+      resolvedByUid: decoded.uid,
+      resolvedAt: new Date().toISOString()
+    });
+
+    // Update the entry's request flag
+    const entryRef = db.ref('projects/ksia/entries/' + request.entryId);
+    const entrySnap = await entryRef.once('value');
+    const entry = entrySnap.val();
+
+    if (entry) {
+      if (resolution === 'approved') {
+        if (request.requestType === 'delete') {
+          // Delete approved — remove the entry
+          await entryRef.remove();
+        } else if (request.requestType === 'edit') {
+          // Edit approved — mark entry as editable by the contractor
+          await entryRef.update({
+            editRequestStatus: 'approved',
+            editApprovedBy: decoded.name || decoded.email,
+            editApprovedAt: new Date().toISOString()
+          });
+        }
+      } else {
+        // Rejected — clear the request flags from the entry
+        await entryRef.update({
+          editRequestId: null,
+          editRequestType: null,
+          editRequestStatus: null
+        });
+      }
+    }
+
+    return respond(200, { success: true, deleted: resolution === 'approved' && request.requestType === 'delete' });
+  } catch (e) {
+    return respond(500, { error: 'Failed to resolve request' });
+  }
+}
+
+// Contractor applies approved edit changes
+async function handleApplyEdit(event, body) {
+  const decoded = await verifyToken(event);
+  if (!decoded) return respond(401, { error: 'Unauthorized' });
+
+  const { entryId, changes } = body;
+  if (!entryId || !changes) return respond(400, { error: 'entryId and changes required' });
+
+  try {
+    const db = getDb();
+    const entryRef = db.ref('projects/ksia/entries/' + entryId);
+    const entrySnap = await entryRef.once('value');
+    const entry = entrySnap.val();
+
+    if (!entry) return respond(404, { error: 'Entry not found' });
+    if (entry.submittedByUid !== decoded.uid) return respond(403, { error: 'Not your entry' });
+    if (entry.editRequestStatus !== 'approved') return respond(403, { error: 'Edit not approved' });
+
+    // Only allow updating data fields (not status/metadata)
+    const editableFields = ['qty', 'actual', 'actualEF', 'road', 'sea', 'train', 'notes',
+      'a13B', 'a13A', 'a4', 'a14', 'pct', 'epdId', 'epdRef'];
+    const safeChanges = {};
+    for (const key of Object.keys(changes)) {
+      if (editableFields.includes(key)) {
+        safeChanges[key] = changes[key];
+      }
+    }
+
+    if (Object.keys(safeChanges).length === 0) return respond(400, { error: 'No valid changes' });
+
+    // Apply changes and clear edit flags, reset status to pending for re-review
+    safeChanges.editRequestId = null;
+    safeChanges.editRequestType = null;
+    safeChanges.editRequestStatus = null;
+    safeChanges.editApprovedBy = null;
+    safeChanges.editApprovedAt = null;
+    safeChanges.status = 'pending';
+    safeChanges.lastEditedAt = new Date().toISOString();
+    safeChanges.lastEditedBy = decoded.name || decoded.email;
+
+    await entryRef.update(safeChanges);
+    return respond(200, { success: true });
+  } catch (e) {
+    return respond(500, { error: 'Failed to apply edit' });
+  }
+}
+
 exports.handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return optionsResponse();
 
@@ -209,11 +411,15 @@ exports.handler = async (event) => {
       const { action } = body;
 
       switch (action) {
-        case 'save':       return await handleSave(event, body);
-        case 'batch-save': return await handleBatchSave(event, body);
-        case 'update':     return await handleUpdate(event, body);
-        case 'delete':     return await handleDelete(event, body);
-        default:           return respond(400, { error: 'Invalid action' });
+        case 'save':            return await handleSave(event, body);
+        case 'batch-save':      return await handleBatchSave(event, body);
+        case 'update':          return await handleUpdate(event, body);
+        case 'delete':          return await handleDelete(event, body);
+        case 'request-change':  return await handleRequestChange(event, body);
+        case 'list-requests':   return await handleListRequests(event);
+        case 'resolve-request': return await handleResolveRequest(event, body);
+        case 'apply-edit':      return await handleApplyEdit(event, body);
+        default:                return respond(400, { error: 'Invalid action' });
       }
     }
 
