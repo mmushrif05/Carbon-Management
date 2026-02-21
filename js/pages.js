@@ -273,12 +273,12 @@ function openProjectModal(idx, opts) {
           <button class="pm-tab ${activeTab==='contractors'?'active':''}" onclick="_switchTab('contractors')">Contractors</button>
           <button class="pm-tab ${activeTab==='materials'?'active':''}" onclick="_switchTab('materials')">Materials</button>
           <button class="pm-tab ${activeTab==='contributors'?'active':''}" onclick="_switchTab('contributors')">Contributors</button>
-          ${(r==='consultant'||r==='contractor')?`<button class="pm-tab ${activeTab==='requests'?'active':''}" onclick="_switchTab('requests')" style="color:var(--orange)">Requests${(state.editRequests||[]).filter(rq=>rq.status==='pending'&&rq.projectId===p.id).length>0?' <span style="background:var(--orange);color:#000;border-radius:50%;padding:0 5px;font-size:8px;font-weight:800;margin-left:3px">'+((state.editRequests||[]).filter(rq=>rq.status==='pending'&&rq.projectId===p.id).length)+'</span>':''}</button>`:''}
+          ${(r==='consultant'||r==='contractor')?`<button class="pm-tab ${activeTab==='requests'?'active':''}" onclick="_switchTab('requests')" style="color:var(--orange)">Requests${(state.editRequests||[]).filter(rq=>rq.status==='pending'&&String(rq.projectId)===String(p.id)).length>0?' <span style="background:var(--orange);color:#000;border-radius:50%;padding:0 5px;font-size:8px;font-weight:800;margin-left:3px">'+((state.editRequests||[]).filter(rq=>rq.status==='pending'&&String(rq.projectId)===String(p.id)).length)+'</span>':''}</button>`:''}
           ${r==='consultant'?`<button class="pm-tab ${activeTab==='advisor'?'active':''}" onclick="_switchTab('advisor')" style="color:var(--purple)">AI Advisor</button>`:''}
         </div>
         ${tabOv}${tabCon}${tabMat}${tabCtb}
         ${(r==='consultant'||r==='contractor')?(() => {
-          const projReqs = (state.editRequests||[]).filter(rq=>rq.projectId===p.id).sort((a,b)=>(a.status==='pending'?0:1)-(b.status==='pending'?0:1)||(new Date(b.requestedAt)-new Date(a.requestedAt)));
+          const projReqs = (state.editRequests||[]).filter(rq=>String(rq.projectId)===String(p.id)).sort((a,b)=>(a.status==='pending'?0:1)-(b.status==='pending'?0:1)||(new Date(b.requestedAt)-new Date(a.requestedAt)));
           const pendingReqs = projReqs.filter(rq=>rq.status==='pending');
           const resolvedReqs = projReqs.filter(rq=>rq.status!=='pending');
           return `<div class="pm-tab-pane" data-tab="requests" style="display:${activeTab==='requests'?'block':'none'}">
@@ -394,10 +394,23 @@ function openProjectModal(idx, opts) {
   setTimeout(()=>{renderDonutSvg(pe,svgId,lgId);renderDonutSvg(pe,'matSvg'+idx,'matLg'+idx);},60);
 }
 
+let _reqTabRefreshing = false;
 function _switchTab(tab) {
   document.querySelectorAll('.pm-tab-pane').forEach(el=>{el.style.display=el.getAttribute('data-tab')===tab?'block':'none';});
   const tabMap={'Overview':'overview','Contractors':'contractors','Materials':'materials','Contributors':'contributors','AI Advisor':'advisor','Requests':'requests'};
   document.querySelectorAll('.pm-tab').forEach(btn=>{const txt=btn.textContent.trim().replace(/\s*\d+$/,'');btn.classList.toggle('active',(tabMap[txt]||txt.toLowerCase())===tab);});
+  // Refresh edit requests from server when switching to Requests tab
+  if (tab === 'requests' && !_reqTabRefreshing) {
+    _reqTabRefreshing = true;
+    DB.getEditRequests().then(reqs => {
+      state.editRequests = reqs;
+      const modalEl = document.getElementById('projectModalOverlay');
+      if (modalEl) {
+        const projIdx = modalEl.getAttribute('data-proj-idx');
+        if (projIdx !== null) openProjectModal(parseInt(projIdx), {tab:'requests'});
+      }
+    }).catch(() => {}).finally(() => { _reqTabRefreshing = false; });
+  }
 }
 
 function _filterCtb(val, field) {

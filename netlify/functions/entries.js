@@ -27,11 +27,11 @@ async function getAssignedProjectIds(uid, profile) {
   ]);
   const projectIds = new Set();
   Object.values(assignSnap.val() || {}).forEach(a => {
-    if (a.userId === uid) projectIds.add(a.projectId);
+    if (a.userId === uid && a.projectId) projectIds.add(String(a.projectId));
   });
   if (profile && profile.organizationId) {
     Object.values(orgLinkSnap.val() || {}).forEach(l => {
-      if (l.orgId === profile.organizationId) projectIds.add(l.projectId);
+      if (l.orgId === profile.organizationId && l.projectId) projectIds.add(String(l.projectId));
     });
   }
   return projectIds;
@@ -57,7 +57,7 @@ async function handleList(event) {
         entries = entries.filter(e =>
           e.submittedByUid === decoded.uid ||
           assignedContractors.includes(e.submittedByUid) ||
-          assignedProjectIds.has(e.projectId)
+          (e.projectId && assignedProjectIds.has(String(e.projectId)))
         );
       }
       // If no assignments exist yet, consultant sees all (backward compatible)
@@ -257,7 +257,7 @@ async function handleRequestChange(event, body) {
       requestedByUid: decoded.uid,
       organizationId: profile ? profile.organizationId : null,
       organizationName: profile ? profile.organizationName : null,
-      projectId: entry.projectId || null,
+      projectId: entry.projectId ? String(entry.projectId) : null,
       projectName: entry.projectName || null,
       entryCategory: entry.category,
       entryType: entry.type,
@@ -301,14 +301,23 @@ async function handleListRequests(event) {
         requests = requests.filter(r => r.requestedByUid === decoded.uid);
       }
     } else if (profile && profile.role === 'consultant') {
-      // Consultant sees requests for projects they are assigned to
+      // Consultant sees requests for projects they have access to
+      // Use the same logic as project listing: assignments, org links, AND created projects
       const assignedContractors = await getAssignedContractorUids(decoded.uid);
       const assignedProjectIds = await getAssignedProjectIds(decoded.uid, profile);
+
+      // Also include projects the consultant created (same as handleListProjects)
+      const projSnap = await db.ref('projects').once('value');
+      const projData = projSnap.val() || {};
+      Object.values(projData).forEach(p => {
+        if (p && p.id && p.createdBy === decoded.uid) assignedProjectIds.add(String(p.id));
+      });
+
       if (assignedContractors.length > 0 || assignedProjectIds.size > 0) {
         requests = requests.filter(r =>
           r.requestedByUid === decoded.uid ||
           assignedContractors.includes(r.requestedByUid) ||
-          assignedProjectIds.has(r.projectId)
+          (r.projectId && assignedProjectIds.has(String(r.projectId)))
         );
       }
       // If no assignments, consultant sees all (backward compatible)
@@ -317,6 +326,7 @@ async function handleListRequests(event) {
 
     return respond(200, { requests });
   } catch (e) {
+    console.error('[EDIT_REQUESTS] list-requests error:', e.message);
     return respond(500, { error: 'Failed to load requests' });
   }
 }
