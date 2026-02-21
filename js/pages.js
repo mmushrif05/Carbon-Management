@@ -1315,15 +1315,15 @@ async function createProject() {
     if ($('projCode')) $('projCode').value = '';
     if ($('projDesc')) $('projDesc').value = '';
 
-    // Immediately add to state and refresh UI — don't wait for a full server round-trip
+    // Immediately add to state for instant UI feedback
     if (result && result.project) {
       state.projects = [...(state.projects || []), result.project];
       renderProjectList(state.projects);
       populateProjectDropdowns(state.projects, state.users || [], state.organizations || []);
     }
 
-    // Background full-sync to pick up any other changes
-    loadProjectData().catch(e => console.warn('[PROJECT] Background sync error:', e));
+    // Full sync to confirm server state — awaited so the list is always accurate
+    await loadProjectData();
   } catch (e) {
     console.error('[PROJECT] Create failed:', e);
     showError('projError', e.message || 'Failed to create project. Check the browser console for details.');

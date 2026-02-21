@@ -487,21 +487,17 @@ const DB = {
 
   // === PROJECTS ===
   async getProjects() {
-    if (!dbConnected) { console.warn('[DB] getProjects skipped — not connected'); return []; }
-    try {
-      const res = await apiCall('/projects', {
-        method: 'POST',
-        body: JSON.stringify({ action: 'list' })
-      });
-      if (res.ok) {
-        const data = await safeJsonParse(res);
-        return data.projects || [];
-      }
-      // Log non-OK responses so we can diagnose issues
-      const errData = await safeJsonParse(res).catch(() => ({}));
-      console.error('[DB] getProjects failed (HTTP ' + res.status + '):', errData.error || 'Unknown error');
-    } catch (e) { console.error('[DB] getProjects error:', e.message || e); }
-    return [];
+    if (!dbConnected) { console.warn('[DB] getProjects skipped — not connected'); return state.projects || []; }
+    const res = await apiCall('/projects', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'list' })
+    });
+    const data = await safeJsonParse(res);
+    if (!res.ok) {
+      console.error('[DB] getProjects failed (HTTP ' + res.status + '):', data.error || 'Unknown error');
+      throw new Error(data.error || 'Failed to load projects (HTTP ' + res.status + ').');
+    }
+    return data.projects || [];
   },
 
   async createProject(name, description, code) {
@@ -565,22 +561,19 @@ const DB = {
   },
 
   async getProjectAssignments(projectId) {
-    if (!dbConnected) return [];
-    try {
-      const payload = { action: 'list-assignments' };
-      if (projectId) payload.projectId = projectId;
-      const res = await apiCall('/projects', {
-        method: 'POST',
-        body: JSON.stringify(payload)
-      });
-      if (res.ok) {
-        const data = await safeJsonParse(res);
-        return data.assignments || [];
-      }
-      const errData = await safeJsonParse(res).catch(() => ({}));
-      console.error('[DB] getProjectAssignments failed (HTTP ' + res.status + '):', errData.error || 'Unknown');
-    } catch (e) { console.error('[DB] getProjectAssignments error:', e.message || e); }
-    return [];
+    if (!dbConnected) return state.projectAssignments || [];
+    const payload = { action: 'list-assignments' };
+    if (projectId) payload.projectId = projectId;
+    const res = await apiCall('/projects', {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    });
+    const data = await safeJsonParse(res);
+    if (!res.ok) {
+      console.error('[DB] getProjectAssignments failed (HTTP ' + res.status + '):', data.error || 'Unknown');
+      throw new Error(data.error || 'Failed to load project assignments (HTTP ' + res.status + ').');
+    }
+    return data.assignments || [];
   },
 
   async linkOrgToProject(orgId, projectId) {
@@ -606,22 +599,19 @@ const DB = {
   },
 
   async getProjectOrgLinks(projectId) {
-    if (!dbConnected) return [];
-    try {
-      const payload = { action: 'list-org-links' };
-      if (projectId) payload.projectId = projectId;
-      const res = await apiCall('/projects', {
-        method: 'POST',
-        body: JSON.stringify(payload)
-      });
-      if (res.ok) {
-        const data = await safeJsonParse(res);
-        return data.links || [];
-      }
-      const errData = await safeJsonParse(res).catch(() => ({}));
-      console.error('[DB] getProjectOrgLinks failed (HTTP ' + res.status + '):', errData.error || 'Unknown');
-    } catch (e) { console.error('[DB] getProjectOrgLinks error:', e.message || e); }
-    return [];
+    if (!dbConnected) return state.projectOrgLinks || [];
+    const payload = { action: 'list-org-links' };
+    if (projectId) payload.projectId = projectId;
+    const res = await apiCall('/projects', {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    });
+    const data = await safeJsonParse(res);
+    if (!res.ok) {
+      console.error('[DB] getProjectOrgLinks failed (HTTP ' + res.status + '):', data.error || 'Unknown');
+      throw new Error(data.error || 'Failed to load project org links (HTTP ' + res.status + ').');
+    }
+    return data.links || [];
   },
 
   async getProjectSummary(projectId) {
