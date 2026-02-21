@@ -52,6 +52,91 @@ function buildReductionGauge(actual, baseline, target) {
   </div>`;
 }
 
+function toggleProjectDetail(idx) {
+  const el = $('projDetail'+idx);
+  const btn = $('projToggle'+idx);
+  if (!el) return;
+  const hidden = el.style.display === 'none';
+  el.style.display = hidden ? 'block' : 'none';
+  if (btn) btn.textContent = hidden ? 'Hide Entries \u25B2' : 'View Entries \u25BC';
+}
+
+function buildEntryTable(entries, a5entries) {
+  // Sort by carbon impact (biggest actual first)
+  const sorted = [...entries].sort((a, b) => (b.a13A || 0) - (a.a13A || 0));
+  let html = '';
+
+  if (sorted.length > 0) {
+    // Top Contributors summary (by material category)
+    const byCat = {};
+    sorted.forEach(e => {
+      if (!byCat[e.category]) byCat[e.category] = { b: 0, a: 0, count: 0 };
+      byCat[e.category].b += e.a13B || 0;
+      byCat[e.category].a += e.a13A || 0;
+      byCat[e.category].count++;
+    });
+    const catArr = Object.entries(byCat).sort((a, b) => b[1].a - a[1].a);
+
+    html += `<div style="margin-bottom:14px">
+      <div style="font-size:12px;font-weight:700;color:var(--slate4);margin-bottom:6px">Top Carbon Contributors (by material)</div>
+      <div style="display:flex;flex-wrap:wrap;gap:8px">${catArr.map(([cat, v]) => {
+        const pct = v.b > 0 ? ((v.b - v.a) / v.b) * 100 : 0;
+        const cl = MATCOLS[cat] || 'var(--slate4)';
+        return `<div style="padding:8px 14px;background:var(--bg2);border-radius:10px;border-left:3px solid ${cl};min-width:140px">
+          <div style="font-size:13px;font-weight:700;color:var(--slate2)">${cat.replace('_', ' ')}</div>
+          <div style="font-size:11px;color:var(--slate5)">${v.count} entries</div>
+          <div style="font-size:14px;font-weight:800;color:var(--blue);margin-top:2px">${fmt(v.a)} tCO\u2082</div>
+          <div style="font-size:10px;color:${pct >= 20 ? 'var(--green)' : 'var(--red)'};font-weight:600">${fmt(pct)}% reduction</div>
+        </div>`;
+      }).join('')}</div>
+    </div>`;
+
+    // Full entry table
+    html += `<div style="font-size:12px;font-weight:700;color:var(--slate4);margin-bottom:6px">All A1-A4 Entries (${sorted.length})</div>
+    <div class="tbl-wrap"><table>
+      <thead><tr><th>Month</th><th>Material</th><th>Type</th><th class="r">Qty</th><th class="r">Baseline</th><th class="r">Actual</th><th class="r">A4</th><th class="r">Total</th><th class="r">Red%</th><th>By</th><th>Org</th><th>Status</th></tr></thead>
+      <tbody>${sorted.map(e => {
+        const pct = e.a13B > 0 ? ((e.a13B - e.a13A) / e.a13B) * 100 : 0;
+        return `<tr>
+          <td style="font-size:11px">${e.monthLabel || '--'}</td>
+          <td style="font-weight:600">${e.category || '--'}</td>
+          <td style="font-size:11px">${e.type || '--'}</td>
+          <td class="r mono" style="font-size:11px">${fmtI(e.qty)}</td>
+          <td class="r mono" style="font-size:11px">${fmt(e.a13B)}</td>
+          <td class="r mono" style="font-size:11px">${fmt(e.a13A)}</td>
+          <td class="r mono" style="font-size:11px">${fmt(e.a4)}</td>
+          <td class="r mono" style="font-size:11px;font-weight:700">${fmt(e.a14)}</td>
+          <td class="r mono" style="font-size:11px;font-weight:700;color:${pct >= 20 ? 'var(--green)' : 'var(--red)'}">${fmt(pct)}%</td>
+          <td style="font-size:10px;color:var(--slate5)">${e.submittedBy || '--'}</td>
+          <td style="font-size:10px;color:var(--slate5)">${e.organizationName || '--'}</td>
+          <td><span class="badge ${e.status || 'pending'}" style="font-size:10px">${e.status || 'pending'}</span></td>
+        </tr>`;
+      }).join('')}</tbody>
+    </table></div>`;
+  }
+
+  // A5 entries
+  if (a5entries && a5entries.length > 0) {
+    const sortedA5 = [...a5entries].sort((a, b) => (b.emission || 0) - (a.emission || 0));
+    html += `<div style="margin-top:14px;font-size:12px;font-weight:700;color:var(--slate4);margin-bottom:6px">A5 Site Entries (${sortedA5.length})</div>
+    <div class="tbl-wrap"><table>
+      <thead><tr><th>Month</th><th>Source</th><th class="r">Qty</th><th>Unit</th><th class="r">Emission</th><th>By</th><th>Org</th></tr></thead>
+      <tbody>${sortedA5.map(e => `<tr>
+        <td style="font-size:11px">${e.monthLabel || '--'}</td>
+        <td style="font-weight:600">${e.source || '--'}</td>
+        <td class="r mono" style="font-size:11px">${fmtI(e.qty)}</td>
+        <td style="font-size:11px">${e.unit || '--'}</td>
+        <td class="r mono" style="font-size:11px;font-weight:700">${fmt(e.emission)}</td>
+        <td style="font-size:10px;color:var(--slate5)">${e.submittedBy || '--'}</td>
+        <td style="font-size:10px;color:var(--slate5)">${e.organizationName || '--'}</td>
+      </tr>`).join('')}</tbody>
+    </table></div>`;
+  }
+
+  if (!html) html = '<div style="padding:16px;text-align:center;color:var(--slate5);font-size:12px">No entries yet for this project.</div>';
+  return html;
+}
+
 function buildContractorPerformance(entries, assignments, target) {
   // Group entries by submitting contractor (org)
   const byOrg = {};
@@ -125,6 +210,7 @@ function renderPortfolioDashboard(el, projects) {
         <div style="display:flex;gap:8px;align-items:center">
           <span style="font-size:11px;color:var(--slate5)">${consCount} consultants, ${contCount} contractors</span>
           <span class="badge ${statusClass}" style="text-transform:capitalize">${p.status || 'active'}</span>
+          <button class="btn btn-sm" id="projToggle${idx}" onclick="toggleProjectDetail(${idx})" style="font-size:11px">View Entries \u25BC</button>
         </div>
       </div>
 
@@ -151,6 +237,11 @@ function renderPortfolioDashboard(el, projects) {
         <div style="font-size:12px;font-weight:700;color:var(--slate4);margin-bottom:6px">Contractor Performance</div>
         ${buildContractorPerformance(pe, pAssign, target)}
       </div>` : ''}
+
+      <!-- Expandable Entry Detail (hidden by default) -->
+      <div id="projDetail${idx}" style="display:none;margin-top:16px;padding-top:14px;border-top:2px solid var(--bg3)">
+        ${buildEntryTable(pe, pa5)}
+      </div>
     </div>`;
   }).join('');
 
@@ -185,7 +276,10 @@ function renderPortfolioDashboard(el, projects) {
 
   <!-- Overall Portfolio Totals -->
   <div class="card">
-    <div class="card-title">Portfolio Totals (All Projects)</div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+      <div class="card-title" style="margin-bottom:0">Portfolio Totals (All Projects)</div>
+      ${d.length > 0 ? `<button class="btn btn-sm" id="projToggleAll" onclick="toggleProjectDetail('All')" style="font-size:11px">View All Entries \u25BC</button>` : ''}
+    </div>
     <div class="stats-row">
       <div class="stat-card slate"><div class="sc-label">A1-A3 BAU Baseline</div><div class="sc-value">${fmt(tB)}</div><div class="sc-sub">tCO\u2082eq</div></div>
       <div class="stat-card blue"><div class="sc-label">A1-A3 Actual</div><div class="sc-value">${fmt(tA)}</div><div class="sc-sub">tCO\u2082eq</div></div>
@@ -197,6 +291,9 @@ function renderPortfolioDashboard(el, projects) {
     ${d.length > 0 ? `<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:14px">
       <div><div style="font-size:12px;font-weight:700;color:var(--slate4);margin-bottom:6px">Overall Monthly Trend</div>${buildBarChart(d, 'overallBar')}</div>
       <div><div style="font-size:12px;font-weight:700;color:var(--slate4);margin-bottom:6px">Overall Materials Breakdown</div>${buildDonutChart(d, 'overallSvg', 'overallLg')}</div>
+    </div>
+    <div id="projDetailAll" style="display:none;margin-top:16px;padding-top:14px;border-top:2px solid var(--bg3)">
+      ${buildEntryTable(d, a5e)}
     </div>` : ''}
   </div>
 
@@ -248,7 +345,12 @@ function renderClassicDashboard(el) {
   let tB=0,tA=0,tA4=0;d.forEach(e=>{tB+=e.a13B||0;tA+=e.a13A||0;tA4+=e.a4||0;});
   let a5T=0;state.a5entries.forEach(e=>{a5T+=e.emission||0;});
 
+  const a5Arr = state.a5entries || [];
   el.innerHTML=`
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+    <div style="font-size:16px;font-weight:700;color:var(--slate2)">Carbon Overview</div>
+    ${d.length > 0 ? `<button class="btn btn-sm" id="projToggleAll" onclick="toggleProjectDetail('All')" style="font-size:11px">View All Entries \u25BC</button>` : ''}
+  </div>
   <div class="stats-row">
     <div class="stat-card slate"><div class="sc-label">A1-A3 BAU Baseline</div><div class="sc-value">${fmt(tB)}</div><div class="sc-sub">tCO\u2082eq</div></div>
     <div class="stat-card blue"><div class="sc-label">A1-A3 Actual</div><div class="sc-value">${fmt(tA)}</div><div class="sc-sub">tCO\u2082eq</div></div>
@@ -260,6 +362,9 @@ function renderClassicDashboard(el) {
   ${d.length > 0 ? `<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:16px 0">
     <div class="card"><div class="card-title">Monthly Trend</div>${buildBarChart(d, 'dc')}</div>
     <div class="card"><div class="card-title">By Material</div>${buildDonutChart(d, 'dn', 'dl')}</div>
+  </div>
+  <div id="projDetailAll" style="display:none;margin:0 0 16px;padding:16px;background:var(--bg2);border-radius:12px;border:1px solid var(--border)">
+    ${buildEntryTable(d, a5Arr)}
   </div>` : ''}
   <div class="card"><div class="card-title">Approvals</div><div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;text-align:center">
     <div><div style="font-size:24px;font-weight:800;color:var(--yellow)">${d.filter(e=>e.status==='pending').length}</div><div style="font-size:10px;color:var(--slate5)">Pending</div></div>
