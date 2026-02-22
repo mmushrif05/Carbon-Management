@@ -37,6 +37,12 @@ function getClientId(event, user) {
  * Returns { allowed: boolean, remaining: number, retryAfter?: number }
  */
 async function checkRateLimit(db, clientId, category) {
+  // Skip rate limiting for general API calls from authenticated users
+  // Rate limiting is most important for auth endpoints (brute force protection)
+  if (category === 'api' && clientId.startsWith('user_')) {
+    return { allowed: true, remaining: -1 };
+  }
+
   const config = RATE_LIMITS[category] || RATE_LIMITS.api;
   const now = Date.now();
   const windowStart = now - config.windowMs;
