@@ -1,7 +1,36 @@
 const { getDb, getAuth, verifyToken, respond, optionsResponse } = require('./utils/firebase');
 const crypto = require('crypto');
+const { getClientId, checkRateLimit } = require('./lib/rate-limit');
 
 const VALID_ROLES = ['contractor', 'consultant', 'client'];
+
+// Strong password policy for enterprise compliance
+const PASSWORD_POLICY = {
+  minLength: 12,
+  requireUppercase: true,
+  requireLowercase: true,
+  requireNumber: true,
+  requireSpecial: true,
+};
+
+function validatePassword(password) {
+  if (!password || password.length < PASSWORD_POLICY.minLength) {
+    return { valid: false, error: `Password must be at least ${PASSWORD_POLICY.minLength} characters.` };
+  }
+  if (PASSWORD_POLICY.requireUppercase && !/[A-Z]/.test(password)) {
+    return { valid: false, error: 'Password must contain at least one uppercase letter.' };
+  }
+  if (PASSWORD_POLICY.requireLowercase && !/[a-z]/.test(password)) {
+    return { valid: false, error: 'Password must contain at least one lowercase letter.' };
+  }
+  if (PASSWORD_POLICY.requireNumber && !/[0-9]/.test(password)) {
+    return { valid: false, error: 'Password must contain at least one number.' };
+  }
+  if (PASSWORD_POLICY.requireSpecial && !/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password)) {
+    return { valid: false, error: 'Password must contain at least one special character.' };
+  }
+  return { valid: true };
+}
 
 // Firebase Auth REST API base
 const AUTH_API = 'https://identitytoolkit.googleapis.com/v1/accounts';
@@ -47,7 +76,7 @@ function authErrorMessage(code) {
   const map = {
     'EMAIL_EXISTS': 'An account with this email already exists.',
     'INVALID_EMAIL': 'Please enter a valid email address.',
-    'WEAK_PASSWORD': 'Password must be at least 6 characters.',
+    'WEAK_PASSWORD': 'Password must be at least 12 characters with uppercase, lowercase, number, and special character.',
     'EMAIL_NOT_FOUND': 'No account found with this email.',
     'INVALID_PASSWORD': 'Incorrect password.',
     'INVALID_LOGIN_CREDENTIALS': 'Invalid email or password.',
@@ -152,7 +181,10 @@ async function handleRegister(body) {
   if (!name || !name.trim()) return respond(400, { error: 'Please enter your name.' });
   if (!email || !email.trim()) return respond(400, { error: 'Please enter your email.' });
   if (!password) return respond(400, { error: 'Please enter a password.' });
-  if (password.length < 6) return respond(400, { error: 'Password must be at least 6 characters.' });
+
+  // Enterprise-grade password validation
+  const pwCheck = validatePassword(password);
+  if (!pwCheck.valid) return respond(400, { error: pwCheck.error });
 
   const trimmedEmail = email.trim().toLowerCase();
   const db = getDb();
@@ -316,6 +348,16 @@ exports.handler = async (event) => {
   try {
     const body = JSON.parse(event.body || '{}');
     const { action } = body;
+
+    // Rate limiting for auth endpoints (brute force protection)
+    if (['login', 'register', 'forgot-password'].includes(action)) {
+      const db = getDb();
+      const clientId = getClientId(event);
+      const rateCheck = await checkRateLimit(db, clientId, 'auth');
+      if (!rateCheck.allowed) {
+        return respond(429, { error: 'Too many attempts. Please wait ' + rateCheck.retryAfter + ' seconds before trying again.' });
+      }
+    }
 
     switch (action) {
       case 'register':        return await handleRegister(body);

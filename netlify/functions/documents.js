@@ -2,6 +2,9 @@
 // Ingests CIA, CEAP, Technical Reports, Material Submittals, BOQ Specs
 // Chunks at ~2000 chars with metadata for RAG retrieval
 const { getDb, verifyToken, headers, respond, optionsResponse } = require('./utils/firebase');
+const { encrypt, decrypt, isEncryptionEnabled, encryptFields, decryptFields } = require('./lib/encryption');
+const { sanitizeFileName, sanitizeHtml, validatePayloadSize } = require('./lib/sanitize');
+const { getClientId, checkRateLimit } = require('./lib/rate-limit');
 
 // ===== DOCUMENT TYPES =====
 const DOC_TYPES = {
@@ -176,6 +179,15 @@ exports.handler = async (event) => {
   const { action } = body;
   const db = getDb();
 
+  // Rate limiting for uploads
+  if (action === 'upload') {
+    const clientId = getClientId(event, user);
+    const rateCheck = await checkRateLimit(db, clientId, 'upload');
+    if (!rateCheck.allowed) {
+      return respond(429, { error: 'Too many uploads. Please wait ' + rateCheck.retryAfter + ' seconds.' });
+    }
+  }
+
   try {
     // ===== UPLOAD & CHUNK =====
     if (action === 'upload') {
@@ -183,11 +195,21 @@ exports.handler = async (event) => {
       if (!text || !fileName || !projectId) {
         return respond(400, { error: 'Missing required fields: text, fileName, projectId' });
       }
+
+      // Validate payload size (max 10MB for document text)
+      const sizeCheck = validatePayloadSize({ text }, 10 * 1024 * 1024);
+      if (!sizeCheck.valid) {
+        return respond(413, { error: sizeCheck.error });
+      }
+
       if (text.trim().length < 50) {
         return respond(400, { error: 'Document text too short (min 50 chars)' });
       }
 
-      const detectedType = docType || detectDocType(text, fileName);
+      // Sanitize file name to prevent path traversal
+      const safeFileName = sanitizeFileName(fileName);
+
+      const detectedType = docType || detectDocType(text, safeFileName);
       const docId = 'doc_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6);
 
       // Chunk the document
@@ -217,25 +239,30 @@ exports.handler = async (event) => {
       const docRecord = {
         id: docId,
         projectId: projectId,
-        fileName: fileName,
+        fileName: safeFileName,
         docType: detectedType,
         docTypeLabel: DOC_TYPES[detectedType] ? DOC_TYPES[detectedType].label : 'Other Document',
-        description: description || '',
+        description: sanitizeHtml(description || ''),
         totalChunks: chunks.length,
         totalChars: text.length,
         uploadedBy: user.uid,
         uploadedByName: user.name || user.email || 'Unknown',
         uploadedAt: new Date().toISOString(),
+        encrypted: isEncryptionEnabled(),
         // Aggregate metadata across all chunks
         allMaterials: [...new Set(chunks.flatMap(c => c.materials))],
         allTopics: [...new Set(chunks.flatMap(c => c.topics))]
       };
 
-      // Write to Firebase: document metadata + chunks
+      // Write to Firebase: document metadata + encrypted chunks
       const updates = {};
       updates[`documents/${projectId}/${docId}/meta`] = docRecord;
       for (const chunk of chunks) {
-        updates[`documents/${projectId}/${docId}/chunks/${chunk.id}`] = chunk;
+        // Encrypt chunk text at rest if encryption is configured
+        const storedChunk = isEncryptionEnabled()
+          ? { ...chunk, text: encrypt(chunk.text), encrypted: true }
+          : chunk;
+        updates[`documents/${projectId}/${docId}/chunks/${chunk.id}`] = storedChunk;
       }
 
       await db.ref().update(updates);
@@ -244,7 +271,8 @@ exports.handler = async (event) => {
         success: true,
         document: docRecord,
         chunksCreated: chunks.length,
-        detectedType: detectedType
+        detectedType: detectedType,
+        encrypted: isEncryptionEnabled()
       });
     }
 
@@ -278,10 +306,18 @@ exports.handler = async (event) => {
       const data = snap.val();
       if (!data) return respond(404, { error: 'Document not found' });
 
+      // Decrypt chunk text if encrypted
+      const chunks = data.chunks ? Object.values(data.chunks).map(chunk => {
+        if (chunk.encrypted && isEncryptionEnabled()) {
+          return { ...chunk, text: decrypt(chunk.text), encrypted: false };
+        }
+        return chunk;
+      }) : [];
+
       return respond(200, {
         success: true,
         document: data.meta,
-        chunks: data.chunks ? Object.values(data.chunks) : []
+        chunks
       });
     }
 
@@ -303,7 +339,13 @@ exports.handler = async (event) => {
         if (doc.chunks) {
           for (const chunkId of Object.keys(doc.chunks)) {
             if (chunkIds.includes(chunkId)) {
-              chunks.push(doc.chunks[chunkId]);
+              // Decrypt chunk text if encrypted
+              const chunk = doc.chunks[chunkId];
+              if (chunk.encrypted && isEncryptionEnabled()) {
+                chunks.push({ ...chunk, text: decrypt(chunk.text), encrypted: false });
+              } else {
+                chunks.push(chunk);
+              }
               if (!docMeta[docId] && doc.meta) {
                 docMeta[docId] = doc.meta;
               }
@@ -348,7 +390,13 @@ exports.handler = async (event) => {
 
         allDocMeta[docId] = doc.meta;
         for (const chunkId of Object.keys(doc.chunks)) {
-          allChunks.push(doc.chunks[chunkId]);
+          const chunk = doc.chunks[chunkId];
+          // Decrypt for scoring/retrieval
+          if (chunk.encrypted && isEncryptionEnabled()) {
+            allChunks.push({ ...chunk, text: decrypt(chunk.text), encrypted: false });
+          } else {
+            allChunks.push(chunk);
+          }
         }
       }
 
