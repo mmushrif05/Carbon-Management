@@ -1,4 +1,5 @@
-const { getDb, verifyToken, respond, optionsResponse } = require('./utils/firebase');
+const { getDb, verifyToken, respond, optionsResponse, csrfCheck } = require('./utils/firebase');
+const { getClientId, checkRateLimit } = require('./lib/rate-limit');
 
 // ===== ORGANIZATIONS & ASSIGNMENTS API =====
 // Manages the enterprise hierarchy:
@@ -476,10 +477,21 @@ async function handleListUsers(decoded) {
 // === MAIN HANDLER ===
 exports.handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return optionsResponse();
+
+  const csrf = csrfCheck(event);
+  if (csrf) return csrf;
+
   if (event.httpMethod !== 'POST') return respond(405, { error: 'Method not allowed' });
 
   const decoded = await verifyToken(event);
   if (!decoded) return respond(401, { error: 'Authentication required.' });
+
+  const db = getDb();
+  const clientId = getClientId(event, decoded);
+  const rateCheck = await checkRateLimit(db, clientId, 'api');
+  if (!rateCheck.allowed) {
+    return respond(429, { error: 'Too many requests. Please wait ' + rateCheck.retryAfter + ' seconds.' });
+  }
 
   try {
     const body = JSON.parse(event.body || '{}');
@@ -512,6 +524,6 @@ exports.handler = async (event) => {
     }
   } catch (e) {
     console.error('[ORG] Server error:', e);
-    return respond(500, { error: 'Server error: ' + (e.message || 'Unknown') });
+    return respond(500, { error: 'Internal server error.' });
   }
 };

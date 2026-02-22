@@ -87,7 +87,7 @@
 
       <div class="login-input">
         <div class="login-label">Password</div>
-        <input id="regPassword" type="password" placeholder="Minimum 6 characters" autocomplete="new-password" />
+        <input id="regPassword" type="password" placeholder="Min 12 chars, upper + lower + digit + special" autocomplete="new-password" />
       </div>
 
       <div class="invite-notice">
@@ -124,7 +124,7 @@
 
       <div class="login-input">
         <div class="login-label">Password</div>
-        <input id="setupPassword" type="password" placeholder="Minimum 6 characters" autocomplete="new-password" />
+        <input id="setupPassword" type="password" placeholder="Min 12 chars, upper + lower + digit + special" autocomplete="new-password" />
       </div>
 
       <div class="login-input">
@@ -161,11 +161,13 @@
 
 <!-- ===== APPLICATION SCRIPTS ===== -->
 <!-- No Firebase SDK on client — all credentials are on the server -->
-<!-- SheetJS for Excel/XLSX parsing (Tender BOQ Upload) -->
-<script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
-<!-- PDF.js for PDF Tender Document Parsing -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<!-- SheetJS for Excel/XLSX parsing (Tender BOQ Upload) — crossorigin for CORS security -->
+<script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js" crossorigin="anonymous"></script>
+<!-- PDF.js for PDF Tender Document Parsing — crossorigin for CORS security -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js" crossorigin="anonymous"></script>
 <script>if(typeof pdfjsLib!=='undefined')pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';</script>
+<!-- Security: Session timeout & idle detection -->
+<script src="js/security.js"></script>
 <script src="js/data.js"></script>
 <script src="js/config.js"></script>
 <script src="js/db.js"></script>

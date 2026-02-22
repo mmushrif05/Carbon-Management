@@ -1,4 +1,5 @@
-const { getDb, verifyToken, respond, optionsResponse } = require('./utils/firebase');
+const { getDb, verifyToken, respond, optionsResponse, csrfCheck } = require('./utils/firebase');
+const { getClientId, checkRateLimit } = require('./lib/rate-limit');
 
 async function getUserProfile(uid) {
   const db = getDb();
@@ -525,7 +526,7 @@ async function handleForceDelete(event, body) {
 
     return respond(200, { success: true });
   } catch (e) {
-    return respond(500, { error: 'Failed to force-delete: ' + e.message });
+    return respond(500, { error: 'Failed to force-delete. Please try again.' });
   }
 }
 
@@ -584,14 +585,29 @@ async function handleForceCorrect(event, body) {
     await entryRef.update(safeFixes);
     return respond(200, { success: true });
   } catch (e) {
-    return respond(500, { error: 'Failed to force-correct: ' + e.message });
+    return respond(500, { error: 'Failed to force-correct. Please try again.' });
   }
 }
 
 exports.handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return optionsResponse();
 
+  // CSRF validation on state-changing requests
+  const csrf = csrfCheck(event);
+  if (csrf) return csrf;
+
   try {
+    // Rate limiting
+    const decoded = await verifyToken(event);
+    if (decoded) {
+      const db = getDb();
+      const clientId = getClientId(event, decoded);
+      const rateCheck = await checkRateLimit(db, clientId, 'api');
+      if (!rateCheck.allowed) {
+        return respond(429, { error: 'Too many requests. Please wait ' + rateCheck.retryAfter + ' seconds.' });
+      }
+    }
+
     if (event.httpMethod === 'GET') {
       return await handleList(event);
     }

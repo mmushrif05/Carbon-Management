@@ -1,6 +1,7 @@
-const { getDb, getAuth, verifyToken, respond, optionsResponse } = require('./utils/firebase');
+const { getDb, getAuth, verifyToken, respond, optionsResponse, csrfCheck } = require('./utils/firebase');
 const crypto = require('crypto');
 const { getClientId, checkRateLimit } = require('./lib/rate-limit');
+const { checkAccountLockout, recordFailedAttempt, clearFailedAttempts, logSecurityEvent } = require('./lib/security-middleware');
 
 const VALID_ROLES = ['contractor', 'consultant', 'client'];
 
@@ -268,29 +269,47 @@ async function handleRegister(body) {
   }
 }
 
-async function handleLogin(body) {
+async function handleLogin(body, event) {
   const { email, password } = body;
 
   if (!email || !email.trim()) return respond(400, { error: 'Please enter your email.' });
   if (!password) return respond(400, { error: 'Please enter your password.' });
 
+  const trimmedEmail = email.trim().toLowerCase();
+  const db = getDb();
+
+  // ===== ACCOUNT LOCKOUT CHECK (OWASP ASVS Level 2) =====
+  const lockoutStatus = await checkAccountLockout(db, trimmedEmail);
+  if (lockoutStatus.locked) {
+    await logSecurityEvent(db, {
+      type: 'login_attempt_while_locked',
+      severity: 'HIGH',
+      actor: trimmedEmail,
+      ip: getClientId(event),
+      details: { remainingMinutes: lockoutStatus.remainingMinutes }
+    });
+    return respond(429, { error: lockoutStatus.error });
+  }
+
   try {
     // Sign in via Firebase Auth REST API (signInWithEmailAndPassword)
-    const signInData = await firebaseSignIn(email.trim(), password);
+    const signInData = await firebaseSignIn(trimmedEmail, password);
     const uid = signInData.localId;
 
     // Load user profile from database
-    const db = getDb();
     const snap = await db.ref('users/' + uid).once('value');
     let profile = snap.val();
 
     if (!profile) {
       // Profile missing — user was not properly registered through invitation system
-      console.error('[AUTH] Login blocked: no profile for uid', uid, email.trim());
+      console.error('[AUTH] Login blocked: no profile for uid', uid, trimmedEmail);
       return respond(403, { error: 'Your account is not registered in this project. Please contact an admin for an invitation.' });
     }
 
-    console.log('[AUTH] User signed in:', uid, email.trim());
+    // Successful login — clear any failed attempt records
+    await clearFailedAttempts(db, trimmedEmail);
+
+    console.log('[AUTH] User signed in:', uid, trimmedEmail);
 
     return respond(200, {
       token: signInData.idToken,
@@ -300,8 +319,19 @@ async function handleLogin(body) {
   } catch (e) {
     const errorCode = e.code || e.message || 'UNKNOWN';
     const errorMsg = authErrorMessage(errorCode);
-    console.error('[AUTH] Login error:', errorCode, e.message || e);
-    return respond(401, { error: errorMsg, code: errorCode });
+    console.error('[AUTH] Login error:', errorCode);
+
+    // Record failed attempt for lockout tracking
+    await recordFailedAttempt(db, trimmedEmail);
+    await logSecurityEvent(db, {
+      type: 'login_failed',
+      severity: 'MEDIUM',
+      actor: trimmedEmail,
+      ip: getClientId(event),
+      details: { errorCode }
+    });
+
+    return respond(401, { error: errorMsg });
   }
 }
 
@@ -361,7 +391,7 @@ exports.handler = async (event) => {
 
     switch (action) {
       case 'register':        return await handleRegister(body);
-      case 'login':           return await handleLogin(body);
+      case 'login':           return await handleLogin(body, event);
       case 'verify':          return await handleVerify(event);
       case 'refresh':         return await handleRefresh(body);
       case 'forgot-password': return await handleForgotPassword(body);
@@ -369,6 +399,6 @@ exports.handler = async (event) => {
     }
   } catch (e) {
     console.error('[AUTH] Server error:', e);
-    return respond(500, { error: 'Server error: ' + (e.message || 'Unknown') });
+    return respond(500, { error: 'Authentication service error. Please try again.' });
   }
 };

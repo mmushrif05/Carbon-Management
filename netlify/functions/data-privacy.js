@@ -1,17 +1,29 @@
 // ===== Data Privacy & Security Configuration Endpoint =====
 // Provides privacy status, security configuration, and compliance information
 // Enterprise clients can query this to verify data protection is active
-const { getDb, verifyToken, headers, respond, optionsResponse } = require('./utils/firebase');
+const { getDb, verifyToken, headers, respond, optionsResponse, csrfCheck } = require('./utils/firebase');
 const { isEncryptionEnabled } = require('./lib/encryption');
+const { getClientId, checkRateLimit } = require('./lib/rate-limit');
 const { getPrivacyConfig } = require('./lib/ai-privacy');
 const { writeAuditLog } = require('./lib/permissions');
 
 exports.handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return optionsResponse();
+
+  const csrf = csrfCheck(event);
+  if (csrf) return csrf;
+
   if (event.httpMethod !== 'POST') return respond(405, { error: 'Method not allowed' });
 
   const user = await verifyToken(event);
   if (!user) return respond(401, { error: 'Unauthorized' });
+
+  const db = getDb();
+  const clientId = getClientId(event, user);
+  const rateCheck = await checkRateLimit(db, clientId, 'api');
+  if (!rateCheck.allowed) {
+    return respond(429, { error: 'Too many requests. Please wait ' + rateCheck.retryAfter + ' seconds.' });
+  }
 
   let body;
   try {
@@ -21,7 +33,6 @@ exports.handler = async (event) => {
   }
 
   const { action } = body;
-  const db = getDb();
 
   try {
     // ===== GET PRIVACY STATUS =====
@@ -165,10 +176,10 @@ exports.handler = async (event) => {
       });
     }
 
-    return respond(400, { error: 'Unknown action: ' + action });
+    return respond(400, { error: 'Invalid action.' });
 
   } catch (err) {
     console.error('Data privacy error:', err);
-    return respond(500, { error: 'Server error: ' + err.message });
+    return respond(500, { error: 'Internal server error.' });
   }
 };

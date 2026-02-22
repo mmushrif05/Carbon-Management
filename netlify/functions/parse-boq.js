@@ -2,7 +2,8 @@
 // AI-powered BOQ parsing with KSIA-grade classification hierarchy
 // Version 3.0 — Parsons Arabia Decarbonization Unit methodology
 // Supports chunked processing for large documents (parts 1-12+)
-const { verifyToken, headers, respond, optionsResponse } = require('./utils/firebase');
+const { getDb, verifyToken, headers, respond, optionsResponse, csrfCheck } = require('./utils/firebase');
+const { getClientId, checkRateLimit } = require('./lib/rate-limit');
 
 // ============================================================
 // ECCS CLASSIFICATION HIERARCHY (6-Step Decision Tree)
@@ -368,11 +369,23 @@ function splitIntoChunks(text, maxCharsPerChunk) {
 
 exports.handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return optionsResponse();
+
+  const csrf = csrfCheck(event);
+  if (csrf) return csrf;
+
   if (event.httpMethod !== 'POST') return respond(405, { error: 'Method not allowed' });
 
   // Verify authentication
   const user = await verifyToken(event);
   if (!user) return respond(401, { error: 'Unauthorized' });
+
+  // Rate limiting
+  const db = getDb();
+  const clientId = getClientId(event, user);
+  const rateCheck = await checkRateLimit(db, clientId, 'api');
+  if (!rateCheck.allowed) {
+    return respond(429, { error: 'Too many requests. Please wait ' + rateCheck.retryAfter + ' seconds.' });
+  }
 
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
@@ -443,6 +456,6 @@ exports.handler = async (event) => {
 
   } catch (err) {
     console.error('AI parsing error:', err);
-    return respond(500, { error: 'AI parsing failed: ' + err.message, fallback: true });
+    return respond(500, { error: 'AI parsing failed. Please try again.', fallback: true });
   }
 };

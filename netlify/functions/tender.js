@@ -1,4 +1,5 @@
-const { getDb, verifyToken, respond, optionsResponse } = require('./utils/firebase');
+const { getDb, verifyToken, respond, optionsResponse, csrfCheck } = require('./utils/firebase');
+const { getClientId, checkRateLimit } = require('./lib/rate-limit');
 
 const DB_PATH = 'projects/ksia/tenderScenarios';
 
@@ -84,6 +85,19 @@ async function handleDelete(event, body) {
 
 exports.handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return optionsResponse();
+
+  const csrf = csrfCheck(event);
+  if (csrf) return csrf;
+
+  const decoded = await verifyToken(event);
+  if (!decoded) return respond(401, { error: 'Unauthorized' });
+
+  const db = getDb();
+  const clientId = getClientId(event, decoded);
+  const rateCheck = await checkRateLimit(db, clientId, 'api');
+  if (!rateCheck.allowed) {
+    return respond(429, { error: 'Too many requests. Please wait ' + rateCheck.retryAfter + ' seconds.' });
+  }
 
   try {
     if (event.httpMethod === 'GET') {

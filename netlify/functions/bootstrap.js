@@ -51,7 +51,12 @@ exports.handler = async (event) => {
     if (!name || !name.trim()) return respond(400, { error: 'Please enter your name.' });
     if (!email || !email.trim()) return respond(400, { error: 'Please enter your email.' });
     if (!password) return respond(400, { error: 'Please enter a password.' });
-    if (password.length < 6) return respond(400, { error: 'Password must be at least 6 characters.' });
+    // Enforce strong password policy (OWASP ASVS Level 2)
+    if (password.length < 12) return respond(400, { error: 'Password must be at least 12 characters.' });
+    if (!/[A-Z]/.test(password)) return respond(400, { error: 'Password must contain at least one uppercase letter.' });
+    if (!/[a-z]/.test(password)) return respond(400, { error: 'Password must contain at least one lowercase letter.' });
+    if (!/\d/.test(password)) return respond(400, { error: 'Password must contain at least one number.' });
+    if (!/[^A-Za-z0-9]/.test(password)) return respond(400, { error: 'Password must contain at least one special character.' });
 
     // Create user in Firebase Auth
     const signUpData = await firebaseSignUp(email.trim().toLowerCase(), password);
@@ -83,8 +88,8 @@ exports.handler = async (event) => {
   } catch (e) {
     console.error('[BOOTSTRAP] Error:', e);
     const msg = e.code === 'EMAIL_EXISTS'
-      ? 'This email is already registered in Firebase Auth. Try logging in instead.'
-      : (e.message || 'Setup failed');
+      ? 'This email is already registered. Try logging in instead.'
+      : 'Setup failed. Please try again.';
     return respond(500, { error: msg });
   }
 };

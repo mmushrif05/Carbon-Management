@@ -1,7 +1,7 @@
 // ===== Carbon Reduction Advisor — AI-powered analysis =====
 // Uses Claude to analyze project emission data and generate
 // actionable reduction strategies for consultants.
-const { getDb, verifyToken, headers, respond, optionsResponse } = require('./utils/firebase');
+const { getDb, verifyToken, headers, respond, optionsResponse, csrfCheck } = require('./utils/firebase');
 const { resetAnonymization, sanitizeProjectData, deAnonymizeResponse, createAIAuditEntry } = require('./lib/ai-privacy');
 const { checkPromptInjection, validatePayloadSize } = require('./lib/sanitize');
 const { getClientId, checkRateLimit } = require('./lib/rate-limit');
@@ -104,6 +104,9 @@ exports.handler = async (event) => {
     return { statusCode: 200, headers, body: '' };
   }
 
+  const csrf = csrfCheck(event);
+  if (csrf) return csrf;
+
   if (event.httpMethod !== 'POST') {
     return respond(405, { error: 'Method not allowed' });
   }
@@ -183,6 +186,6 @@ exports.handler = async (event) => {
     });
   } catch (err) {
     console.error('Carbon advisor error:', err);
-    return respond(500, { error: 'AI analysis failed: ' + err.message });
+    return respond(500, { error: 'AI analysis failed. Please try again.' });
   }
 };

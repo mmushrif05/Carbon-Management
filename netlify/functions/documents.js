@@ -1,7 +1,7 @@
 // ===== Document Intelligence — Upload, Chunk, Tag & Store Pipeline =====
 // Ingests CIA, CEAP, Technical Reports, Material Submittals, BOQ Specs
 // Chunks at ~2000 chars with metadata for RAG retrieval
-const { getDb, verifyToken, headers, respond, optionsResponse } = require('./utils/firebase');
+const { getDb, verifyToken, headers, respond, optionsResponse, csrfCheck } = require('./utils/firebase');
 const { encrypt, decrypt, isEncryptionEnabled, encryptFields, decryptFields } = require('./lib/encryption');
 const { sanitizeFileName, sanitizeHtml, validatePayloadSize } = require('./lib/sanitize');
 const { getClientId, checkRateLimit } = require('./lib/rate-limit');
@@ -164,6 +164,10 @@ function detectDocType(text, fileName) {
 // ===== HANDLER =====
 exports.handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return optionsResponse();
+
+  const csrf = csrfCheck(event);
+  if (csrf) return csrf;
+
   if (event.httpMethod !== 'POST') return respond(405, { error: 'Method not allowed' });
 
   const user = await verifyToken(event);
@@ -453,10 +457,10 @@ exports.handler = async (event) => {
       });
     }
 
-    return respond(400, { error: 'Unknown action: ' + action });
+    return respond(400, { error: 'Invalid action.' });
 
   } catch (err) {
     console.error('Documents error:', err);
-    return respond(500, { error: 'Server error: ' + err.message });
+    return respond(500, { error: 'Internal server error.' });
   }
 };
