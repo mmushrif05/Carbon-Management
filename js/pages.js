@@ -268,9 +268,12 @@ function openProjectModal(idx, opts) {
         ${_ctbActions(e)}
       </tr>`;}).join('')}</tbody></table></div>
     ${pa5.filter(e=>e.stage==='a4').length>0?`<div style="margin-top:12px;padding:8px 10px;background:rgba(251,146,60,0.04);border:1px solid rgba(251,146,60,0.1);border-radius:8px">
-    <div style="font-size:10px;font-weight:700;color:var(--orange);text-transform:uppercase;margin-bottom:6px">A4 Transport Entries (Separate)</div>
-    <div class="tbl-wrap"><table><thead><tr><th>Month</th><th>Source</th><th>Type</th><th class="r">Emission</th><th>By</th></tr></thead>
-    <tbody>${[...pa5.filter(e=>e.stage==='a4')].sort((a,b)=>(b.emission||0)-(a.emission||0)).map(e=>`<tr><td style="font-size:10px">${e.monthLabel||'--'}</td><td style="font-weight:600;font-size:10px">${e.source||'--'}</td><td style="font-size:10px;color:${e.dataSource==='iot'?'var(--purple)':'var(--orange)'}">${e.dataSource==='iot'?'IoT':'Manual'}</td><td class="r mono" style="font-size:10px;font-weight:700">${fmt(e.emission)}</td><td style="font-size:9px;color:var(--slate5)">${e.submittedBy||'--'}</td></tr>`).join('')}</tbody></table></div>
+    <div style="font-size:10px;font-weight:700;color:var(--orange);text-transform:uppercase;margin-bottom:6px">A4 Transport Entries (EN 15804)</div>
+    <div class="tbl-wrap"><table><thead><tr><th>Month</th><th>Material</th><th>Source</th><th>Input</th><th class="r">Emission</th><th>By</th></tr></thead>
+    <tbody>${[...pa5.filter(e=>e.stage==='a4')].sort((a,b)=>(b.emission||0)-(a.emission||0)).map(e=>{
+      const matLabel=e.materialCategory||(e.cargoMaterials&&e.cargoMaterials.length?e.cargoMaterials.join(', '):'--');
+      return `<tr><td style="font-size:10px">${e.monthLabel||'--'}</td><td style="font-weight:600;font-size:10px;color:var(--orange)">${matLabel}</td><td style="font-size:10px">${e.source||'--'}</td><td style="font-size:10px;color:${e.dataSource==='iot'?'var(--purple)':'var(--orange)'}">${e.dataSource==='iot'?'IoT':'Manual'}</td><td class="r mono" style="font-size:10px;font-weight:700">${fmt(e.emission)}</td><td style="font-size:9px;color:var(--slate5)">${e.submittedBy||'--'}</td></tr>`;
+    }).join('')}</tbody></table></div>
     </div>`:''}
     ${pa5.filter(e=>e.stage!=='a4').length>0?`<div style="margin-top:12px;padding:8px 10px;background:rgba(6,182,212,0.04);border:1px solid rgba(6,182,212,0.1);border-radius:8px">
     <div style="font-size:10px;font-weight:700;color:var(--cyan);text-transform:uppercase;margin-bottom:6px">A5 Installation Emissions (Separate)</div>
@@ -546,13 +549,16 @@ function buildEntryTable(entries, a5entries) {
       <td><span class="badge ${e.status||'pending'}" style="font-size:10px">${e.status||'pending'}</span></td>
     </tr>`;}).join('')}</tbody></table></div>`;
   }
-  // Show A4 transport entries (stage='a4')
+  // Show A4 transport entries (stage='a4') — with material linkage
   const a4Entries=a5entries?a5entries.filter(e=>e.stage==='a4'):[];
   if(a4Entries.length>0){
     html+=`<div style="margin-top:18px;padding:10px 14px;background:rgba(251,146,60,0.04);border:1px solid rgba(251,146,60,0.12);border-radius:10px">
-    <div style="font-size:11px;font-weight:800;color:var(--orange);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">A4 Transport Entries</div>
-    <div class="tbl-wrap"><table><thead><tr><th>Month</th><th>Source</th><th>Type</th><th class="r">Emission</th><th>By</th><th>Org</th></tr></thead>
-    <tbody>${[...a4Entries].sort((a,b)=>(b.emission||0)-(a.emission||0)).map(e=>`<tr><td style="font-size:11px">${e.monthLabel||'--'}</td><td style="font-weight:600">${e.source||'--'}</td><td style="font-size:11px;color:${e.dataSource==='iot'?'var(--purple)':'var(--orange)'}">${e.dataSource==='iot'?'IoT':'Manual'}</td><td class="r mono" style="font-size:11px;font-weight:700">${fmt(e.emission)}</td><td style="font-size:10px;color:var(--slate5)">${e.submittedBy||'--'}</td><td style="font-size:10px;color:var(--slate5)">${e.organizationName||'--'}</td></tr>`).join('')}</tbody></table></div>
+    <div style="font-size:11px;font-weight:800;color:var(--orange);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">A4 Transport Entries (EN 15804)</div>
+    <div class="tbl-wrap"><table><thead><tr><th>Month</th><th>Material</th><th>Source</th><th>Input</th><th class="r">Mass (t)</th><th class="r">Emission</th><th>By</th></tr></thead>
+    <tbody>${[...a4Entries].sort((a,b)=>(b.emission||0)-(a.emission||0)).map(e=>{
+      const matLabel=e.materialCategory||(e.cargoMaterials&&e.cargoMaterials.length?e.cargoMaterials.join(', '):'--');
+      return `<tr><td style="font-size:11px">${e.monthLabel||'--'}</td><td style="font-weight:600;color:var(--orange);font-size:11px">${matLabel}</td><td style="font-size:11px">${e.source||'--'}</td><td style="font-size:11px;color:${e.dataSource==='iot'?'var(--purple)':'var(--orange)'}">${e.dataSource==='iot'?'IoT':'Manual'}</td><td class="r mono" style="font-size:11px">${e.massTonnes?fmt(e.massTonnes):'--'}</td><td class="r mono" style="font-size:11px;font-weight:700">${fmt(e.emission)}</td><td style="font-size:10px;color:var(--slate5)">${e.submittedBy||'--'}</td></tr>`;
+    }).join('')}</tbody></table></div>
     </div>`;
   }
   // Show A5 installation entries (stage!='a4')
@@ -1635,6 +1641,9 @@ function renderA4Transport(el){
   const myProjects = (state.projects || []).filter(p => p.status === 'active');
   const projOptions = myProjects.map(p => `<option value="${p.id}" ${state.selectedProjectId === p.id ? 'selected' : ''}>${p.name}${p.code ? ' (' + p.code + ')' : ''}</option>`).join('');
 
+  // Material category options from A1-A3 MATERIALS constant (EN 15804 linkage)
+  const matCatOptions = Object.keys(MATERIALS).map(c => `<option value="${c}">${c} (${MATERIALS[c].unit})</option>`).join('');
+
   // A4 entries from a5entries storage with stage='a4'
   const a4Manual = (state.a5entries || []).filter(e => e.stage === 'a4' && e.dataSource === 'manual');
   const a4Iot = (state.a5entries || []).filter(e => e.stage === 'a4' && e.dataSource === 'iot');
@@ -1647,20 +1656,21 @@ function renderA4Transport(el){
   el.innerHTML=`
   <!-- A4 Context Banner -->
   <div style="padding:10px 14px;background:rgba(251,146,60,0.06);border:1px solid rgba(251,146,60,0.15);border-radius:10px;margin-bottom:14px;font-size:12px;color:var(--orange)">
-    <strong>A4 Transport Emissions</strong> cover the transport of materials from <strong>factory gate to construction site</strong>. Two input methods: <strong>Manual</strong> (distance-based calculation) or <strong>IoT</strong> (real-time vehicle tracking).
+    <strong>A4 Transport Emissions (EN 15804)</strong> — Transport of materials from <strong>factory gate to construction site</strong>.<br>
+    <span style="font-size:11px;opacity:0.85">Formula: A4 = &Sigma;(mass &times; distance &times; TEF<sub>mode</sub>) per material delivery. Each entry links to a specific material category for LEED MRc2 / BREEAM Mat01 / Envision CR1.1 compliance.</span>
   </div>
 
   <!-- A4 Summary Stats -->
   <div class="stats-row" style="grid-template-columns:repeat(4,1fr);margin-bottom:14px">
-    <div class="stat-card orange"><div class="sc-label">A4 Manual</div><div class="sc-value">${fmt(manualTotal)}</div><div class="sc-sub">tCO\u2082eq (Distance-based)</div></div>
+    <div class="stat-card orange"><div class="sc-label">A4 Manual</div><div class="sc-value">${fmt(manualTotal)}</div><div class="sc-sub">tCO\u2082eq (Material Deliveries)</div></div>
     <div class="stat-card purple"><div class="sc-label">A4 IoT (Saved)</div><div class="sc-value">${fmt(iotTotal)}</div><div class="sc-sub">tCO\u2082eq (Vehicle Tracking)</div></div>
     <div class="stat-card cyan"><div class="sc-label">A4 IoT (Live)</div><div class="sc-value">${fmt(liveIoT)}</div><div class="sc-sub">tCO\u2082eq (Unsaved Session)</div></div>
     <div class="stat-card green"><div class="sc-label">A4 Grand Total</div><div class="sc-value">${fmt(manualTotal + iotTotal + legacyA4)}</div><div class="sc-sub">tCO\u2082eq (All A4 Sources)</div></div>
   </div>
 
-  <!-- MANUAL A4 ENTRY -->
+  <!-- MANUAL A4 ENTRY — EN 15804 Compliant: material-linked transport -->
   <div class="card"><div class="card-title" style="display:flex;align-items:center;gap:8px">A4 Manual Entry <span style="font-size:9px;padding:2px 8px;background:rgba(251,146,60,0.1);border:1px solid rgba(251,146,60,0.2);border-radius:4px;color:var(--orange);font-weight:700">MANUAL</span></div>
-  <div style="font-size:11px;color:var(--slate5);margin-bottom:12px">Calculate transport emissions from cargo mass and transport distances by mode (road, sea, rail).</div>
+  <div style="font-size:11px;color:var(--slate5);margin-bottom:12px">Link each transport entry to the material being delivered. Mass is auto-calculated from quantity &times; material density (massFactor). Distances split by mode (road, sea, rail).</div>
   ${myProjects.length > 0 ? `<div class="form-row" style="margin-bottom:12px">
     <div class="fg" style="max-width:400px">
       <label style="font-weight:700;color:var(--blue)">Project <span style="color:var(--red)">*</span></label>
@@ -1674,18 +1684,36 @@ function renderA4Transport(el){
   </div>`}
   <div class="form-row c3"><div class="fg"><label>Year</label><select id="a4Y">${[yr-1,yr,yr+1].map(y=>`<option ${y===yr?'selected':''}>${y}</option>`).join('')}</select></div>
   <div class="fg"><label>Month</label><select id="a4M">${MONTHS.map((m,i)=>`<option value="${String(i+1).padStart(2,'0')}" ${String(i+1).padStart(2,'0')===mo?'selected':''}>${m}</option>`).join('')}</select></div>
-  <div class="fg"><label>Description</label><input id="a4Desc" placeholder="e.g. Steel rebar delivery"></div></div>
-  <div class="form-row c3"><div class="fg"><label>Cargo Mass (tonnes)</label><input type="number" id="a4Mass" placeholder="Mass in tonnes" oninput="calcA4()"></div>
+  <div class="fg"><label>Description</label><input id="a4Desc" placeholder="e.g. C30-40 concrete for pile caps"></div></div>
+
+  <!-- Material Selection Row -->
+  <div class="form-row c3" style="margin-top:4px">
+    <div class="fg"><label style="font-weight:700;color:var(--orange)">Material Category <span style="color:var(--red)">*</span></label>
+      <select id="a4MatCat" onchange="_a4MatCatChange()">
+        <option value="">Select material...</option>
+        ${matCatOptions}
+      </select></div>
+    <div class="fg"><label>Material Type</label>
+      <select id="a4MatType" onchange="calcA4()">
+        <option value="">Select category first...</option>
+      </select></div>
+    <div class="fg"><label>Quantity <span id="a4QtyUnit" style="color:var(--slate5);font-weight:400"></span></label>
+      <input type="number" id="a4Qty" placeholder="e.g. 450" oninput="_a4QtyToMass()"></div>
+  </div>
+
+  <!-- Mass & Distance Row -->
+  <div class="form-row c3"><div class="fg"><label>Cargo Mass (tonnes) <span style="font-size:9px;color:var(--slate5)">auto from qty &times; density</span></label><input type="number" id="a4Mass" placeholder="Mass in tonnes" oninput="calcA4()"></div>
   <div class="fg"><label>Road (km)</label><input type="number" id="a4Rd" value="0" oninput="calcA4()"></div>
   <div class="fg"><label>Sea (km)</label><input type="number" id="a4Se" value="0" oninput="calcA4()"></div></div>
   <div class="form-row c3"><div class="fg"><label>Train (km)</label><input type="number" id="a4Tr" value="0" oninput="calcA4()"></div>
-  <div class="fg"><label>Emission (auto)</label><input id="a4R" class="fg-readonly" readonly></div>
+  <div class="fg"><label>A4 Emission (auto)</label><input id="a4R" class="fg-readonly" readonly></div>
   <div class="fg"><label>TEF Reference</label><input id="a4TEF" class="fg-readonly" readonly value="Road: ${TEF.road} | Sea: ${TEF.sea} | Rail: ${TEF.train} tCO\u2082/t\u00b7km"></div></div>
+  <div id="a4MassInfo" style="font-size:10px;color:var(--slate5);margin:4px 0 8px 0"></div>
   <div class="btn-row"><button class="btn btn-primary" onclick="subA4Manual()">\ud83d\udcbe Submit A4 Manual Entry</button></div></div>
 
   <!-- IoT VEHICLE SECTION -->
   <div class="card"><div class="card-title" style="display:flex;align-items:center;gap:8px">A4 IoT Vehicle Tracking <span style="font-size:9px;padding:2px 8px;background:rgba(168,85,247,0.1);border:1px solid rgba(168,85,247,0.2);border-radius:4px;color:var(--purple);font-weight:700">IoT</span></div>
-  <div style="font-size:11px;color:var(--slate5);margin-bottom:12px">Track real-time vehicle emissions from delivery trucks using IoT devices. Go to <strong>IoT Live Tracker</strong> to start/stop tracking, then return here to save the session data as A4 entries.</div>
+  <div style="font-size:11px;color:var(--slate5);margin-bottom:12px">Real-time vehicle tracking with material cargo mapping. Each vehicle has a default cargo type and transport mode (road/rail/sea) per EN 15804. IoT devices record distance &times; vehicle EF; the saved entry also stores the material link.</div>
   <div style="padding:12px;background:var(--bg3);border-radius:10px;margin-bottom:12px">
     <div style="display:flex;justify-content:space-between;align-items:center">
       <div>
@@ -1708,14 +1736,58 @@ function renderA4Transport(el){
       </select>
     </div>
   </div>` : ''}
+  <!-- Vehicle-Material Cargo Summary -->
+  <div style="font-size:11px;color:var(--slate5);margin-bottom:8px">Vehicle Fleet — Cargo &amp; Transport Mode Mapping</div>
+  <div class="tbl-wrap"><table style="font-size:11px"><thead><tr><th>Vehicle</th><th>Type</th><th>Mode</th><th>Default Cargo</th><th class="r">Capacity (t)</th><th class="r">EF</th></tr></thead>
+  <tbody>${VEHICLE_FLEET.map(v=>`<tr>
+    <td style="font-weight:600">${v.name}</td><td>${v.type}</td>
+    <td><span style="padding:1px 6px;border-radius:4px;font-size:10px;font-weight:700;background:${v.transportMode==='road'?'rgba(96,165,250,0.1);color:var(--blue)':v.transportMode==='sea'?'rgba(6,182,212,0.1);color:var(--cyan)':'rgba(168,85,247,0.1);color:var(--purple)'}">${v.transportMode.toUpperCase()}</span></td>
+    <td>${v.defaultCargo||'<span style="color:var(--slate5)">N/A</span>'}</td>
+    <td class="r mono">${v.cargoCapacity}</td>
+    <td class="r mono" style="color:var(--orange)">${v.ef} ${v.unit}</td>
+  </tr>`).join('')}</tbody></table></div>
   </div>
 
   <!-- MANUAL A4 ENTRIES TABLE -->
-  <div class="card"><div class="card-title">Manual A4 Entries</div><div class="tbl-wrap"><table><thead><tr><th>Project</th><th>Month</th><th>Description</th><th class="r">Mass (t)</th><th class="r">Road</th><th class="r">Sea</th><th class="r">Rail</th><th class="r">Emission</th><th></th></tr></thead><tbody id="a4ManB"></tbody></table></div></div>
+  <div class="card"><div class="card-title">Manual A4 Entries</div><div class="tbl-wrap"><table><thead><tr><th>Project</th><th>Month</th><th>Material</th><th>Type</th><th class="r">Qty</th><th class="r">Mass (t)</th><th class="r">Road</th><th class="r">Sea</th><th class="r">Rail</th><th class="r">Emission</th><th></th></tr></thead><tbody id="a4ManB"></tbody></table></div></div>
 
   <!-- IoT A4 ENTRIES TABLE -->
-  <div class="card"><div class="card-title" style="color:var(--purple)">IoT A4 Entries</div><div class="tbl-wrap"><table><thead><tr><th>Project</th><th>Month</th><th>Source</th><th class="r">Vehicles</th><th class="r">Distance</th><th class="r">Emission</th><th></th></tr></thead><tbody id="a4IotB"></tbody></table></div></div>`;
+  <div class="card"><div class="card-title" style="color:var(--purple)">IoT A4 Entries</div><div class="tbl-wrap"><table><thead><tr><th>Project</th><th>Month</th><th>Source</th><th>Cargo</th><th>Mode</th><th class="r">Vehicles</th><th class="r">Distance</th><th class="r">Emission</th><th></th></tr></thead><tbody id="a4IotB"></tbody></table></div></div>`;
   calcA4(); rA4();
+}
+
+// Material category change — populate type dropdown and update unit label
+function _a4MatCatChange(){
+  const cat=$('a4MatCat')?$('a4MatCat').value:'';
+  const typeEl=$('a4MatType');
+  const unitEl=$('a4QtyUnit');
+  if(!cat||!MATERIALS[cat]){
+    if(typeEl)typeEl.innerHTML='<option value="">Select category first...</option>';
+    if(unitEl)unitEl.textContent='';
+    return;
+  }
+  const m=MATERIALS[cat];
+  if(typeEl)typeEl.innerHTML='<option value="">-- All Types --</option>'+m.types.map((t,i)=>`<option value="${i}">${t.name}</option>`).join('');
+  if(unitEl)unitEl.textContent='('+m.unit+')';
+  _a4QtyToMass();
+}
+
+// Auto-calculate mass from qty × massFactor
+function _a4QtyToMass(){
+  const cat=$('a4MatCat')?$('a4MatCat').value:'';
+  const qty=parseFloat($('a4Qty')?$('a4Qty').value:'')||0;
+  const massEl=$('a4Mass');
+  const infoEl=$('a4MassInfo');
+  if(cat&&MATERIALS[cat]&&qty>0){
+    const mf=MATERIALS[cat].massFactor;
+    const massKg=qty*mf;
+    const massTonnes=massKg/1000;
+    if(massEl)massEl.value=massTonnes.toFixed(3);
+    if(infoEl)infoEl.textContent=`${qty} ${MATERIALS[cat].unit} \u00d7 ${mf.toLocaleString()} kg/${MATERIALS[cat].unit} = ${massKg.toLocaleString()} kg = ${massTonnes.toFixed(3)} tonnes`;
+    calcA4();
+  } else if(infoEl){
+    infoEl.textContent='';
+  }
 }
 
 function calcA4(){
@@ -1728,8 +1800,10 @@ function calcA4(){
 }
 
 async function subA4Manual(){
+  const catEl=$('a4MatCat');const cat=catEl?catEl.value:'';
+  if(!cat){alert('Please select a material category (EN 15804 requires material-linked A4 entries).');return;}
   const mass=parseFloat($('a4Mass').value);
-  if(isNaN(mass)||mass<=0){alert('Enter cargo mass in tonnes');return;}
+  if(isNaN(mass)||mass<=0){alert('Enter cargo mass in tonnes (or use Quantity to auto-calculate)');return;}
   const rd=parseFloat($('a4Rd').value)||0,se=parseFloat($('a4Se').value)||0,tr=parseFloat($('a4Tr').value)||0;
   if(rd+se+tr<=0){alert('Enter at least one transport distance');return;}
   const projEl=$('a4Proj');const projId=projEl?projEl.value:'';
@@ -1738,46 +1812,71 @@ async function subA4Manual(){
   const yr=$('a4Y').value,mo=$('a4M').value;
   const a4em=(mass*rd*TEF.road+mass*se*TEF.sea+mass*tr*TEF.train)/1000;
   const desc=$('a4Desc')?$('a4Desc').value:'';
-  const e={id:Date.now(),source:desc||'Manual Transport',qty:mass,unit:'tonnes',ef:0,emission:a4em,
+  // Material type info
+  const typeEl=$('a4MatType');const typeIdx=typeEl?parseInt(typeEl.value):-1;
+  const matObj=MATERIALS[cat];
+  const typeName=(typeIdx>=0&&matObj&&matObj.types[typeIdx])?matObj.types[typeIdx].name:'General';
+  const matQty=parseFloat($('a4Qty')?$('a4Qty').value:'')||0;
+  const matUnit=matObj?matObj.unit:'';
+  const e={id:Date.now(),source:desc||cat+' - '+typeName+' delivery',qty:matQty||mass,unit:matQty?matUnit:'tonnes',ef:0,emission:a4em,
     road:rd,sea:se,train:tr,massTonnes:mass,
+    // EN 15804 A4 material linkage
+    materialCategory:cat,materialType:typeName,materialQty:matQty,materialUnit:matUnit,
+    massFactor:matObj?matObj.massFactor:1,
     year:yr,month:mo,monthKey:yr+'-'+mo,monthLabel:MONTHS[parseInt(mo)-1]+' '+yr,
     projectId:projId,projectName:proj?proj.name:'',submittedBy:state.name,role:state.role,
     dataSource:'manual',stage:'a4'};
   await DB.saveA5Entry(e);state.a5entries.push(e);rA4();
+  // Reset form
   $('a4Mass').value='';$('a4Rd').value='0';$('a4Se').value='0';$('a4Tr').value='0';
+  if($('a4Qty'))$('a4Qty').value='';
   $('a4R').value='\u2705 Saved';if($('a4Desc'))$('a4Desc').value='';
+  if($('a4MassInfo'))$('a4MassInfo').textContent='';
 }
 
 function rA4(){
-  // Manual A4 entries
+  // Manual A4 entries — show material linkage
   const manT=$('a4ManB');if(manT){
     const manualEntries=[...(state.a5entries||[]).filter(e=>e.stage==='a4'&&e.dataSource==='manual')].reverse();
     manT.innerHTML=manualEntries.length?manualEntries.map(e=>`<tr>
       <td style="font-weight:600;color:var(--blue);font-size:11px">${e.projectName||'--'}</td>
-      <td>${e.monthLabel}</td><td>${e.source||'--'}</td>
+      <td>${e.monthLabel}</td>
+      <td style="font-weight:600;color:var(--orange);font-size:11px">${e.materialCategory||'--'}</td>
+      <td style="font-size:11px">${e.materialType||e.source||'--'}</td>
+      <td class="r mono" style="font-size:11px">${e.materialQty?fmt(e.materialQty)+' '+( e.materialUnit||''):'--'}</td>
       <td class="r mono">${e.massTonnes?fmt(e.massTonnes):(e.qty?fmt(e.qty):'--')}</td>
       <td class="r mono">${e.road||0} km</td><td class="r mono">${e.sea||0} km</td><td class="r mono">${e.train||0} km</td>
       <td class="r mono" style="font-weight:700">${fmt(e.emission)}</td>
       <td><button class="btn btn-danger btn-sm" onclick="dA4(${e.id})">\u2715</button></td></tr>`).join('')
-    :'<tr><td colspan="9" class="empty">No manual A4 entries</td></tr>';
+    :'<tr><td colspan="11" class="empty">No manual A4 entries</td></tr>';
   }
-  // IoT A4 entries
+  // IoT A4 entries — show cargo material and transport mode
   const iotT=$('a4IotB');if(iotT){
     const iotEntries=[...(state.a5entries||[]).filter(e=>e.stage==='a4'&&e.dataSource==='iot')].reverse();
-    iotT.innerHTML=iotEntries.length?iotEntries.map(e=>`<tr>
+    iotT.innerHTML=iotEntries.length?iotEntries.map(e=>{
+      // Build cargo summary from vehicle details
+      const cargoMats=(e.vehicleDetails||[]).filter(v=>v.defaultCargo).map(v=>v.defaultCargo);
+      const uniqueCargo=[...new Set(cargoMats)];
+      const modeSet=(e.vehicleDetails||[]).map(v=>v.transportMode||'road');
+      const uniqueModes=[...new Set(modeSet)];
+      return `<tr>
       <td style="font-weight:600;color:var(--purple);font-size:11px">${e.projectName||'--'}</td>
-      <td>${e.monthLabel}</td><td style="color:var(--purple);font-weight:600">${e.source}</td>
+      <td>${e.monthLabel}</td><td style="color:var(--purple);font-weight:600;font-size:11px">${e.source}</td>
+      <td style="font-size:11px">${uniqueCargo.length?uniqueCargo.join(', '):'<span style="color:var(--slate5)">Mixed</span>'}</td>
+      <td>${uniqueModes.map(m=>`<span style="padding:1px 5px;border-radius:3px;font-size:9px;font-weight:700;background:${m==='road'?'rgba(96,165,250,0.1);color:var(--blue)':m==='sea'?'rgba(6,182,212,0.1);color:var(--cyan)':'rgba(168,85,247,0.1);color:var(--purple)'}">${m.toUpperCase()}</span>`).join(' ')}</td>
       <td class="r mono">${e.vehicleCount||'--'}</td>
       <td class="r mono">${e.totalDistanceKm?fmt(e.totalDistanceKm)+' km':'--'}</td>
       <td class="r mono" style="font-weight:700">${fmt(e.emission)}</td>
-      <td><button class="btn btn-danger btn-sm" onclick="dA4(${e.id})">\u2715</button></td></tr>`).join('')
-    :'<tr><td colspan="7" class="empty">No IoT A4 entries \u2014 use IoT Live Tracker to generate data</td></tr>';
+      <td><button class="btn btn-danger btn-sm" onclick="dA4(${e.id})">\u2715</button></td></tr>`;
+    }).join('')
+    :'<tr><td colspan="9" class="empty">No IoT A4 entries \u2014 use IoT Live Tracker to generate data</td></tr>';
   }
 }
 
 async function dA4(id){await DB.deleteA5Entry(id);state.a5entries=state.a5entries.filter(e=>e.id!==id);rA4();}
 
 // Save current IoT vehicle simulation data as an A4 transport entry
+// Includes vehicle-material cargo mapping and transport modes per EN 15804
 async function saveIoTtoA4(){
   if(!_vehSim.cumulative || _vehSim.cumulative <= 0){alert('No IoT emission data to save. Start vehicle tracking first.');return;}
   const projEl=$('a4IotProj');const projId=projEl?projEl.value:'';
@@ -1787,6 +1886,11 @@ async function saveIoTtoA4(){
   const totalDist=_vehSim.vehicles.reduce((s,v)=>s+v.distanceKm,0);
   const totalFuel=_vehSim.vehicles.reduce((s,v)=>s+v.fuelConsumedL,0);
   const vehicleCount=_vehSim.vehicles.filter(v=>v.emissionKg>0).length;
+  // Collect unique cargo materials and transport modes from vehicle fleet
+  const cargoMats=_vehSim.vehicles.filter(v=>v.defaultCargo&&v.emissionKg>0).map(v=>v.defaultCargo);
+  const uniqueCargo=[...new Set(cargoMats)];
+  const modes=_vehSim.vehicles.filter(v=>v.emissionKg>0).map(v=>v.transportMode||'road');
+  const uniqueModes=[...new Set(modes)];
   const e={
     id:Date.now(),
     source:'IoT Vehicle Tracking',
@@ -1807,12 +1911,15 @@ async function saveIoTtoA4(){
     vehicleCount:vehicleCount,
     totalDistanceKm:totalDist,
     totalFuelL:totalFuel,
-    vehicleDetails:_vehSim.vehicles.map(v=>({id:v.id,name:v.name,type:v.type,distKm:v.distanceKm,emKg:v.emissionKg,fuelL:v.fuelConsumedL})),
+    // EN 15804 A4 material & transport mode linkage
+    cargoMaterials:uniqueCargo,
+    transportModes:uniqueModes,
+    vehicleDetails:_vehSim.vehicles.map(v=>({id:v.id,name:v.name,type:v.type,distKm:v.distanceKm,emKg:v.emissionKg,fuelL:v.fuelConsumedL,defaultCargo:v.defaultCargo,transportMode:v.transportMode||'road',cargoCapacity:v.cargoCapacity})),
   };
   await DB.saveA5Entry(e);
   state.a5entries.push(e);
   rA4();
-  alert('IoT vehicle emissions saved to A4 Transport (' + fmt(_vehSim.cumulative) + ' tCO\u2082eq).');
+  alert('IoT vehicle emissions saved to A4 Transport (' + fmt(_vehSim.cumulative) + ' tCO\u2082eq). Cargo: ' + (uniqueCargo.length?uniqueCargo.join(', '):'Mixed') + '.');
 }
 
 // ===== A5 =====
@@ -3742,13 +3849,16 @@ function renderIntegrations(el){
 // ===== VEHICLE EMISSION TRACKING (IoT Simulation) =====
 
 // Vehicle fleet with IoT devices — simulated construction site vehicles
+// transportMode: road | rail | sea — determines TEF used for mass-based calculation
+// defaultCargo: linked material category from MATERIALS constant (EN 15804 A4 compliance)
+// cargoCapacity: typical payload in tonnes for mass-based TEF reconciliation
 const VEHICLE_FLEET = [
-  { id: 'V-001', name: 'Dump Truck A', type: 'Dump Truck', fuelType: 'Diesel', ef: 2.68, unit: 'kgCO2e/km', avgSpeed: 35, plate: 'KSA-4821' },
-  { id: 'V-002', name: 'Concrete Mixer B', type: 'Concrete Mixer', fuelType: 'Diesel', ef: 3.12, unit: 'kgCO2e/km', avgSpeed: 25, plate: 'KSA-7734' },
-  { id: 'V-003', name: 'Flatbed Hauler C', type: 'Flatbed Truck', fuelType: 'Diesel', ef: 2.45, unit: 'kgCO2e/km', avgSpeed: 40, plate: 'KSA-1156' },
-  { id: 'V-004', name: 'Water Tanker D', type: 'Water Tanker', fuelType: 'Diesel', ef: 2.89, unit: 'kgCO2e/km', avgSpeed: 30, plate: 'KSA-3390' },
-  { id: 'V-005', name: 'Crew Transport E', type: 'Pickup Truck', fuelType: 'Gasoline', ef: 0.21, unit: 'kgCO2e/km', avgSpeed: 55, plate: 'KSA-9012' },
-  { id: 'V-006', name: 'Material Shuttle F', type: 'Light Truck', fuelType: 'Diesel', ef: 1.15, unit: 'kgCO2e/km', avgSpeed: 45, plate: 'KSA-6648' },
+  { id: 'V-001', name: 'Dump Truck A', type: 'Dump Truck', fuelType: 'Diesel', ef: 2.68, unit: 'kgCO2e/km', avgSpeed: 35, plate: 'KSA-4821', transportMode: 'road', defaultCargo: 'Earth_Work', cargoCapacity: 20 },
+  { id: 'V-002', name: 'Concrete Mixer B', type: 'Concrete Mixer', fuelType: 'Diesel', ef: 3.12, unit: 'kgCO2e/km', avgSpeed: 25, plate: 'KSA-7734', transportMode: 'road', defaultCargo: 'Concrete', cargoCapacity: 8 },
+  { id: 'V-003', name: 'Flatbed Hauler C', type: 'Flatbed Truck', fuelType: 'Diesel', ef: 2.45, unit: 'kgCO2e/km', avgSpeed: 40, plate: 'KSA-1156', transportMode: 'road', defaultCargo: 'Steel', cargoCapacity: 25 },
+  { id: 'V-004', name: 'Water Tanker D', type: 'Water Tanker', fuelType: 'Diesel', ef: 2.89, unit: 'kgCO2e/km', avgSpeed: 30, plate: 'KSA-3390', transportMode: 'road', defaultCargo: null, cargoCapacity: 20 },
+  { id: 'V-005', name: 'Crew Transport E', type: 'Pickup Truck', fuelType: 'Gasoline', ef: 0.21, unit: 'kgCO2e/km', avgSpeed: 55, plate: 'KSA-9012', transportMode: 'road', defaultCargo: null, cargoCapacity: 1 },
+  { id: 'V-006', name: 'Material Shuttle F', type: 'Light Truck', fuelType: 'Diesel', ef: 1.15, unit: 'kgCO2e/km', avgSpeed: 45, plate: 'KSA-6648', transportMode: 'road', defaultCargo: 'Asphalt', cargoCapacity: 10 },
 ];
 
 // IoT simulation state
@@ -3939,17 +4049,22 @@ function _updateVehicleUI() {
   // Update sparkline
   if (el('vehCumSpark')) el('vehCumSpark').innerHTML = _buildCumulativeSparkSvg();
 
-  // Update vehicle cards
+  // Update vehicle cards — with cargo & transport mode
   if (el('vehFleetGrid')) {
     el('vehFleetGrid').innerHTML = vehs.map(v => {
       const sc = _getStatusColor(v.status);
       const sb = _getStatusBg(v.status);
       const si = _getStatusIcon(v.status);
+      const modeColor = v.transportMode==='road'?'var(--blue)':v.transportMode==='sea'?'var(--cyan)':'var(--purple)';
+      const modeBg = v.transportMode==='road'?'rgba(96,165,250,0.1)':v.transportMode==='sea'?'rgba(6,182,212,0.1)':'rgba(168,85,247,0.1)';
       return `<div class="veh-card" style="border-left:3px solid ${sc};background:${sb}">
         <div class="veh-card-header">
           <div>
             <div class="veh-card-name">${v.name}</div>
-            <div class="veh-card-meta">${v.type} &middot; ${v.plate} &middot; ${v.fuelType}</div>
+            <div class="veh-card-meta">${v.type} &middot; ${v.plate} &middot; ${v.fuelType}
+              <span style="margin-left:4px;padding:1px 5px;border-radius:3px;font-size:9px;font-weight:700;background:${modeBg};color:${modeColor}">${(v.transportMode||'road').toUpperCase()}</span>
+              ${v.defaultCargo?`<span style="margin-left:2px;padding:1px 5px;border-radius:3px;font-size:9px;font-weight:600;background:rgba(251,146,60,0.1);color:var(--orange)">${v.defaultCargo}</span>`:''}
+            </div>
           </div>
           <div class="veh-card-status" style="color:${sc}">${si} ${v.status.toUpperCase()}</div>
         </div>
@@ -3989,10 +4104,14 @@ function _updateVehicleUI() {
     const totalKg = sorted.reduce((s, v) => s + v.emissionKg, 0) || 1;
     el('vehCumTable').innerHTML = sorted.map(v => {
       const pct = (v.emissionKg / totalKg) * 100;
+      const mc = v.transportMode==='road'?'var(--blue)':v.transportMode==='sea'?'var(--cyan)':'var(--purple)';
+      const mb = v.transportMode==='road'?'rgba(96,165,250,0.1)':v.transportMode==='sea'?'rgba(6,182,212,0.1)':'rgba(168,85,247,0.1)';
       return `<tr>
         <td style="font-weight:600;font-size:12px">${v.id}</td>
         <td style="font-size:12px">${v.name}</td>
         <td style="font-size:11px;color:var(--slate5)">${v.type}</td>
+        <td><span style="padding:1px 5px;border-radius:3px;font-size:9px;font-weight:700;background:${mb};color:${mc}">${(v.transportMode||'road').toUpperCase()}</span></td>
+        <td style="font-size:11px">${v.defaultCargo||'<span style="color:var(--slate5)">N/A</span>'}</td>
         <td class="r mono" style="font-size:12px">${v.distanceKm.toFixed(2)}</td>
         <td class="r mono" style="font-size:12px;color:var(--orange);font-weight:700">${v.emissionKg.toFixed(3)}</td>
         <td class="r mono" style="font-size:12px;font-weight:700;color:var(--green)">${(v.emissionKg / 1000).toFixed(5)}</td>
@@ -4082,7 +4201,7 @@ function renderVehicleEmissions(el) {
     <div class="card-title">Cumulative Emissions by Vehicle</div>
     <div class="tbl-wrap">
       <table>
-        <thead><tr><th>ID</th><th>Vehicle</th><th>Type</th><th class="r">Distance (km)</th><th class="r">Emissions (kg)</th><th class="r">Emissions (t)</th><th class="r">Share</th></tr></thead>
+        <thead><tr><th>ID</th><th>Vehicle</th><th>Type</th><th>Mode</th><th>Cargo</th><th class="r">Distance (km)</th><th class="r">Emissions (kg)</th><th class="r">Emissions (t)</th><th class="r">Share</th></tr></thead>
         <tbody id="vehCumTable"></tbody>
       </table>
     </div>
@@ -4090,20 +4209,25 @@ function renderVehicleEmissions(el) {
 
   <!-- Emission Factors Reference -->
   <div class="card">
-    <div class="card-title">Vehicle Emission Factors Reference</div>
+    <div class="card-title">Vehicle Fleet — Emission Factors, Cargo &amp; Transport Modes</div>
     <div class="tbl-wrap">
       <table>
-        <thead><tr><th>Vehicle</th><th>Type</th><th>Fuel</th><th class="r">EF</th><th>Unit</th><th class="r">Avg Speed</th></tr></thead>
-        <tbody>${VEHICLE_FLEET.map(v =>
-          `<tr>
+        <thead><tr><th>Vehicle</th><th>Type</th><th>Mode</th><th>Default Cargo</th><th class="r">Capacity (t)</th><th>Fuel</th><th class="r">EF</th><th>Unit</th><th class="r">Avg Speed</th></tr></thead>
+        <tbody>${VEHICLE_FLEET.map(v => {
+          const modeColor = v.transportMode==='road'?'var(--blue)':v.transportMode==='sea'?'var(--cyan)':'var(--purple)';
+          const modeBg = v.transportMode==='road'?'rgba(96,165,250,0.1)':v.transportMode==='sea'?'rgba(6,182,212,0.1)':'rgba(168,85,247,0.1)';
+          return `<tr>
             <td style="font-weight:600">${v.name}</td>
             <td>${v.type}</td>
+            <td><span style="padding:1px 6px;border-radius:4px;font-size:10px;font-weight:700;background:${modeBg};color:${modeColor}">${v.transportMode.toUpperCase()}</span></td>
+            <td>${v.defaultCargo||'<span style="color:var(--slate5)">N/A</span>'}</td>
+            <td class="r mono">${v.cargoCapacity} t</td>
             <td>${v.fuelType}</td>
             <td class="r mono" style="font-weight:700;color:var(--orange)">${v.ef}</td>
             <td style="font-size:11px;color:var(--slate5)">${v.unit}</td>
             <td class="r mono">${v.avgSpeed} km/h</td>
-          </tr>`
-        ).join('')}</tbody>
+          </tr>`;
+        }).join('')}</tbody>
       </table>
     </div>
   </div>`;
