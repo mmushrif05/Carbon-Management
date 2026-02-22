@@ -1,4 +1,5 @@
-const { getDb, getAuth, respond, optionsResponse } = require('./utils/firebase');
+const { getDb, getAuth, respond, optionsResponse, csrfCheck } = require('./utils/firebase');
+const { getClientId, checkRateLimit } = require('./lib/rate-limit');
 
 // Firebase Auth REST API
 const AUTH_API = 'https://identitytoolkit.googleapis.com/v1/accounts';
@@ -25,11 +26,23 @@ async function firebaseSignUp(email, password) {
  */
 exports.handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return optionsResponse();
+
+  const csrf = csrfCheck(event);
+  if (csrf) return csrf;
+
   if (event.httpMethod !== 'POST') return respond(405, { error: 'Method not allowed' });
 
   try {
     const body = JSON.parse(event.body || '{}');
     const { name, email, password, setupKey } = body;
+
+    // Rate limit bootstrap attempts (use IP-based since there's no auth token)
+    const db = getDb();
+    const clientId = getClientId(event);
+    const rateCheck = await checkRateLimit(db, clientId, 'api');
+    if (!rateCheck.allowed) {
+      return respond(429, { error: 'Too many requests. Please wait ' + rateCheck.retryAfter + ' seconds.' });
+    }
 
     // Validate setup key
     const expectedKey = process.env.BOOTSTRAP_KEY;
@@ -41,7 +54,6 @@ exports.handler = async (event) => {
     }
 
     // Check if any users already exist — if so, bootstrap is disabled
-    const db = getDb();
     const usersSnap = await db.ref('users').limitToFirst(1).once('value');
     if (usersSnap.val()) {
       return respond(403, { error: 'Bootstrap is disabled. Users already exist. Use the invitation system to add new users.' });

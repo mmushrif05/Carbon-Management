@@ -151,7 +151,7 @@ function sanitizeErrorMessage(error, context) {
     /service.account/i,
     /database.?url/i,
     /stack\s*trace/i,
-    /at\s+\w+\s+\(/,  // Stack trace line
+    /at\s+[\w.]+\s*\(/,  // Stack trace line (e.g. "at Object.handler (...")
     /node_modules/,
     /internal/i,
     /ECONNREFUSED/,
