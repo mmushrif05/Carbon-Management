@@ -1,7 +1,10 @@
 // ===== Carbon Reduction Advisor — AI-powered analysis =====
 // Uses Claude to analyze project emission data and generate
 // actionable reduction strategies for consultants.
-const { verifyToken, headers, respond, optionsResponse } = require('./utils/firebase');
+const { getDb, verifyToken, headers, respond, optionsResponse } = require('./utils/firebase');
+const { resetAnonymization, sanitizeProjectData, deAnonymizeResponse, createAIAuditEntry } = require('./lib/ai-privacy');
+const { checkPromptInjection, validatePayloadSize } = require('./lib/sanitize');
+const { getClientId, checkRateLimit } = require('./lib/rate-limit');
 
 function buildAdvisorPrompt(data) {
   const { project, target, totals, materials, contractors } = data;
@@ -111,6 +114,14 @@ exports.handler = async (event) => {
     return respond(401, { error: 'Unauthorized' });
   }
 
+  // Rate limiting for AI calls
+  const db = getDb();
+  const clientId = getClientId(event, user);
+  const rateCheck = await checkRateLimit(db, clientId, 'ai');
+  if (!rateCheck.allowed) {
+    return respond(429, { error: 'Too many AI requests. Please wait ' + rateCheck.retryAfter + ' seconds.' });
+  }
+
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
     return respond(500, { error: 'AI advisor not configured. Set ANTHROPIC_API_KEY in Netlify environment variables.' });
@@ -123,20 +134,52 @@ exports.handler = async (event) => {
     return respond(400, { error: 'Invalid request body' });
   }
 
+  // Validate payload size
+  const sizeCheck = validatePayloadSize(body, 2 * 1024 * 1024); // 2MB max
+  if (!sizeCheck.valid) {
+    return respond(413, { error: sizeCheck.error });
+  }
+
   const { project, target, totals, materials, contractors } = body;
   if (!project || !totals || !materials) {
     return respond(400, { error: 'Missing required data: project, totals, materials' });
   }
 
+  // Check for prompt injection in user-supplied fields
+  const injectionCheck = checkPromptInjection(project.name || '');
+  if (!injectionCheck.safe) {
+    return respond(400, { error: 'Invalid input detected in project data.' });
+  }
+
   try {
-    const prompt = buildAdvisorPrompt(body);
-    const analysis = await callClaude(apiKey, prompt);
+    // Apply AI data privacy — anonymize/redact before sending to Claude
+    resetAnonymization();
+    const sanitizedBody = {
+      ...body,
+      ...sanitizeProjectData(body),
+    };
+
+    const prompt = buildAdvisorPrompt(sanitizedBody);
+    let analysis = await callClaude(apiKey, prompt);
+
+    // De-anonymize the response so client sees real names
+    analysis = deAnonymizeResponse(analysis);
+
+    // Audit log the AI call (without storing actual content)
+    const auditEntry = createAIAuditEntry(user.uid, 'carbon-advisor', {
+      projectId: project.id || project.name,
+      totalChars: prompt.length,
+      piiRedacted: true,
+      promptPreview: prompt.substring(0, 100),
+    });
+    await db.ref('aiAuditLogs/' + Date.now() + '_' + Math.random().toString(36).substr(2, 4)).set(auditEntry);
 
     return respond(200, {
       success: true,
       analysis,
       project: project.name,
-      model: 'claude-sonnet-4-20250514'
+      model: 'claude-sonnet-4-20250514',
+      privacyApplied: true,
     });
   } catch (err) {
     console.error('Carbon advisor error:', err);
