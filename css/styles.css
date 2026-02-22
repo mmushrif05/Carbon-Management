@@ -377,3 +377,55 @@ td.mono{font-family:'Courier New',monospace;font-size:11px}
 .anomaly-fix-btn:hover{background:rgba(251,146,60,0.2)!important}
 
 @media(max-width:768px){.intel-header{flex-direction:column;align-items:stretch}.intel-project-select select{width:100%}.intel-dim-card{flex-direction:column;align-items:stretch;gap:8px}.intel-dim-right{justify-content:flex-end}}
+
+/* ===== IoT LIVE MONITORING ===== */
+.iot-live-header{display:flex;align-items:center;gap:10px;padding:12px 16px;background:var(--bg2);border:1px solid var(--border2);border-radius:var(--radius);margin-bottom:16px}
+.iot-live-dot{width:10px;height:10px;border-radius:50%;background:var(--slate5);flex-shrink:0}
+.iot-live-dot.active{background:var(--green);animation:pulse 2s infinite}
+.iot-live-label{font-size:10px;font-weight:800;letter-spacing:2px;color:var(--slate5)}
+.iot-live-dot.active+.iot-live-label{color:var(--green)}
+.iot-live-ts{font-size:11px;color:var(--slate4);font-family:'Courier New',monospace}
+.iot-live-coord{font-size:10px;color:var(--slate5);margin-left:8px}
+.iot-grid-2col{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:0}
+@media(max-width:900px){.iot-grid-2col{grid-template-columns:1fr}}
+
+/* AQI Gauge */
+.iot-aqi-gauge{width:140px;height:90px;flex-shrink:0}
+.iot-gauge-empty{width:140px;height:90px;display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--slate5);background:var(--bg3);border-radius:10px}
+.iot-aqi-section{display:flex;align-items:center;gap:24px}
+.iot-aqi-details{flex:1;display:flex;flex-direction:column;gap:6px}
+.iot-aqi-detail-row{display:flex;justify-content:space-between;align-items:center;padding:4px 10px;background:var(--bg3);border-radius:6px;font-size:11px}
+.iot-aqi-detail-row span{color:var(--slate4)}
+.iot-aqi-detail-row strong{font-size:12px;font-weight:700}
+
+/* Pollutant Bars */
+.iot-pollutant-bars{display:flex;flex-direction:column;gap:10px}
+.iot-pollutant-row{display:flex;align-items:center;gap:10px}
+.iot-poll-label{width:60px;font-size:10px;font-weight:700;color:var(--text2);display:flex;align-items:center;gap:4px;flex-shrink:0}
+.iot-poll-icon{font-size:12px}
+.iot-poll-bar-wrap{flex:1;display:flex;align-items:center;gap:10px}
+.iot-poll-bar-bg{flex:1;height:12px;background:var(--bg3);border-radius:6px;position:relative;overflow:visible}
+.iot-poll-bar-fill{height:100%;border-radius:6px;transition:width 0.5s ease}
+.iot-poll-who-line{position:absolute;top:-3px;bottom:-3px;width:2px;background:var(--red);border-radius:1px;opacity:0.6;z-index:1}
+.iot-poll-value{width:80px;text-align:right;font-size:11px;font-weight:700;font-family:'Courier New',monospace}
+.iot-poll-unit{font-size:8px;font-weight:400;color:var(--slate5)}
+
+/* Sparklines */
+.iot-sparkline-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
+@media(max-width:900px){.iot-sparkline-grid{grid-template-columns:repeat(2,1fr)}}
+.iot-sparkline-item{padding:10px;background:var(--bg3);border-radius:10px;border:1px solid var(--border2)}
+.iot-sparkline-label{font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--slate4);margin-bottom:6px}
+
+/* Vehicle Status */
+.iot-vstatus{display:inline-flex;align-items:center;gap:3px;padding:3px 8px;border-radius:6px;font-size:9px;font-weight:700;letter-spacing:.3px;text-transform:capitalize}
+
+/* Combined Emissions */
+.iot-combined-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+@media(max-width:768px){.iot-combined-grid{grid-template-columns:1fr}}
+.iot-combined-block{padding:20px;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--radius);text-align:center}
+.iot-cb-icon{font-size:28px;margin-bottom:8px}
+.iot-cb-title{font-size:13px;font-weight:700;color:var(--text);margin-bottom:4px}
+.iot-cb-desc{font-size:10px;color:var(--slate5);margin-bottom:12px}
+.iot-cb-value{font-size:24px;font-weight:800;line-height:1.2}
+.iot-cb-value span{font-size:11px;font-weight:600;opacity:0.7}
+.iot-cb-sub{font-size:10px;color:var(--slate5);margin-top:6px}

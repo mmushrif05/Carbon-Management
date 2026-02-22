@@ -14,6 +14,7 @@ function buildSidebar() {
   if(r==='consultant'||r==='client'){items.push({id:'organizations',icon:'\ud83c\udfe2',label:'Organizations'});}
   items.push({section:"Intelligence"},{id:'intelligence',icon:'\ud83e\udde0',label:'Doc Intelligence'});
   items.push({id:'certifications',icon:'\ud83c\udfc6',label:'Certifications'},{id:'integrations',icon:'\ud83d\udd0c',label:'API Hub'});
+  items.push({section:"Monitoring"},{id:'iot_monitor',icon:'\ud83d\udce1',label:'Live IoT Monitor'});
   items.push({section:"Competition"},{id:'pitch_deck',icon:'\ud83c\udfc6',label:'Pitch Deck',href:'pitch.html'});
 
   $('sidebarNav').innerHTML = items.map(it => it.section ? `<div class="sb-section">${it.section}</div>` :
@@ -25,11 +26,14 @@ function buildSidebar() {
 // ===== NAV =====
 function navigate(page) {
   state.page = page; buildSidebar();
-  const titles={dashboard:["Dashboard","Project carbon performance & sustainability metrics"],entry_a13:["A1-A3 Material Entry","Enter material quantities and emission factors"],entry_a5:["A5 Site Emissions","Monthly fuel and water consumption"],approvals:["Approval Workflow","Review and approve carbon data"],monthly:["Monthly Report","Monthly emissions breakdown"],cumulative:["Cumulative Report","Running totals and trends"],baselines:["Baseline EFs","Emission factor reference data"],team:["Team Management","Invite and manage project team members"],projects:["Projects","Create and manage projects, assign organizations and users to projects"],organizations:["Organizations & Assignments","Manage firms, companies, and consultant-contractor assignments"],certifications:["Certifications","Track sustainability certification credits"],integrations:["API Hub","External integrations and data sources"],tender_entry:["Tender Quantities","Create and manage tender emission scenarios from BOQ quantities"],tender_compare:["Compare Scenarios","Side-by-side comparison of tender emission projections"],intelligence:["Document Intelligence","RAG-powered document analysis with source citations"]};
+  const titles={dashboard:["Dashboard","Project carbon performance & sustainability metrics"],entry_a13:["A1-A3 Material Entry","Enter material quantities and emission factors"],entry_a5:["A5 Site Emissions","Monthly fuel and water consumption"],approvals:["Approval Workflow","Review and approve carbon data"],monthly:["Monthly Report","Monthly emissions breakdown"],cumulative:["Cumulative Report","Running totals and trends"],baselines:["Baseline EFs","Emission factor reference data"],team:["Team Management","Invite and manage project team members"],projects:["Projects","Create and manage projects, assign organizations and users to projects"],organizations:["Organizations & Assignments","Manage firms, companies, and consultant-contractor assignments"],certifications:["Certifications","Track sustainability certification credits"],integrations:["API Hub","External integrations and data sources"],tender_entry:["Tender Quantities","Create and manage tender emission scenarios from BOQ quantities"],tender_compare:["Compare Scenarios","Side-by-side comparison of tender emission projections"],intelligence:["Document Intelligence","RAG-powered document analysis with source citations"],iot_monitor:["Live IoT Monitor","Real-time environmental & construction transport emissions monitoring"]};
   const[t,d]=titles[page]||["",""];
   $('pageTitle').textContent=t; $('pageDesc').textContent=d;
-  const R={dashboard:renderDashboard,entry_a13:renderEntry,entry_a5:renderA5,approvals:renderApprovals,monthly:renderMonthly,cumulative:renderCumulative,baselines:renderBaselines,team:renderTeam,projects:renderProjects,organizations:renderOrganizations,certifications:renderCerts,integrations:renderIntegrations,tender_entry:renderTenderEntry,tender_compare:renderTenderCompare,intelligence:renderIntelligence};
+  const R={dashboard:renderDashboard,entry_a13:renderEntry,entry_a5:renderA5,approvals:renderApprovals,monthly:renderMonthly,cumulative:renderCumulative,baselines:renderBaselines,team:renderTeam,projects:renderProjects,organizations:renderOrganizations,certifications:renderCerts,integrations:renderIntegrations,tender_entry:renderTenderEntry,tender_compare:renderTenderCompare,intelligence:renderIntelligence,iot_monitor:renderIoTMonitor};
   if(R[page]) R[page]($('pageBody'));
+  // Start/stop IoT monitoring based on page
+  if(page==='iot_monitor'&&typeof startIoTMonitoring==='function'&&getIoTApiKey()){startIoTMonitoring();}
+  else if(page!=='iot_monitor'&&typeof stopIoTMonitoring==='function'){stopIoTMonitoring();}
   $('sidebar').classList.remove('open');
 }
 
