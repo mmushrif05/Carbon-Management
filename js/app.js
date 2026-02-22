@@ -32,7 +32,7 @@ function navigate(page) {
   const R={dashboard:renderDashboard,entry_a13:renderEntry,entry_a5:renderA5,approvals:renderApprovals,monthly:renderMonthly,cumulative:renderCumulative,baselines:renderBaselines,team:renderTeam,projects:renderProjects,organizations:renderOrganizations,certifications:renderCerts,integrations:renderIntegrations,tender_entry:renderTenderEntry,tender_compare:renderTenderCompare,intelligence:renderIntelligence,iot_monitor:renderIoTMonitor};
   if(R[page]) R[page]($('pageBody'));
   // Start/stop IoT monitoring based on page
-  if(page==='iot_monitor'&&typeof startIoTMonitoring==='function'&&getIoTApiKey()){startIoTMonitoring();}
+  if(page==='iot_monitor'&&typeof startIoTMonitoring==='function'){startIoTMonitoring();}
   else if(page!=='iot_monitor'&&typeof stopIoTMonitoring==='function'){stopIoTMonitoring();}
   $('sidebar').classList.remove('open');
 }

@@ -420,8 +420,9 @@ td.mono{font-family:'Courier New',monospace;font-size:11px}
 .iot-vstatus{display:inline-flex;align-items:center;gap:3px;padding:3px 8px;border-radius:6px;font-size:9px;font-weight:700;letter-spacing:.3px;text-transform:capitalize}
 
 /* Combined Emissions */
-.iot-combined-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
-@media(max-width:768px){.iot-combined-grid{grid-template-columns:1fr}}
+.iot-combined-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
+@media(max-width:900px){.iot-combined-grid{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:600px){.iot-combined-grid{grid-template-columns:1fr}}
 .iot-combined-block{padding:20px;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--radius);text-align:center}
 .iot-cb-icon{font-size:28px;margin-bottom:8px}
 .iot-cb-title{font-size:13px;font-weight:700;color:var(--text);margin-bottom:4px}
@@ -429,3 +430,34 @@ td.mono{font-family:'Courier New',monospace;font-size:11px}
 .iot-cb-value{font-size:24px;font-weight:800;line-height:1.2}
 .iot-cb-value span{font-size:11px;font-weight:600;opacity:0.7}
 .iot-cb-sub{font-size:10px;color:var(--slate5);margin-top:6px}
+
+/* IoT Data Source Selector */
+.iot-source-bar{padding:14px 16px;background:var(--bg2);border:1px solid var(--border2);border-radius:var(--radius);margin-bottom:16px;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.iot-source-label{font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--slate4);flex-shrink:0}
+.iot-source-options{display:flex;gap:8px}
+.iot-source-btn{display:inline-flex;align-items:center;gap:6px;padding:7px 14px;background:var(--bg3);border:1px solid var(--border2);border-radius:8px;color:var(--slate4);font-size:11px;font-weight:600;cursor:pointer;transition:all .2s;font-family:inherit}
+.iot-source-btn:hover{border-color:var(--green);color:var(--text2)}
+.iot-source-btn.active{border-color:var(--green);background:rgba(52,211,153,0.08);color:var(--green)}
+.iot-source-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.iot-source-tag{font-size:8px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;padding:2px 6px;border-radius:4px;background:rgba(100,116,139,0.15);color:var(--slate5)}
+.iot-source-tag.green{background:rgba(52,211,153,0.15);color:var(--green)}
+.iot-owm-key-row{display:flex;gap:8px;align-items:center;margin-left:auto}
+.iot-key-input{padding:6px 12px;background:var(--bg3);border:1px solid var(--border2);border-radius:8px;color:var(--text);font-size:11px;width:280px;outline:none;font-family:inherit}
+.iot-key-input:focus{border-color:var(--green)}
+
+/* IoT Dust Card */
+.iot-dust-card{border:1px solid rgba(217,119,6,0.2);background:rgba(217,119,6,0.03)}
+
+/* IoT 24H Forecast */
+.iot-forecast-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:16px}
+@media(max-width:900px){.iot-forecast-grid{grid-template-columns:1fr}}
+.iot-forecast-item{padding:12px;background:var(--bg3);border:1px solid var(--border2);border-radius:10px}
+
+/* IoT Emissions Impact */
+.iot-impact-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:12px}
+@media(max-width:900px){.iot-impact-grid{grid-template-columns:repeat(3,1fr)}}
+@media(max-width:600px){.iot-impact-grid{grid-template-columns:repeat(2,1fr)}}
+.iot-impact-item{padding:14px 10px;background:var(--bg3);border:1px solid var(--border2);border-radius:10px;text-align:center}
+.iot-impact-label{font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--slate4);margin-bottom:6px}
+.iot-impact-value{font-size:20px;font-weight:800;line-height:1.2}
+.iot-impact-unit{font-size:9px;color:var(--slate5);margin-top:4px}
