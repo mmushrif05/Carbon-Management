@@ -71,6 +71,8 @@ async function handleListOrgs(decoded) {
 }
 
 // === UPDATE ORGANIZATION ===
+// Cascades the name change to all related records:
+// users, org_links, assignments, project_org_links, entries, a5entries
 async function handleUpdateOrg(body, decoded) {
   const { orgId, name } = body;
   if (!orgId) return respond(400, { error: 'Organization ID is required.' });
@@ -85,15 +87,86 @@ async function handleUpdateOrg(body, decoded) {
 
   const db = getDb();
   const snap = await db.ref('organizations/' + orgId).once('value');
-  if (!snap.val()) return respond(404, { error: 'Organization not found.' });
+  const org = snap.val();
+  if (!org) return respond(404, { error: 'Organization not found.' });
 
-  await db.ref('organizations/' + orgId).update({
-    name: name.trim(),
-    updatedAt: new Date().toISOString(),
-    updatedBy: decoded.uid
-  });
+  const newName = name.trim();
+  const updates = {};
 
-  return respond(200, { success: true });
+  // 1. Update the organization record itself
+  updates['organizations/' + orgId + '/name'] = newName;
+  updates['organizations/' + orgId + '/updatedAt'] = new Date().toISOString();
+  updates['organizations/' + orgId + '/updatedBy'] = decoded.uid;
+
+  // 2. Cascade to users with this organizationId
+  const usersSnap = await db.ref('users')
+    .orderByChild('organizationId')
+    .equalTo(orgId)
+    .once('value');
+  const users = usersSnap.val() || {};
+  for (const uid of Object.keys(users)) {
+    updates['users/' + uid + '/organizationName'] = newName;
+  }
+
+  // 3. Cascade to org_links (consultant firm ↔ contractor company)
+  const orgLinksSnap = await db.ref('org_links').once('value');
+  const orgLinks = orgLinksSnap.val() || {};
+  for (const [linkId, link] of Object.entries(orgLinks)) {
+    if (link.consultantOrgId === orgId) {
+      updates['org_links/' + linkId + '/consultantOrgName'] = newName;
+    }
+    if (link.contractorOrgId === orgId) {
+      updates['org_links/' + linkId + '/contractorOrgName'] = newName;
+    }
+  }
+
+  // 4. Cascade to assignments (consultant ↔ contractor user-level)
+  const assignSnap = await db.ref('assignments').once('value');
+  const assignments = assignSnap.val() || {};
+  for (const [aId, a] of Object.entries(assignments)) {
+    if (a.consultantOrgId === orgId) {
+      updates['assignments/' + aId + '/consultantOrgName'] = newName;
+    }
+    if (a.contractorOrgId === orgId) {
+      updates['assignments/' + aId + '/contractorOrgName'] = newName;
+    }
+  }
+
+  // 5. Cascade to project_org_links
+  const projOrgSnap = await db.ref('project_org_links').once('value');
+  const projOrgLinks = projOrgSnap.val() || {};
+  for (const [lId, l] of Object.entries(projOrgLinks)) {
+    if (l.orgId === orgId) {
+      updates['project_org_links/' + lId + '/orgName'] = newName;
+    }
+  }
+
+  // 6. Cascade to entries (A1-A3)
+  const project = profile.project || PROJECT_ID;
+  const entriesSnap = await db.ref('projects/' + project + '/entries').once('value');
+  const entries = entriesSnap.val() || {};
+  for (const [eId, e] of Object.entries(entries)) {
+    if (e.organizationId === orgId) {
+      updates['projects/' + project + '/entries/' + eId + '/organizationName'] = newName;
+    }
+  }
+
+  // 7. Cascade to A5 entries
+  const a5Snap = await db.ref('projects/' + project + '/a5entries').once('value');
+  const a5entries = a5Snap.val() || {};
+  for (const [eId, e] of Object.entries(a5entries)) {
+    if (e.organizationId === orgId) {
+      updates['projects/' + project + '/a5entries/' + eId + '/organizationName'] = newName;
+    }
+  }
+
+  // Apply all updates atomically
+  await db.ref().update(updates);
+
+  const cascadeCount = Object.keys(updates).length - 3; // minus the 3 org fields
+  console.log('[ORG] Renamed organization:', orgId, '"' + org.name + '" → "' + newName + '"', '(' + cascadeCount + ' related records updated)');
+
+  return respond(200, { success: true, cascadeCount });
 }
 
 // === DELETE ORGANIZATION ===

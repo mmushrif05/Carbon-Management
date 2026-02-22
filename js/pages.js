@@ -2202,26 +2202,36 @@ function renderOrgList(orgs) {
   const firms = orgs.filter(o => o.type === 'consultant_firm');
   const companies = orgs.filter(o => o.type === 'contractor_company');
 
+  const canEdit = state.role === 'client' || state.role === 'consultant';
+
+  const orgRow = (o) => `<tr>
+    <td style="font-weight:600">
+      <span id="orgNameDisplay_${o.id}">${o.name}</span>
+      <span id="orgNameEdit_${o.id}" style="display:none">
+        <input id="orgNameInput_${o.id}" value="${o.name.replace(/"/g, '&quot;')}" style="width:180px;font-size:13px;padding:4px 8px" />
+        <button class="btn btn-primary btn-sm" onclick="saveOrgRename('${o.id}')" style="margin-left:4px">Save</button>
+        <button class="btn btn-sm" onclick="cancelOrgRename('${o.id}')" style="margin-left:2px">Cancel</button>
+      </span>
+    </td>
+    <td><span class="badge ${o.type === 'consultant_firm' ? 'approved' : 'review'}" style="text-transform:capitalize">${o.type.replace('_', ' ')}</span></td>
+    <td style="color:var(--slate5);font-size:12px">${o.createdByName || '—'}</td>
+    <td style="color:var(--slate5);font-size:11px">${new Date(o.createdAt).toLocaleDateString()}</td>
+    <td style="white-space:nowrap">
+      ${canEdit ? `<button class="btn btn-sm" onclick="startOrgRename('${o.id}')" id="orgEditBtn_${o.id}" style="margin-right:4px">Edit</button>` : ''}
+      ${state.role === 'client' ? `<button class="btn btn-danger btn-sm" onclick="deleteOrg('${o.id}')">Delete</button>` : ''}
+      ${!canEdit ? '—' : ''}
+    </td>
+  </tr>`;
+
   el.innerHTML = `
+    <div id="orgRenameStatus" class="login-error" style="margin-bottom:8px;display:none"></div>
     <div class="tbl-wrap"><table>
       <thead><tr><th>Name</th><th>Type</th><th>Created By</th><th>Date</th><th>Actions</th></tr></thead>
       <tbody>
         ${firms.length ? '<tr><td colspan="5" style="font-size:11px;font-weight:700;color:var(--green);text-transform:uppercase;letter-spacing:1px;padding:12px 8px 4px">Consultant Firms</td></tr>' : ''}
-        ${firms.map(o => `<tr>
-          <td style="font-weight:600">${o.name}</td>
-          <td><span class="badge approved" style="text-transform:capitalize">${o.type.replace('_', ' ')}</span></td>
-          <td style="color:var(--slate5);font-size:12px">${o.createdByName || '—'}</td>
-          <td style="color:var(--slate5);font-size:11px">${new Date(o.createdAt).toLocaleDateString()}</td>
-          <td>${state.role === 'client' ? `<button class="btn btn-danger btn-sm" onclick="deleteOrg('${o.id}')">Delete</button>` : '—'}</td>
-        </tr>`).join('')}
+        ${firms.map(orgRow).join('')}
         ${companies.length ? '<tr><td colspan="5" style="font-size:11px;font-weight:700;color:var(--blue);text-transform:uppercase;letter-spacing:1px;padding:12px 8px 4px">Contractor Companies</td></tr>' : ''}
-        ${companies.map(o => `<tr>
-          <td style="font-weight:600">${o.name}</td>
-          <td><span class="badge review" style="text-transform:capitalize">${o.type.replace('_', ' ')}</span></td>
-          <td style="color:var(--slate5);font-size:12px">${o.createdByName || '—'}</td>
-          <td style="color:var(--slate5);font-size:11px">${new Date(o.createdAt).toLocaleDateString()}</td>
-          <td>${state.role === 'client' ? `<button class="btn btn-danger btn-sm" onclick="deleteOrg('${o.id}')">Delete</button>` : '—'}</td>
-        </tr>`).join('')}
+        ${companies.map(orgRow).join('')}
       </tbody>
     </table></div>`;
 }
@@ -2352,6 +2362,49 @@ async function deleteOrg(orgId) {
     await loadOrgData();
   } catch (e) {
     alert(e.message || 'Failed to delete organization.');
+  }
+}
+
+function startOrgRename(orgId) {
+  const display = $('orgNameDisplay_' + orgId);
+  const edit = $('orgNameEdit_' + orgId);
+  const btn = $('orgEditBtn_' + orgId);
+  if (display) display.style.display = 'none';
+  if (edit) edit.style.display = 'inline';
+  if (btn) btn.style.display = 'none';
+  const inp = $('orgNameInput_' + orgId);
+  if (inp) { inp.focus(); inp.select(); }
+}
+
+function cancelOrgRename(orgId) {
+  const display = $('orgNameDisplay_' + orgId);
+  const edit = $('orgNameEdit_' + orgId);
+  const btn = $('orgEditBtn_' + orgId);
+  if (display) display.style.display = 'inline';
+  if (edit) edit.style.display = 'none';
+  if (btn) btn.style.display = 'inline-block';
+}
+
+async function saveOrgRename(orgId) {
+  const inp = $('orgNameInput_' + orgId);
+  if (!inp) return;
+  const newName = inp.value.trim();
+  if (!newName) { alert('Organization name cannot be empty.'); return; }
+
+  const statusEl = $('orgRenameStatus');
+  try {
+    await DB.updateOrganization(orgId, newName);
+    if (statusEl) {
+      statusEl.style.display = 'block';
+      statusEl.style.background = 'rgba(52,211,153,0.08)';
+      statusEl.style.borderColor = 'rgba(52,211,153,0.2)';
+      statusEl.style.color = 'var(--green)';
+      statusEl.textContent = 'Organization renamed to "' + newName + '". Changes propagated across all records.';
+      setTimeout(() => { statusEl.style.display = 'none'; }, 4000);
+    }
+    await loadOrgData();
+  } catch (e) {
+    alert(e.message || 'Failed to rename organization.');
   }
 }
 
@@ -2730,19 +2783,42 @@ function renderProjectList(projects) {
         // Legacy single string (pre-migration)
         pkgBadges = '<span class="badge" style="background:rgba(139,92,246,0.1);color:var(--purple);font-size:10px">' + p.package + '</span>';
       }
+      const safeName = (p.name || '').replace(/"/g, '&quot;');
+      const safeCode = (p.code || '').replace(/"/g, '&quot;');
+      const safeDesc = (p.description || '').replace(/"/g, '&quot;');
       return `<tr>
         ${canManage ? `<td><input type="checkbox" class="proj-sel" value="${p.id}" onchange="updateProjSelection()" /></td>` : ''}
-        <td style="font-weight:600">${p.name || ''}</td>
-        <td style="color:var(--blue);font-family:monospace;font-size:12px">${p.code || '--'}</td>
+        <td style="font-weight:600">
+          <span id="projNameDisplay_${p.id}">${p.name || ''}</span>
+          <span id="projNameEdit_${p.id}" style="display:none">
+            <input id="projNameInput_${p.id}" value="${safeName}" style="width:140px;font-size:12px;padding:3px 6px" placeholder="Project name" />
+          </span>
+        </td>
+        <td style="color:var(--blue);font-family:monospace;font-size:12px">
+          <span id="projCodeDisplay_${p.id}">${p.code || '--'}</span>
+          <span id="projCodeEdit_${p.id}" style="display:none">
+            <input id="projCodeInput_${p.id}" value="${safeCode}" style="width:80px;font-size:12px;padding:3px 6px" placeholder="Code" />
+          </span>
+        </td>
         <td style="font-size:11px">${pkgBadges}</td>
-        <td style="color:var(--slate5);font-size:12px;max-width:200px;overflow:hidden;text-overflow:ellipsis">${p.description || '--'}</td>
+        <td style="color:var(--slate5);font-size:12px;max-width:200px;overflow:hidden;text-overflow:ellipsis">
+          <span id="projDescDisplay_${p.id}">${p.description || '--'}</span>
+          <span id="projDescEdit_${p.id}" style="display:none">
+            <input id="projDescInput_${p.id}" value="${safeDesc}" style="width:160px;font-size:12px;padding:3px 6px" placeholder="Description" />
+          </span>
+        </td>
         <td style="font-size:11px">${consOrgNames}</td>
         <td style="font-size:11px">${contOrgNames}</td>
         <td class="r"><span style="color:var(--yellow);font-weight:700" title="In-Charge personnel">${inChargeCount}</span></td>
         <td class="r"><span style="color:var(--green);font-weight:700" title="Team members">${teamCount}</span></td>
         <td><span class="badge ${statusClass}" style="text-transform:capitalize">${p.status || 'active'}</span></td>
         <td style="color:var(--slate5);font-size:11px">${new Date(p.createdAt).toLocaleDateString()}</td>
-        ${canManage ? `<td><button class="btn btn-danger btn-sm" onclick="deleteProject('${p.id}')">Delete</button></td>` : ''}
+        ${canManage ? `<td style="white-space:nowrap">
+          <button class="btn btn-sm" id="projEditBtn_${p.id}" onclick="startProjectEdit('${p.id}')" style="margin-right:4px">Edit</button>
+          <button class="btn btn-primary btn-sm" id="projSaveBtn_${p.id}" onclick="saveProjectEdit('${p.id}')" style="display:none;margin-right:4px">Save</button>
+          <button class="btn btn-sm" id="projCancelBtn_${p.id}" onclick="cancelProjectEdit('${p.id}')" style="display:none;margin-right:4px">Cancel</button>
+          <button class="btn btn-danger btn-sm" onclick="deleteProject('${p.id}')">Delete</button>
+        </td>` : ''}
       </tr>`;
     }).join('')}</tbody>
   </table></div>`;
@@ -3207,6 +3283,59 @@ async function deleteProject(projectId) {
   } catch (e) {
     console.error('[PROJECT] Delete failed:', e);
     alert(e.message || 'Failed to delete project.');
+  }
+}
+
+function startProjectEdit(projectId) {
+  // Show edit inputs, hide display spans
+  ['Name', 'Code', 'Desc'].forEach(field => {
+    const display = $('proj' + field + 'Display_' + projectId);
+    const edit = $('proj' + field + 'Edit_' + projectId);
+    if (display) display.style.display = 'none';
+    if (edit) edit.style.display = 'inline';
+  });
+  const editBtn = $('projEditBtn_' + projectId);
+  const saveBtn = $('projSaveBtn_' + projectId);
+  const cancelBtn = $('projCancelBtn_' + projectId);
+  if (editBtn) editBtn.style.display = 'none';
+  if (saveBtn) saveBtn.style.display = 'inline-block';
+  if (cancelBtn) cancelBtn.style.display = 'inline-block';
+  const inp = $('projNameInput_' + projectId);
+  if (inp) { inp.focus(); inp.select(); }
+}
+
+function cancelProjectEdit(projectId) {
+  ['Name', 'Code', 'Desc'].forEach(field => {
+    const display = $('proj' + field + 'Display_' + projectId);
+    const edit = $('proj' + field + 'Edit_' + projectId);
+    if (display) display.style.display = 'inline';
+    if (edit) edit.style.display = 'none';
+  });
+  const editBtn = $('projEditBtn_' + projectId);
+  const saveBtn = $('projSaveBtn_' + projectId);
+  const cancelBtn = $('projCancelBtn_' + projectId);
+  if (editBtn) editBtn.style.display = 'inline-block';
+  if (saveBtn) saveBtn.style.display = 'none';
+  if (cancelBtn) cancelBtn.style.display = 'none';
+}
+
+async function saveProjectEdit(projectId) {
+  const nameInput = $('projNameInput_' + projectId);
+  const codeInput = $('projCodeInput_' + projectId);
+  const descInput = $('projDescInput_' + projectId);
+
+  const name = nameInput ? nameInput.value.trim() : '';
+  const code = codeInput ? codeInput.value.trim() : '';
+  const description = descInput ? descInput.value.trim() : '';
+
+  if (!name) { alert('Project name cannot be empty.'); return; }
+
+  try {
+    await DB.updateProject(projectId, { name, code, description });
+    await loadProjectData();
+  } catch (e) {
+    console.error('[PROJECT] Edit failed:', e);
+    alert(e.message || 'Failed to update project.');
   }
 }
 
