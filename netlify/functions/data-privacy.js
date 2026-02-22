@@ -58,7 +58,7 @@ exports.handler = async (event) => {
           },
         },
         compliance: {
-          saudiPDPL: true,          // Personal Data Protection Law readiness
+          dataProtectionLaw: true,  // Regional data protection law readiness (GDPR, PDPL, etc.)
           dataResidency: 'API data processed via Anthropic (US). Documents encrypted at rest in Firebase.',
           dataRetention: 'Configurable per tenant. Default: indefinite with encryption.',
           rightToDelete: true,       // Users can request data deletion

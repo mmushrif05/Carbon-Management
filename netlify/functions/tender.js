@@ -1,7 +1,8 @@
 const { getDb, verifyToken, respond, optionsResponse, csrfCheck } = require('./utils/firebase');
 const { getClientId, checkRateLimit } = require('./lib/rate-limit');
+const { dbPath } = require('./utils/config');
 
-const DB_PATH = 'projects/ksia/tenderScenarios';
+const DB_PATH = dbPath('tenderScenarios');
 
 async function handleList(event) {
   const decoded = await verifyToken(event);

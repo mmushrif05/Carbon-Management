@@ -2,6 +2,7 @@ const { getDb, getAuth, verifyToken, respond, optionsResponse, csrfCheck } = req
 const crypto = require('crypto');
 const { getClientId, checkRateLimit } = require('./lib/rate-limit');
 const { checkAccountLockout, recordFailedAttempt, clearFailedAttempts, logSecurityEvent } = require('./lib/security-middleware');
+const { PROJECT_ID, APP_BRAND } = require('./utils/config');
 
 const VALID_ROLES = ['contractor', 'consultant', 'client'];
 
@@ -151,7 +152,7 @@ async function sendResetEmail(email, resetLink) {
       from: `"CarbonTrack Pro" <${fromEmail}>`,
       to: email,
       subject: 'Reset Your CarbonTrack Pro Password',
-      text: `Password Reset Request\n\nYou requested a password reset for your CarbonTrack Pro account.\n\nClick the link below to reset your password:\n${resetLink}\n\nIf you did not request this, you can safely ignore this email.\n\nCarbonTrack Pro — KSIA Sustainability Program`,
+      text: `Password Reset Request\n\nYou requested a password reset for your ${APP_BRAND} account.\n\nClick the link below to reset your password:\n${resetLink}\n\nIf you did not request this, you can safely ignore this email.\n\n${APP_BRAND}`,
       html: `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"></head>
 <body style="margin:0;padding:0;background:#0b0f0e;font-family:'Segoe UI',system-ui,sans-serif">
 <div style="max-width:560px;margin:40px auto;background:#111916;border:1px solid rgba(52,211,153,0.12);border-radius:16px;overflow:hidden">
@@ -167,7 +168,7 @@ async function sendResetEmail(email, resetLink) {
 <p style="color:#64748b;font-size:11px;text-align:center;margin:0">If the button doesn't work, copy and paste this link:<br>
 <a href="${resetLink}" style="color:#34d399;word-break:break-all">${resetLink}</a></p></div>
 <div style="padding:20px 32px;border-top:1px solid rgba(52,211,153,0.08);text-align:center">
-<p style="color:#475569;font-size:10px;margin:0">If you did not request this reset, you can safely ignore this email.<br>CarbonTrack Pro v2.0 — KSIA Sustainability Program</p></div></div></body></html>`
+<p style="color:#475569;font-size:10px;margin:0">If you did not request this reset, you can safely ignore this email.<br>${APP_BRAND}</p></div></div></body></html>`
     });
     return true;
   } catch (e) {
@@ -224,7 +225,7 @@ async function handleRegister(body) {
 
   // Use the role from the invitation (not user-selected)
   const role = invitation.role;
-  const project = invitation.project || 'ksia';
+  const project = invitation.project || PROJECT_ID;
 
   try {
     // Create user via Firebase Auth REST API (createUserWithEmailAndPassword)

@@ -6,7 +6,7 @@ CarbonTrack Pro meets **OWASP Application Security Verification Standard (ASVS) 
 
 ## Overview
 
-CarbonTrack Pro implements enterprise-grade data protection designed for organizations operating under strict data privacy regulations, including Saudi Arabia's **Personal Data Protection Law (PDPL)** and international standards.
+CarbonTrack Pro implements enterprise-grade data protection designed for organizations operating under strict data privacy regulations and international standards (e.g., GDPR, regional data protection laws).
 
 This document describes the security architecture, data handling practices, and compliance controls available to enterprise customers.
 
@@ -243,7 +243,7 @@ Each AI call records:
 Before deploying for an enterprise client:
 
 - [ ] Generate and set `DATA_ENCRYPTION_KEY` in Netlify env vars
-- [ ] Set `DATA_PRIVACY_LEVEL=enhanced` (or `maximum` for Saudi government)
+- [ ] Set `DATA_PRIVACY_LEVEL=enhanced` (or `maximum` for government/defense projects)
 - [ ] Set `ALLOWED_ORIGINS` to production domain(s) only
 - [ ] Verify Firebase Security Rules restrict direct database access
 - [ ] Enable Firebase App Check for additional API protection

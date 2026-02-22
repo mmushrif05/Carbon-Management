@@ -1,5 +1,6 @@
 const { getDb, getAuth, respond, optionsResponse, csrfCheck } = require('./utils/firebase');
 const { getClientId, checkRateLimit } = require('./lib/rate-limit');
+const { PROJECT_ID } = require('./utils/config');
 
 // Firebase Auth REST API
 const AUTH_API = 'https://identitytoolkit.googleapis.com/v1/accounts';
@@ -83,7 +84,7 @@ exports.handler = async (event) => {
       email: email.trim().toLowerCase(),
       name: name.trim(),
       role: 'client',
-      project: 'ksia',
+      project: PROJECT_ID,
       isBootstrap: true,
       createdAt: new Date().toISOString()
     });
@@ -95,7 +96,7 @@ exports.handler = async (event) => {
       message: 'First client account created! You can now sign in and invite other users.',
       token: signUpData.idToken,
       refreshToken: signUpData.refreshToken,
-      user: { uid, name: name.trim(), email: email.trim().toLowerCase(), role: 'client', project: 'ksia' }
+      user: { uid, name: name.trim(), email: email.trim().toLowerCase(), role: 'client', project: PROJECT_ID }
     });
   } catch (e) {
     console.error('[BOOTSTRAP] Error:', e);
