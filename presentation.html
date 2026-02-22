@@ -3,11 +3,13 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>CarbonIQ — Presentation</title>
+<title>CarbonIQ — Startup Competition Pitch Deck 2026</title>
+<meta name="description" content="CarbonIQ: Open-source carbon accountability platform. 3 AI engines, IoT sensor-ready, multi-industry scalable. Apache 2.0 licensed.">
 <style>
   :root {
     --green: #22c55e; --green2: #059669; --green-dim: rgba(34,197,94,0.10);
-    --blue: #60a5fa; --purple: #a78bfa; --orange: #fb923c; --cyan: #22d3ee;
+    --blue: #60a5fa; --purple: #a78bfa; --orange: #fb923c;
+    --cyan: #22d3ee; --red: #f87171; --yellow: #fbbf24;
     --bg: #0a0e1a; --bg2: #0f1626; --bg3: #141d2e; --bg4: #1a2540;
     --border: rgba(255,255,255,0.07);
     --text: #f1f5f9; --text2: #cbd5e1; --text3: #94a3b8; --slate: #64748b;
@@ -24,54 +26,107 @@
     position: absolute; inset: 0;
     display: flex; flex-direction: column; justify-content: center; align-items: center;
     padding: 60px 80px;
-    opacity: 0; pointer-events: none;
-    transition: opacity 0.5s ease;
+    opacity: 0; transform: translateX(60px);
+    transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+    pointer-events: none; overflow-y: auto;
   }
-  .slide.active { opacity: 1; pointer-events: all; }
-  .slide::before {
-    content: ''; position: absolute; inset: 0;
-    background: radial-gradient(ellipse 60% 45% at 50% 35%, rgba(34,197,94,0.05) 0%, transparent 70%);
-    pointer-events: none;
+  .slide.active {
+    opacity: 1; transform: translateX(0);
+    pointer-events: auto;
+  }
+  .slide.prev {
+    opacity: 0; transform: translateX(-60px);
   }
 
-  /* ── NAV ── */
-  .nav {
-    position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
-    display: flex; align-items: center; gap: 12px; z-index: 100;
-    background: rgba(15,22,38,0.92); border: 1px solid var(--border);
-    border-radius: 30px; padding: 8px 20px; backdrop-filter: blur(8px);
+  /* ── SLIDE INNER ── */
+  .slide-inner { max-width: 1000px; width: 100%; }
+
+  /* ── NAVIGATION ── */
+  .nav-bar {
+    position: fixed; bottom: 0; left: 0; right: 0; z-index: 1000;
+    background: rgba(10,14,26,0.92); backdrop-filter: blur(12px);
+    border-top: 1px solid var(--border);
+    padding: 12px 32px; display: flex; align-items: center; justify-content: space-between;
   }
-  .nav-btn {
-    width: 36px; height: 36px; border-radius: 50%;
-    background: var(--bg3); border: 1px solid var(--border);
-    color: var(--text3); font-size: 16px; cursor: pointer;
-    display: flex; align-items: center; justify-content: center;
-    transition: all 0.2s;
-  }
-  .nav-btn:hover { background: var(--green-dim); color: var(--green); border-color: rgba(34,197,94,0.3); }
-  .nav-dots { display: flex; gap: 6px; }
+  .nav-dots { display: flex; gap: 6px; align-items: center; }
   .nav-dot {
     width: 8px; height: 8px; border-radius: 50%;
-    background: var(--slate); cursor: pointer; transition: all 0.2s;
+    background: var(--slate); cursor: pointer; transition: all 0.3s; border: none;
   }
-  .nav-dot.active { background: var(--green); transform: scale(1.3); }
-  .slide-num { font-size: 11px; color: var(--slate); font-weight: 600; min-width: 40px; text-align: center; }
+  .nav-dot.active { background: var(--green); width: 24px; border-radius: 4px; }
+  .nav-dot:hover { background: var(--green); opacity: 0.7; }
+  .nav-btn {
+    background: rgba(255,255,255,0.06); border: 1px solid var(--border);
+    color: var(--text); padding: 8px 20px; border-radius: 8px; cursor: pointer;
+    font-size: 13px; font-weight: 600; transition: all 0.2s;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .nav-btn:hover { background: rgba(255,255,255,0.1); }
+  .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+  .nav-counter { font-size: 11px; color: var(--slate); font-weight: 700; letter-spacing: 1px; font-variant-numeric: tabular-nums; }
 
-  /* ── COMMON SLIDE ELEMENTS ── */
-  .s-eyebrow {
+  /* ── TYPOGRAPHY ── */
+  .slide-badge {
+    display: inline-flex; align-items: center; gap: 6px;
     font-size: 10px; font-weight: 700; letter-spacing: 2.5px; text-transform: uppercase;
-    color: var(--green); margin-bottom: 14px;
+    padding: 6px 16px; border-radius: 20px; margin-bottom: 20px;
   }
-  .s-title { font-size: 44px; font-weight: 900; line-height: 1.15; margin-bottom: 18px; text-align: center; max-width: 800px; }
-  .s-title .g { color: var(--green); }
-  .s-title .b { color: var(--blue); }
-  .s-title .p { color: var(--purple); }
-  .s-title .o { color: var(--orange); }
-  .s-sub { font-size: 16px; color: var(--text3); text-align: center; max-width: 640px; line-height: 1.7; margin-bottom: 32px; }
-  .s-content { width: 100%; max-width: 860px; position: relative; z-index: 1; }
+  .badge-green { background: var(--green-dim); border: 1px solid rgba(34,197,94,0.25); color: var(--green); }
+  .badge-blue { background: rgba(96,165,250,0.08); border: 1px solid rgba(96,165,250,0.2); color: var(--blue); }
+  .badge-purple { background: rgba(167,139,250,0.08); border: 1px solid rgba(167,139,250,0.2); color: var(--purple); }
+  .badge-orange { background: rgba(251,146,60,0.08); border: 1px solid rgba(251,146,60,0.2); color: var(--orange); }
+  .badge-cyan { background: rgba(34,211,238,0.08); border: 1px solid rgba(34,211,238,0.2); color: var(--cyan); }
 
-  /* ── PILL TAGS ── */
-  .pills { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; margin-bottom: 24px; }
+  .slide-title {
+    font-size: 48px; font-weight: 900; line-height: 1.1; margin-bottom: 16px;
+    letter-spacing: -1px;
+  }
+  .slide-title .g { color: var(--green); }
+  .slide-title .b { color: var(--blue); }
+  .slide-title .p { color: var(--purple); }
+  .slide-title .o { color: var(--orange); }
+  .slide-title .c { color: var(--cyan); }
+
+  .slide-subtitle {
+    font-size: 18px; color: var(--text2); line-height: 1.6;
+    max-width: 700px; margin-bottom: 32px;
+  }
+
+  /* ── GRID LAYOUTS ── */
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; width: 100%; }
+  .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; width: 100%; }
+  .grid-4 { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 14px; width: 100%; }
+
+  /* ── CARDS ── */
+  .s-card {
+    background: var(--bg3); border: 1px solid var(--border); border-radius: 16px;
+    padding: 24px; position: relative; overflow: hidden;
+  }
+  .s-card::before { content:''; position: absolute; top:0; left:0; right:0; height: 3px; }
+  .s-card.green::before { background: var(--green); }
+  .s-card.blue::before { background: var(--blue); }
+  .s-card.purple::before { background: var(--purple); }
+  .s-card.orange::before { background: var(--orange); }
+  .s-card.cyan::before { background: var(--cyan); }
+
+  .s-card-icon { font-size: 32px; margin-bottom: 12px; }
+  .s-card-title { font-size: 16px; font-weight: 800; margin-bottom: 8px; }
+  .s-card-text { font-size: 12px; color: var(--text3); line-height: 1.7; }
+  .s-card-list { list-style: none; display: flex; flex-direction: column; gap: 6px; }
+  .s-card-list li { font-size: 12px; color: var(--text3); display: flex; gap: 8px; line-height: 1.5; }
+  .s-card-list li::before { content: '->'; color: var(--green); font-weight: 700; flex-shrink: 0; font-family: monospace; }
+
+  /* ── STAT ROW ── */
+  .stat-row { display: flex; gap: 24px; flex-wrap: wrap; margin-bottom: 24px; }
+  .stat-item { text-align: center; }
+  .stat-val { font-size: 32px; font-weight: 900; color: var(--green); }
+  .stat-val.blue { color: var(--blue); }
+  .stat-val.purple { color: var(--purple); }
+  .stat-val.orange { color: var(--orange); }
+  .stat-label { font-size: 10px; color: var(--slate); font-weight: 700; letter-spacing: 1px; text-transform: uppercase; margin-top: 2px; }
+
+  /* ── PILL STRIP ── */
+  .pills { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 24px; }
   .pill {
     display: inline-flex; align-items: center; gap: 5px;
     padding: 5px 13px; border-radius: 20px; font-size: 11px; font-weight: 700;
@@ -79,773 +134,852 @@
   }
   .pill-g { border-color: rgba(34,197,94,0.25); color: var(--green); background: var(--green-dim); }
   .pill-b { border-color: rgba(96,165,250,0.2); color: var(--blue); background: rgba(96,165,250,0.08); }
-  .pill-p { border-color: rgba(167,139,250,0.2); color: var(--purple); background: rgba(167,139,250,0.08); }
-  .pill-o { border-color: rgba(251,146,60,0.2); color: var(--orange); background: rgba(251,146,60,0.08); }
 
-  /* ── STAT GRID ── */
-  .stat-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 16px; margin-bottom: 24px; }
-  .stat-card {
+  /* ── TABLE ── */
+  .s-table { width: 100%; border-collapse: collapse; margin-top: 16px; }
+  .s-table th {
+    font-size: 9px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase;
+    color: var(--green); padding: 10px 14px; text-align: left; border-bottom: 1px solid var(--border);
+  }
+  .s-table td {
+    font-size: 12px; padding: 10px 14px; border-bottom: 1px solid rgba(255,255,255,0.04);
+    color: var(--text3);
+  }
+  .s-table td:first-child { font-weight: 800; color: var(--text); }
+
+  /* ── TIMELINE ── */
+  .timeline { display: flex; gap: 0; width: 100%; margin-top: 20px; }
+  .timeline-item {
+    flex: 1; padding: 20px; position: relative;
+    border-top: 3px solid var(--border);
+  }
+  .timeline-item.active { border-top-color: var(--green); }
+  .timeline-item.next { border-top-color: var(--blue); }
+  .timeline-item.future { border-top-color: var(--purple); }
+  .timeline-dot {
+    width: 12px; height: 12px; border-radius: 50%; position: absolute; top: -8px; left: 20px;
+  }
+  .timeline-item.active .timeline-dot { background: var(--green); box-shadow: 0 0 12px rgba(34,197,94,0.5); }
+  .timeline-item.next .timeline-dot { background: var(--blue); }
+  .timeline-item.future .timeline-dot { background: var(--purple); }
+  .timeline-phase { font-size: 9px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; margin-top: 8px; margin-bottom: 4px; }
+  .timeline-title { font-size: 14px; font-weight: 800; margin-bottom: 6px; }
+  .timeline-text { font-size: 11px; color: var(--text3); line-height: 1.6; }
+
+  /* ── COMPARISON TABLE ── */
+  .compare-row {
+    display: grid; grid-template-columns: 200px 1fr 1fr; gap: 0;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+  }
+  .compare-row.header { border-bottom: 1px solid var(--border); }
+  .compare-cell {
+    padding: 12px 16px; font-size: 12px; color: var(--text3);
+  }
+  .compare-cell.label { font-weight: 700; color: var(--text); font-size: 13px; }
+  .compare-cell.header-cell { font-size: 10px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; }
+  .compare-cell.green-header { color: var(--green); }
+  .compare-cell.slate-header { color: var(--slate); }
+  .check { color: var(--green); font-weight: 700; }
+  .cross { color: var(--red); opacity: 0.5; }
+
+  /* ── REVENUE MODEL ── */
+  .revenue-card {
     background: var(--bg3); border: 1px solid var(--border); border-radius: 14px;
-    padding: 20px 16px; text-align: center;
+    padding: 20px; display: flex; flex-direction: column; gap: 8px;
   }
-  .stat-val { font-size: 28px; font-weight: 900; color: var(--green); }
-  .stat-label { font-size: 10px; color: var(--slate); margin-top: 4px; font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase; }
+  .revenue-tier { font-size: 10px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; }
+  .revenue-name { font-size: 18px; font-weight: 900; }
+  .revenue-price { font-size: 14px; font-weight: 700; margin-bottom: 4px; }
+  .revenue-desc { font-size: 11px; color: var(--text3); line-height: 1.6; }
 
-  /* ── TWO COLUMN ── */
-  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
-  .three-col { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 18px; }
+  /* ── OPEN SOURCE HIGHLIGHT ── */
+  .oss-highlight {
+    background: linear-gradient(135deg, rgba(34,197,94,0.06) 0%, rgba(96,165,250,0.06) 100%);
+    border: 1px solid rgba(34,197,94,0.15); border-radius: 16px;
+    padding: 24px 28px; margin-bottom: 24px;
+  }
+  .oss-highlight-title { font-size: 14px; font-weight: 800; color: var(--green); margin-bottom: 6px; }
+  .oss-highlight-text { font-size: 13px; color: var(--text2); line-height: 1.7; }
 
-  /* ── FEATURE CARD ── */
-  .feat-card {
-    background: var(--bg3); border: 1px solid var(--border); border-radius: 14px;
-    padding: 24px 20px; position: relative; overflow: hidden;
+  /* ── HERO GLOW ── */
+  .hero-glow {
+    position: absolute; inset: 0; pointer-events: none;
+    background: radial-gradient(ellipse 60% 40% at 50% 35%, rgba(34,197,94,0.08) 0%, transparent 70%);
   }
-  .feat-card::before {
-    content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
-  }
-  .feat-card.fc-green::before { background: var(--green); }
-  .feat-card.fc-blue::before { background: var(--blue); }
-  .feat-card.fc-purple::before { background: var(--purple); }
-  .feat-card.fc-orange::before { background: var(--orange); }
-  .feat-icon { font-size: 28px; margin-bottom: 10px; }
-  .feat-title { font-size: 16px; font-weight: 800; margin-bottom: 6px; }
-  .feat-desc { font-size: 12px; color: var(--text3); line-height: 1.6; }
-  .feat-list { list-style: none; margin-top: 8px; }
-  .feat-list li { font-size: 12px; color: var(--text3); padding: 3px 0; display: flex; gap: 7px; }
-  .feat-list li::before { content: '→'; color: var(--green); font-weight: 700; flex-shrink: 0; }
-
-  /* ── UI MOCKUP ── */
-  .mockup {
-    background: var(--bg2); border: 1px solid var(--border); border-radius: 12px;
-    overflow: hidden; box-shadow: 0 8px 32px rgba(0,0,0,0.4);
-  }
-  .mockup-bar {
-    background: var(--bg3); border-bottom: 1px solid var(--border);
-    padding: 8px 12px; display: flex; align-items: center; gap: 5px;
-  }
-  .dot { width: 8px; height: 8px; border-radius: 50%; }
-  .dot-r { background: #f87171; } .dot-y { background: #fbbf24; } .dot-g { background: #34d399; }
-  .mockup-url { font-size: 9px; color: var(--slate); margin-left: 6px; font-family: monospace; }
-  .mockup-body { padding: 16px; }
-
-  /* Dashboard mockup elements */
-  .mock-kpi-row { display: flex; gap: 8px; margin-bottom: 12px; }
-  .mock-kpi {
-    flex: 1; background: var(--bg3); border: 1px solid var(--border); border-radius: 8px;
-    padding: 10px 8px; text-align: center;
-  }
-  .mock-kpi-val { font-size: 16px; font-weight: 900; }
-  .mock-kpi-label { font-size: 8px; color: var(--slate); text-transform: uppercase; letter-spacing: 0.5px; margin-top: 2px; }
-  .mock-chart {
-    background: var(--bg3); border: 1px solid var(--border); border-radius: 8px;
-    padding: 12px; margin-bottom: 12px; position: relative;
-  }
-  .mock-chart-title { font-size: 9px; color: var(--slate); font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; }
-  .mock-bars { display: flex; align-items: flex-end; gap: 6px; height: 60px; }
-  .mock-bar {
-    flex: 1; border-radius: 3px 3px 0 0; min-height: 8px;
-    transition: height 0.5s;
-  }
-  .mock-line-chart { height: 50px; position: relative; }
-  .mock-line-chart svg { width: 100%; height: 100%; }
-  .mock-gauge {
-    width: 48px; height: 48px; border-radius: 50%;
-    border: 4px solid var(--bg4); position: relative; display: inline-flex;
-    align-items: center; justify-content: center; font-size: 10px; font-weight: 900;
-  }
-
-  /* AI Analysis mockup */
-  .mock-ai-result {
-    background: var(--bg3); border: 1px solid rgba(167,139,250,0.15); border-radius: 8px;
-    padding: 12px; margin-bottom: 8px;
-  }
-  .mock-ai-badge {
-    display: inline-flex; align-items: center; gap: 4px;
-    font-size: 8px; font-weight: 700; color: var(--purple);
-    background: rgba(167,139,250,0.1); border: 1px solid rgba(167,139,250,0.2);
-    padding: 2px 8px; border-radius: 10px; margin-bottom: 6px;
-  }
-  .mock-ai-text { font-size: 10px; color: var(--text3); line-height: 1.5; }
-  .mock-ai-text strong { color: var(--text2); }
-
-  /* ── LIFECYCLE FLOW ── */
-  .lifecycle-flow { display: flex; align-items: center; gap: 4px; justify-content: center; margin-bottom: 24px; }
-  .lf-stage {
-    background: var(--bg3); border: 1px solid var(--border); border-radius: 12px;
-    padding: 14px 16px; text-align: center; flex: 1; max-width: 180px;
-  }
-  .lf-stage.active { border-color: rgba(34,197,94,0.3); background: var(--green-dim); }
-  .lf-icon { font-size: 22px; margin-bottom: 4px; }
-  .lf-name { font-size: 11px; font-weight: 800; }
-  .lf-desc { font-size: 9px; color: var(--text3); margin-top: 2px; }
-  .lf-arrow { font-size: 16px; color: var(--slate); flex-shrink: 0; }
-
-  /* ── ROLE CARDS ── */
-  .role-card {
-    background: var(--bg3); border: 1px solid var(--border); border-radius: 14px;
-    padding: 24px 18px; text-align: center;
-  }
-  .role-icon { font-size: 36px; margin-bottom: 10px; }
-  .role-name { font-size: 16px; font-weight: 800; margin-bottom: 4px; }
-  .role-label { font-size: 10px; color: var(--green); font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px; }
-
-  /* ── SCALABILITY ── */
-  .scale-card {
-    background: var(--bg3); border: 1px solid var(--border); border-radius: 12px;
-    padding: 18px 14px; text-align: center;
-  }
-  .scale-icon { font-size: 28px; margin-bottom: 6px; }
-  .scale-name { font-size: 13px; font-weight: 700; margin-bottom: 4px; }
-  .scale-desc { font-size: 10px; color: var(--text3); line-height: 1.5; }
-
-  /* ── CTA ── */
-  .cta-btn {
-    display: inline-flex; align-items: center; gap: 8px;
-    background: var(--green); color: #000; font-size: 14px; font-weight: 800;
-    padding: 14px 32px; border-radius: 30px; border: none; cursor: pointer;
-    text-decoration: none; transition: all 0.2s;
-    box-shadow: 0 0 30px rgba(34,197,94,0.3);
-  }
-  .cta-btn:hover { transform: translateY(-2px); box-shadow: 0 0 40px rgba(34,197,94,0.5); }
-  .cta-btn-outline {
-    display: inline-flex; align-items: center; gap: 8px;
-    background: transparent; color: var(--green); font-size: 13px; font-weight: 700;
-    padding: 12px 24px; border-radius: 30px;
-    border: 1px solid rgba(34,197,94,0.3); cursor: pointer; text-decoration: none;
-    transition: all 0.2s;
-  }
-  .cta-btn-outline:hover { background: var(--green-dim); }
 
   /* ── RESPONSIVE ── */
   @media (max-width: 768px) {
-    .slide { padding: 40px 24px; }
-    .s-title { font-size: 28px; }
-    .s-sub { font-size: 14px; }
-    .stat-grid { grid-template-columns: repeat(2,1fr); }
-    .two-col, .three-col { grid-template-columns: 1fr; }
-    .lifecycle-flow { flex-wrap: wrap; }
-    .lf-arrow { display: none; }
+    .slide { padding: 40px 24px 80px; }
+    .slide-title { font-size: 32px; }
+    .slide-subtitle { font-size: 15px; }
+    .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; }
+    .compare-row { grid-template-columns: 1fr; }
+    .timeline { flex-direction: column; }
+    .stat-val { font-size: 24px; }
   }
 </style>
 </head>
 <body>
 
-<!-- ═══════════ SLIDE 1 — TITLE ═══════════ -->
-<div class="slide active" data-slide="1">
-  <div class="s-content" style="text-align:center">
-    <div style="width:72px;height:72px;border-radius:20px;margin:0 auto 20px;background:linear-gradient(135deg,#22c55e 0%,#0d9488 100%);display:flex;align-items:center;justify-content:center;font-size:36px;box-shadow:0 0 40px rgba(34,197,94,0.25)">🌿</div>
-    <div class="s-title">Carbon<span class="g">IQ</span></div>
-    <p class="s-sub">
-      Just as a hospital tracks every patient's vitals in real time, CarbonIQ tracks every building's carbon — from the first material manufactured to the last nail driven on site.
-    </p>
-    <div class="pills">
-      <span class="pill pill-g">Full Construction Lifecycle</span>
+<!-- ═══════════════════════════════════════════════════════ -->
+<!-- SLIDE 1 — TITLE                                        -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<div class="slide active" data-slide="0">
+  <div class="hero-glow"></div>
+  <div class="slide-inner" style="text-align:center; display:flex; flex-direction:column; align-items:center;">
+    <div class="slide-badge badge-green">Startup Competition 2026</div>
+    <div style="width:80px;height:80px;border-radius:22px;background:linear-gradient(135deg,#22c55e 0%,#0d9488 100%);display:flex;align-items:center;justify-content:center;font-size:40px;margin-bottom:24px;box-shadow:0 0 50px rgba(34,197,94,0.3)">
+      🌿
+    </div>
+    <div class="slide-title" style="font-size:64px;margin-bottom:12px;">Carbon<span class="g">IQ</span></div>
+    <div class="slide-subtitle" style="max-width:620px;text-align:center">
+      The open-source construction carbon accountability platform.<br>
+      From material manufacturing to on-site construction. Multi-industry scalable.
+    </div>
+    <div class="pills" style="justify-content:center">
+      <span class="pill pill-g">Open Source &middot; Apache 2.0</span>
       <span class="pill pill-b">3 AI Engines Live</span>
-      <span class="pill pill-p">3 Stakeholder Roles</span>
-      <span class="pill pill-o">IoT Sensor-Ready</span>
-      <span class="pill">Multi-Industry Scalable</span>
+      <span class="pill">IoT Sensor-Ready</span>
+      <span class="pill">5 Green Certifications</span>
     </div>
-    <div style="margin-top:20px">
-      <div style="font-size:11px;color:var(--slate);font-weight:600;letter-spacing:1px;text-transform:uppercase">The Multi-Stakeholder Carbon Accountability Platform</div>
+    <div style="margin-top:16px;font-size:11px;color:var(--slate)">
+      Press <kbd style="background:var(--bg3);border:1px solid var(--border);padding:2px 8px;border-radius:4px;font-size:10px">&#8594;</kbd> or swipe to navigate &middot; 14 slides
     </div>
   </div>
 </div>
 
-<!-- ═══════════ SLIDE 2 — THE PROBLEM ═══════════ -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<!-- SLIDE 2 — THE PROBLEM                                  -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="1">
+  <div class="slide-inner">
+    <div class="slide-badge badge-orange">The Problem</div>
+    <div class="slide-title">Construction is <span class="o">39%</span> of global CO2.</div>
+    <div class="slide-subtitle">
+      Buildings and construction account for 39% of global carbon emissions. 11% of that is embodied carbon — locked into materials before a building is even occupied. Yet there is no standardized, open system to track it.
+    </div>
+
+    <div class="grid-3" style="margin-bottom:28px">
+      <div class="s-card orange">
+        <div class="s-card-icon">🏗️</div>
+        <div class="s-card-title">No Visibility</div>
+        <div class="s-card-text">Developers, engineers, and contractors have no shared system to see embodied carbon across the project lifecycle. Spreadsheets are the norm.</div>
+      </div>
+      <div class="s-card orange">
+        <div class="s-card-icon">📊</div>
+        <div class="s-card-title">No Accountability</div>
+        <div class="s-card-text">Contractors self-report. No verification chain. No audit trail. No baseline comparison. Data is siloed and unreliable.</div>
+      </div>
+      <div class="s-card orange">
+        <div class="s-card-icon">🔒</div>
+        <div class="s-card-title">Closed Tools</div>
+        <div class="s-card-text">Existing solutions are expensive proprietary SaaS tools. Small and mid-size firms are priced out. No interoperability. Vendor lock-in.</div>
+      </div>
+    </div>
+
+    <div class="stat-row" style="justify-content:center">
+      <div class="stat-item"><div class="stat-val orange">39%</div><div class="stat-label">Global CO2 from Buildings</div></div>
+      <div class="stat-item"><div class="stat-val orange">11%</div><div class="stat-label">Embodied Carbon</div></div>
+      <div class="stat-item"><div class="stat-val orange">0</div><div class="stat-label">Open-Source Trackers</div></div>
+      <div class="stat-item"><div class="stat-val orange">$15.5T</div><div class="stat-label">Global Construction Market</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!-- SLIDE 3 — THE SOLUTION                                 -->
+<!-- ═══════════════════════════════════════════════════════ -->
 <div class="slide" data-slide="2">
-  <div class="s-content" style="text-align:center">
-    <div class="s-eyebrow">The Problem</div>
-    <div class="s-title">Construction emits <span class="o">39%</span> of global CO2</div>
-    <p class="s-sub">Yet the industry has no unified system to track, verify, and reduce carbon across the supply chain. Materials pass through multiple stakeholders — each with different data, formats, and accountability gaps.</p>
-    <div class="stat-grid">
-      <div class="stat-card">
-        <div class="stat-val" style="color:var(--orange)">39%</div>
-        <div class="stat-label">Global CO2 from buildings</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-val" style="color:var(--blue)">11%</div>
-        <div class="stat-label">Embodied carbon alone</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-val" style="color:var(--purple)">0</div>
-        <div class="stat-label">Unified tracking platforms</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-val">$15.5T</div>
-        <div class="stat-label">Market opportunity</div>
+  <div class="slide-inner">
+    <div class="slide-badge badge-green">The Solution</div>
+    <div class="slide-title">Carbon<span class="g">IQ</span> — Track every kilogram.</div>
+    <div class="slide-subtitle">
+      An open-source platform that tracks embodied carbon from material manufacturing through transport to on-site construction. Role-based access for clients, consultants, and contractors. AI-powered analysis. Sensor-ready.
+    </div>
+
+    <div class="oss-highlight">
+      <div class="oss-highlight-title">Why Open Source?</div>
+      <div class="oss-highlight-text">
+        Carbon accountability is a global infrastructure problem — not a competitive advantage for any single vendor. By open-sourcing CarbonIQ under Apache 2.0, we enable every firm, regulator, and researcher to adopt, audit, and extend the platform. Transparency in carbon tracking demands transparency in the tool itself.
       </div>
     </div>
-    <div class="two-col" style="max-width:600px;margin:0 auto">
-      <div class="feat-card fc-orange">
-        <div class="feat-title" style="color:var(--orange)">Today's Reality</div>
-        <ul class="feat-list">
-          <li>Spreadsheets and PDF reports</li>
-          <li>Manual data collection per project</li>
-          <li>No real-time visibility</li>
-          <li>No cross-stakeholder accountability</li>
+
+    <div class="grid-3">
+      <div class="s-card green">
+        <div class="s-card-icon">👥</div>
+        <div class="s-card-title">3 Stakeholder Roles</div>
+        <ul class="s-card-list">
+          <li>Client / Owner — portfolio oversight</li>
+          <li>Consultant / Engineer — review &amp; approve</li>
+          <li>Contractor / Builder — submit data</li>
         </ul>
       </div>
-      <div class="feat-card fc-green">
-        <div class="feat-title" style="color:var(--green)">With CarbonIQ</div>
-        <ul class="feat-list">
-          <li>Live digital platform</li>
-          <li>Automated data flow</li>
-          <li>Real-time dashboards and AI</li>
-          <li>Full supply chain transparency</li>
+      <div class="s-card green">
+        <div class="s-card-icon">🧠</div>
+        <div class="s-card-title">3 AI Engines Live</div>
+        <ul class="s-card-list">
+          <li>BOQ / Tender Parser — carbon forecasting</li>
+          <li>Document Intelligence — RAG analysis</li>
+          <li>Carbon Advisor — reduction strategies</li>
+        </ul>
+      </div>
+      <div class="s-card green">
+        <div class="s-card-icon">📡</div>
+        <div class="s-card-title">Sensor-Ready Architecture</div>
+        <ul class="s-card-list">
+          <li>Phase 2: live sensor feeds replace manual site entry</li>
+          <li>Fuel flow, electricity sub-meters, water</li>
+          <li>Same data model, real-time pipeline</li>
         </ul>
       </div>
     </div>
   </div>
 </div>
 
-<!-- ═══════════ SLIDE 3 — SOLUTION OVERVIEW ═══════════ -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<!-- SLIDE 4 — PRODUCT OVERVIEW                             -->
+<!-- ═══════════════════════════════════════════════════════ -->
 <div class="slide" data-slide="3">
-  <div class="s-content" style="text-align:center">
-    <div class="s-eyebrow">Our Solution</div>
-    <div class="s-title">One platform. <span class="g">Every stakeholder.</span> Full lifecycle.</div>
-    <p class="s-sub">CarbonIQ connects project owners, engineering consultants, and contractors on a single platform — tracking carbon from material manufacturing through transportation to on-site construction.</p>
-    <div class="lifecycle-flow">
-      <div class="lf-stage active">
-        <div class="lf-icon">🏭</div>
-        <div class="lf-name">Material Production</div>
-        <div class="lf-desc">Manufacturing & raw materials</div>
-      </div>
-      <div class="lf-arrow">→</div>
-      <div class="lf-stage active">
-        <div class="lf-icon">🚛</div>
-        <div class="lf-name">Transport</div>
-        <div class="lf-desc">Logistics & delivery</div>
-      </div>
-      <div class="lf-arrow">→</div>
-      <div class="lf-stage active">
-        <div class="lf-icon">🏗️</div>
-        <div class="lf-name">On-site Construction</div>
-        <div class="lf-desc">Fuel, electricity & water</div>
-      </div>
+  <div class="slide-inner">
+    <div class="slide-badge badge-green">Product Overview</div>
+    <div class="slide-title">Full construction <span class="g">lifecycle.</span></div>
+    <div class="slide-subtitle">
+      CarbonIQ covers the complete embodied carbon lifecycle — from raw material manufacturing through transport to on-site construction. Every material, every delivery, every site emission — tracked with audit trail and approval workflow.
     </div>
-    <div class="two-col" style="max-width:700px;margin:0 auto">
-      <div class="mockup">
-        <div class="mockup-bar"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div><span class="mockup-url">carboniq.app/dashboard</span></div>
-        <div class="mockup-body">
-          <div class="mock-kpi-row">
-            <div class="mock-kpi"><div class="mock-kpi-val" style="color:var(--green)">-23%</div><div class="mock-kpi-label">Carbon Reduction</div></div>
-            <div class="mock-kpi"><div class="mock-kpi-val" style="color:var(--blue)">847</div><div class="mock-kpi-label">tCO2e Total</div></div>
-            <div class="mock-kpi"><div class="mock-kpi-val" style="color:var(--orange)">12</div><div class="mock-kpi-label">Pending</div></div>
-          </div>
-          <div class="mock-chart">
-            <div class="mock-chart-title">Monthly Emissions Trend</div>
-            <div class="mock-bars">
-              <div class="mock-bar" style="height:70%;background:var(--green);opacity:0.3"></div>
-              <div class="mock-bar" style="height:55%;background:var(--green);opacity:0.4"></div>
-              <div class="mock-bar" style="height:65%;background:var(--green);opacity:0.5"></div>
-              <div class="mock-bar" style="height:50%;background:var(--green);opacity:0.6"></div>
-              <div class="mock-bar" style="height:45%;background:var(--green);opacity:0.7"></div>
-              <div class="mock-bar" style="height:35%;background:var(--green);opacity:0.8"></div>
-              <div class="mock-bar" style="height:40%;background:var(--green)"></div>
-              <div class="mock-bar" style="height:30%;background:var(--green)"></div>
-            </div>
-          </div>
-        </div>
+
+    <table class="s-table">
+      <thead><tr><th>Stage</th><th>Name</th><th>What is Tracked</th><th>Who Submits</th></tr></thead>
+      <tbody>
+        <tr>
+          <td style="color:var(--green);font-weight:800;font-family:monospace">Manufacturing</td>
+          <td style="font-weight:700;color:var(--text)">Product Stage</td>
+          <td>Raw material extraction, manufacturing, transport to factory. ICE DB baseline EF vs supplier EPD actual EF — per material, per month.</td>
+          <td>Contractor</td>
+        </tr>
+        <tr>
+          <td style="color:var(--green);font-weight:800;font-family:monospace">Transport</td>
+          <td style="font-weight:700;color:var(--text)">Transport to Site</td>
+          <td>Delivery distance and transport mode. Auto-calculated alongside each material entry.</td>
+          <td>Contractor</td>
+        </tr>
+        <tr>
+          <td style="color:var(--green);font-weight:800;font-family:monospace">Construction</td>
+          <td style="font-weight:700;color:var(--text)">On-Site Process</td>
+          <td>Monthly fuel, grid electricity, and water consumption on site. Sensor-ready for Phase 2 automated data collection.</td>
+          <td>Contractor / IoT</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="grid-4" style="margin-top:24px">
+      <div style="text-align:center">
+        <div class="stat-val">200+</div>
+        <div class="stat-label">Material Carbon Factors</div>
       </div>
-      <div style="display:flex;flex-direction:column;gap:12px;justify-content:center">
-        <div class="feat-card fc-green" style="padding:16px 14px">
-          <div class="feat-title" style="font-size:13px">Real-time Dashboard</div>
-          <div class="feat-desc">Live KPIs, reduction gauges, trend charts — updated as data flows in</div>
-        </div>
-        <div class="feat-card fc-blue" style="padding:16px 14px">
-          <div class="feat-title" style="font-size:13px">Multi-stage Approval</div>
-          <div class="feat-desc">Contractor submits → Consultant reviews → Client oversees</div>
-        </div>
-        <div class="feat-card fc-purple" style="padding:16px 14px">
-          <div class="feat-title" style="font-size:13px">3 AI Engines</div>
-          <div class="feat-desc">Document analysis, tender parsing, and carbon reduction advisor</div>
-        </div>
+      <div style="text-align:center">
+        <div class="stat-val blue">ICE DB</div>
+        <div class="stat-label">Baseline Emission Factors</div>
+      </div>
+      <div style="text-align:center">
+        <div class="stat-val purple">EPD</div>
+        <div class="stat-label">Supplier Actual Factors</div>
+      </div>
+      <div style="text-align:center">
+        <div class="stat-val orange">ISO 21930</div>
+        <div class="stat-label">Standards Aligned</div>
       </div>
     </div>
   </div>
 </div>
 
-<!-- ═══════════ SLIDE 4 — THREE STAKEHOLDER ROLES ═══════════ -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<!-- SLIDE 5 — AI ENGINE 1: BOQ PARSER                     -->
+<!-- ═══════════════════════════════════════════════════════ -->
 <div class="slide" data-slide="4">
-  <div class="s-content" style="text-align:center">
-    <div class="s-eyebrow">Role-Based Access</div>
-    <div class="s-title">Three roles. <span class="g">One accountability chain.</span></div>
-    <p class="s-sub">Each stakeholder sees exactly what they need — no more, no less. Role-based permissions ensure data integrity and clear responsibility at every level.</p>
-    <div class="three-col">
-      <div class="role-card" style="border-top:3px solid var(--green)">
-        <div class="role-icon">🏢</div>
-        <div class="role-name">Project Owner</div>
-        <div class="role-label">Client</div>
-        <ul class="feat-list" style="text-align:left">
-          <li>Full portfolio dashboard</li>
-          <li>Cross-project carbon KPIs</li>
-          <li>Contractor performance ranking</li>
-          <li>Organization & team management</li>
-          <li>Final approval authority</li>
+  <div class="slide-inner">
+    <div class="slide-badge badge-blue">AI Engine 1 — Live</div>
+    <div class="slide-title">BOQ / <span class="b">Tender Parser</span></div>
+    <div class="slide-subtitle">
+      Upload a Bill of Quantities (PDF, Excel, CSV). The AI extracts material quantities, maps each line to an ICE DB emission factor, and builds a carbon forecast — before any procurement order is placed.
+    </div>
+
+    <div class="grid-2">
+      <div class="s-card blue">
+        <div class="s-card-icon">📋</div>
+        <div class="s-card-title">How It Works</div>
+        <ul class="s-card-list">
+          <li>Upload raw BOQ document (PDF / Excel / CSV)</li>
+          <li>AI extracts quantities and material descriptions</li>
+          <li>Fuzzy-matches materials to ICE database</li>
+          <li>Converts units automatically</li>
+          <li>Outputs full carbon forecast with scenarios</li>
         </ul>
       </div>
-      <div class="role-card" style="border-top:3px solid var(--blue)">
-        <div class="role-icon">🔬</div>
-        <div class="role-name">Engineering Consultant</div>
-        <div class="role-label">Consultant</div>
-        <ul class="feat-list" style="text-align:left">
-          <li>Assigned project oversight</li>
-          <li>Review & approve submissions</li>
-          <li>Edit/delete request management</li>
-          <li>AI document analysis</li>
-          <li>Tender scenario comparison</li>
+      <div class="s-card blue">
+        <div class="s-card-icon">🎯</div>
+        <div class="s-card-title">Why It Matters</div>
+        <ul class="s-card-list">
+          <li>Weeks of manual carbon estimation reduced to seconds</li>
+          <li>Side-by-side scenario comparison before procurement</li>
+          <li>Pre-construction carbon forecasting enables early decisions</li>
+          <li>Directly feeds into project carbon baseline</li>
+          <li>Open API — integrate with any procurement system</li>
         </ul>
       </div>
-      <div class="role-card" style="border-top:3px solid var(--orange)">
-        <div class="role-icon">👷</div>
-        <div class="role-name">Contractor</div>
-        <div class="role-label">Builder</div>
-        <ul class="feat-list" style="text-align:left">
-          <li>Material data entry</li>
-          <li>Site consumption logging</li>
-          <li>Draft & batch submission</li>
-          <li>Emission factor comparison</li>
-          <li>Status tracking (pending/approved)</li>
-        </ul>
-      </div>
+    </div>
+
+    <div style="margin-top:24px;padding:16px 20px;background:rgba(96,165,250,0.06);border:1px solid rgba(96,165,250,0.15);border-radius:12px">
+      <div style="font-size:12px;color:var(--blue);font-weight:700;margin-bottom:4px">Technology Stack</div>
+      <div style="font-size:12px;color:var(--text3);line-height:1.7">Claude AI for document understanding &middot; SheetJS for Excel parsing &middot; PDF.js for PDF extraction &middot; ICE Database v3.0 for emission factors &middot; Custom fuzzy matching for material classification</div>
     </div>
   </div>
 </div>
 
-<!-- ═══════════ SLIDE 5 — HOW IT WORKS: LIFECYCLE ═══════════ -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<!-- SLIDE 6 — AI ENGINE 2: DOCUMENT INTELLIGENCE           -->
+<!-- ═══════════════════════════════════════════════════════ -->
 <div class="slide" data-slide="5">
-  <div class="s-content" style="text-align:center">
-    <div class="s-eyebrow">How It Works</div>
-    <div class="s-title">Full <span class="g">construction lifecycle</span> tracking</div>
-    <p class="s-sub">From raw material production to on-site construction — every gram of CO2 is captured, verified, and reported across three clear stages.</p>
-    <div class="two-col" style="max-width:800px;margin:0 auto">
-      <div>
-        <div class="feat-card fc-green" style="margin-bottom:14px">
-          <div class="feat-icon">🏭</div>
-          <div class="feat-title">Material Production & Manufacturing</div>
-          <div class="feat-desc">Tracks carbon from raw material extraction through factory processing. Each material is matched to international emission factor databases (ICE DB). Contractors report actual supplier EPD values against industry baselines.</div>
-        </div>
-        <div class="feat-card fc-blue" style="margin-bottom:14px">
-          <div class="feat-icon">🚛</div>
-          <div class="feat-title">Transport & Logistics</div>
-          <div class="feat-desc">Auto-calculated alongside material entries. Captures delivery distance and transport mode (road, rail, sea). Accounts for the carbon cost of moving materials from factory to site.</div>
-        </div>
-        <div class="feat-card fc-orange">
-          <div class="feat-icon">🏗️</div>
-          <div class="feat-title">On-site Construction</div>
-          <div class="feat-desc">Separate monthly reporting for diesel fuel, grid electricity, generator hours, and water consumption on the construction site. Direct measurement of site-level emissions.</div>
-        </div>
-      </div>
-      <div>
-        <div class="mockup">
-          <div class="mockup-bar"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div><span class="mockup-url">carboniq.app/entry — Material Entry</span></div>
-          <div class="mockup-body" style="padding:12px">
-            <div style="font-size:9px;color:var(--green);font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">Material Entry Form</div>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:8px">
-              <div style="background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:8px">
-                <div style="font-size:7px;color:var(--slate);text-transform:uppercase;margin-bottom:3px">Category</div>
-                <div style="font-size:10px;font-weight:700">Concrete</div>
-              </div>
-              <div style="background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:8px">
-                <div style="font-size:7px;color:var(--slate);text-transform:uppercase;margin-bottom:3px">Material</div>
-                <div style="font-size:10px;font-weight:700">C40 Ready-mix</div>
-              </div>
-              <div style="background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:8px">
-                <div style="font-size:7px;color:var(--slate);text-transform:uppercase;margin-bottom:3px">Quantity</div>
-                <div style="font-size:10px;font-weight:700">2,450 m3</div>
-              </div>
-              <div style="background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:8px">
-                <div style="font-size:7px;color:var(--slate);text-transform:uppercase;margin-bottom:3px">Month</div>
-                <div style="font-size:10px;font-weight:700">Jan 2026</div>
-              </div>
-            </div>
-            <div style="display:flex;gap:6px;margin-bottom:8px">
-              <div style="flex:1;background:rgba(251,146,60,0.08);border:1px solid rgba(251,146,60,0.2);border-radius:6px;padding:8px">
-                <div style="font-size:7px;color:var(--orange);text-transform:uppercase;margin-bottom:3px">Baseline EF (ICE DB)</div>
-                <div style="font-size:12px;font-weight:900;color:var(--orange)">0.132</div>
-                <div style="font-size:7px;color:var(--slate)">kgCO2e/kg</div>
-              </div>
-              <div style="flex:1;background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.2);border-radius:6px;padding:8px">
-                <div style="font-size:7px;color:var(--green);text-transform:uppercase;margin-bottom:3px">Actual EF (EPD)</div>
-                <div style="font-size:12px;font-weight:900;color:var(--green)">0.098</div>
-                <div style="font-size:7px;color:var(--slate)">kgCO2e/kg</div>
-              </div>
-            </div>
-            <div style="background:rgba(34,197,94,0.06);border:1px solid rgba(34,197,94,0.15);border-radius:6px;padding:8px;text-align:center">
-              <div style="font-size:7px;color:var(--green);text-transform:uppercase;margin-bottom:2px">Carbon Reduction Achieved</div>
-              <div style="font-size:16px;font-weight:900;color:var(--green)">-25.8%</div>
-            </div>
-          </div>
-        </div>
-        <div style="margin-top:14px">
-          <div class="mockup">
-            <div class="mockup-bar"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div><span class="mockup-url">carboniq.app — Site Emissions</span></div>
-            <div class="mockup-body" style="padding:12px">
-              <div style="font-size:9px;color:var(--orange);font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">Monthly Site Consumption</div>
-              <div style="display:flex;gap:6px">
-                <div style="flex:1;background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:8px;text-align:center">
-                  <div style="font-size:16px">⛽</div>
-                  <div style="font-size:10px;font-weight:700">4,200 L</div>
-                  <div style="font-size:7px;color:var(--slate)">Diesel</div>
-                </div>
-                <div style="flex:1;background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:8px;text-align:center">
-                  <div style="font-size:16px">⚡</div>
-                  <div style="font-size:10px;font-weight:700">18,500 kWh</div>
-                  <div style="font-size:7px;color:var(--slate)">Electricity</div>
-                </div>
-                <div style="flex:1;background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:8px;text-align:center">
-                  <div style="font-size:16px">💧</div>
-                  <div style="font-size:10px;font-weight:700">320 m3</div>
-                  <div style="font-size:7px;color:var(--slate)">Water</div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
+  <div class="slide-inner">
+    <div class="slide-badge badge-purple">AI Engine 2 — Live</div>
+    <div class="slide-title">Document <span class="p">Intelligence</span> — RAG</div>
+    <div class="slide-subtitle">
+      Upload any project document. AI analyses it across 5 dimensions — material compliance, reduction opportunities, consistency, certification gaps, and actionable recommendations — with every finding cited to the exact source page.
     </div>
-  </div>
-</div>
 
-<!-- ═══════════ SLIDE 6 — AI ENGINE 1: TENDER PARSER ═══════════ -->
-<div class="slide" data-slide="6">
-  <div class="s-content" style="text-align:center">
-    <div class="s-eyebrow">AI Engine 1</div>
-    <div class="s-title">BOQ / <span class="b">Tender Parser</span></div>
-    <p class="s-sub">Upload a Bill of Quantities. The AI extracts material quantities, maps each line to emission factors, and builds a carbon forecast — before any procurement order is placed.</p>
-    <div class="two-col" style="max-width:800px;margin:0 auto">
-      <div class="mockup">
-        <div class="mockup-bar"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div><span class="mockup-url">carboniq.app/tender — AI Extraction Results</span></div>
-        <div class="mockup-body" style="padding:12px">
-          <div class="mock-ai-badge">AI EXTRACTION</div>
-          <div style="font-size:9px;color:var(--slate);margin-bottom:8px">Extracted from: <span style="color:var(--text2)">BOQ_Highway_2026.xlsx</span></div>
-          <table style="width:100%;border-collapse:collapse;font-size:9px">
-            <thead><tr style="border-bottom:1px solid var(--border)">
-              <td style="padding:4px;color:var(--slate);font-weight:700">Material</td>
-              <td style="padding:4px;color:var(--slate);font-weight:700">Qty</td>
-              <td style="padding:4px;color:var(--slate);font-weight:700">EF</td>
-              <td style="padding:4px;color:var(--slate);font-weight:700">tCO2e</td>
-            </tr></thead>
-            <tbody>
-              <tr style="border-bottom:1px solid rgba(255,255,255,0.03)"><td style="padding:4px;color:var(--text2)">C40 Concrete</td><td style="padding:4px">12,000 m3</td><td style="padding:4px;color:var(--orange)">0.132</td><td style="padding:4px;font-weight:700;color:var(--green)">3,802</td></tr>
-              <tr style="border-bottom:1px solid rgba(255,255,255,0.03)"><td style="padding:4px;color:var(--text2)">Rebar Steel</td><td style="padding:4px">1,800 t</td><td style="padding:4px;color:var(--orange)">1.460</td><td style="padding:4px;font-weight:700;color:var(--green)">2,628</td></tr>
-              <tr style="border-bottom:1px solid rgba(255,255,255,0.03)"><td style="padding:4px;color:var(--text2)">Asphalt</td><td style="padding:4px">5,200 t</td><td style="padding:4px;color:var(--orange)">0.059</td><td style="padding:4px;font-weight:700;color:var(--green)">307</td></tr>
-              <tr><td style="padding:4px;color:var(--text2)">Aluminum</td><td style="padding:4px">340 t</td><td style="padding:4px;color:var(--orange)">6.670</td><td style="padding:4px;font-weight:700;color:var(--green)">2,268</td></tr>
-            </tbody>
-          </table>
-          <div style="margin-top:8px;padding:8px;background:rgba(34,197,94,0.06);border:1px solid rgba(34,197,94,0.15);border-radius:6px;text-align:center">
-            <div style="font-size:7px;color:var(--green);text-transform:uppercase">Total Forecast</div>
-            <div style="font-size:16px;font-weight:900;color:var(--green)">9,005 tCO2e</div>
-          </div>
-        </div>
-      </div>
-      <div style="display:flex;flex-direction:column;gap:12px;justify-content:center">
-        <div class="feat-card fc-blue" style="padding:16px 14px">
-          <div class="feat-icon">📤</div>
-          <div class="feat-title" style="font-size:13px">Upload Any Format</div>
-          <div class="feat-desc">PDF, Excel, CSV — the AI detects document type and extracts material quantities automatically</div>
-        </div>
-        <div class="feat-card fc-green" style="padding:16px 14px">
-          <div class="feat-icon">🔗</div>
-          <div class="feat-title" style="font-size:13px">Auto-match Emission Factors</div>
-          <div class="feat-desc">Fuzzy-matches materials to the ICE Database, converts units, assigns emission factors</div>
-        </div>
-        <div class="feat-card fc-purple" style="padding:16px 14px">
-          <div class="feat-icon">📊</div>
-          <div class="feat-title" style="font-size:13px">Scenario Comparison</div>
-          <div class="feat-desc">Compare multiple tender scenarios side-by-side to choose the lowest-carbon option</div>
-        </div>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- ═══════════ SLIDE 7 — AI ENGINE 2: DOCUMENT INTELLIGENCE ═══════════ -->
-<div class="slide" data-slide="7">
-  <div class="s-content" style="text-align:center">
-    <div class="s-eyebrow">AI Engine 2</div>
-    <div class="s-title">Document <span class="p">Intelligence</span> — RAG</div>
-    <p class="s-sub">Upload any project document. The AI analyses it across 5 dimensions with page-level citations — every finding traced back to the exact source.</p>
-    <div class="two-col" style="max-width:800px;margin:0 auto">
-      <div style="display:flex;flex-direction:column;gap:12px;justify-content:center">
-        <div class="feat-card fc-purple" style="padding:16px 14px">
-          <div class="feat-title" style="font-size:13px;color:var(--purple)">5-Dimension Analysis</div>
-          <ul class="feat-list">
-            <li>Material compliance check</li>
-            <li>Carbon reduction opportunities</li>
-            <li>Cross-document consistency</li>
-            <li>Certification gap analysis</li>
-            <li>Actionable recommendations</li>
-          </ul>
-        </div>
-        <div style="background:rgba(167,139,250,0.06);border:1px solid rgba(167,139,250,0.15);border-radius:10px;padding:14px;text-align:left">
-          <div style="font-size:9px;color:var(--purple);font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">RAG Pipeline</div>
-          <div style="font-size:11px;color:var(--text3);line-height:1.6">Documents are chunked, embedded, and stored. At query time, the most relevant chunks are retrieved and combined with live project carbon data for contextual analysis.</div>
-        </div>
-      </div>
-      <div class="mockup">
-        <div class="mockup-bar"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div><span class="mockup-url">carboniq.app/intelligence — Analysis</span></div>
-        <div class="mockup-body" style="padding:12px">
-          <div class="mock-ai-badge">AI DOCUMENT ANALYSIS</div>
-          <div style="font-size:9px;color:var(--slate);margin-bottom:8px">Analyzing: <span style="color:var(--text2)">Sustainability_Report_Q4.pdf</span></div>
-          <div class="mock-ai-result">
-            <div style="font-size:9px;font-weight:700;color:var(--green);margin-bottom:4px">Material Compliance</div>
-            <div class="mock-ai-text"><strong>Finding:</strong> Section 4.2 specifies CEM III/B cement (65% slag) which reduces embodied carbon by 40% vs OPC baseline.</div>
-            <div style="font-size:8px;color:var(--purple);margin-top:4px">Source: Page 14, Para 3</div>
-          </div>
-          <div class="mock-ai-result">
-            <div style="font-size:9px;font-weight:700;color:var(--orange);margin-bottom:4px">Reduction Opportunity</div>
-            <div class="mock-ai-text"><strong>Finding:</strong> Steel specification allows for 30% recycled content. Current supplier EPDs show only 12% recycled. Potential saving: 340 tCO2e.</div>
-            <div style="font-size:8px;color:var(--purple);margin-top:4px">Source: Page 27, Table 6</div>
-          </div>
-          <div class="mock-ai-result">
-            <div style="font-size:9px;font-weight:700;color:var(--blue);margin-bottom:4px">Certification Gap</div>
-            <div class="mock-ai-text"><strong>Finding:</strong> LEED MR Credit 2 requires 25% recycled content — project currently at 18%.</div>
-            <div style="font-size:8px;color:var(--purple);margin-top:4px">Source: Page 41, Appendix B</div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- ═══════════ SLIDE 8 — AI ENGINE 3: CARBON ADVISOR ═══════════ -->
-<div class="slide" data-slide="8">
-  <div class="s-content" style="text-align:center">
-    <div class="s-eyebrow">AI Engine 3</div>
-    <div class="s-title"><span class="g">Carbon Advisor</span> — Live Reduction Strategy</div>
-    <p class="s-sub">The Carbon Advisor reads actual project data — totals, materials breakdown, contractor performance — and generates a specific, prioritised reduction strategy in real time.</p>
-    <div class="two-col" style="max-width:800px;margin:0 auto">
-      <div class="mockup">
-        <div class="mockup-bar"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div><span class="mockup-url">carboniq.app — Carbon Advisor Output</span></div>
-        <div class="mockup-body" style="padding:12px">
-          <div class="mock-ai-badge" style="color:var(--green);background:rgba(34,197,94,0.1);border-color:rgba(34,197,94,0.2)">CARBON ADVISOR</div>
-          <div style="font-size:9px;color:var(--slate);margin-bottom:8px">Project: <span style="color:var(--text2)">Highway Expansion Ph2</span> | Baseline: 12,400 tCO2e | Actual: 9,580 tCO2e</div>
-          <div class="mock-ai-result" style="border-color:rgba(34,197,94,0.15)">
-            <div style="font-size:9px;font-weight:700;color:var(--green);margin-bottom:4px">Priority 1: Concrete Mix Optimization</div>
-            <div class="mock-ai-text">Switch from CEM I to CEM III/B for all non-structural concrete. <strong>Estimated saving: 1,200 tCO2e (9.7% of baseline)</strong>. Two contractors are still using CEM I — target packages P3 and P5.</div>
-          </div>
-          <div class="mock-ai-result" style="border-color:rgba(34,197,94,0.15)">
-            <div style="font-size:9px;font-weight:700;color:var(--green);margin-bottom:4px">Priority 2: Steel Recycled Content</div>
-            <div class="mock-ai-text">Increase recycled steel from 12% to 30%. <strong>Estimated saving: 640 tCO2e</strong>. Request updated EPDs from current rebar suppliers.</div>
-          </div>
-          <div class="mock-ai-result" style="border-color:rgba(96,165,250,0.15)">
-            <div style="font-size:9px;font-weight:700;color:var(--blue);margin-bottom:4px">Priority 3: Site Energy</div>
-            <div class="mock-ai-text">Generator diesel usage 40% above benchmark. Consider temporary grid connection for Site B. <strong>Estimated saving: 85 tCO2e/month</strong>.</div>
-          </div>
-          <div style="text-align:center;margin-top:8px;font-size:8px;color:var(--slate)">Powered by Claude AI with live project data</div>
-        </div>
-      </div>
-      <div style="display:flex;flex-direction:column;gap:12px;justify-content:center">
-        <div class="feat-card fc-green" style="padding:16px 14px">
-          <div class="feat-icon">📊</div>
-          <div class="feat-title" style="font-size:13px">Live Project Data</div>
-          <div class="feat-desc">Reads actual totals, material breakdowns, and contractor performance — not hypothetical models</div>
-        </div>
-        <div class="feat-card fc-blue" style="padding:16px 14px">
-          <div class="feat-icon">🎯</div>
-          <div class="feat-title" style="font-size:13px">Specific & Actionable</div>
-          <div class="feat-desc">Names the exact materials, contractors, and packages to target — with estimated savings in tCO2e</div>
-        </div>
-        <div class="feat-card fc-purple" style="padding:16px 14px">
-          <div class="feat-icon">🔄</div>
-          <div class="feat-title" style="font-size:13px">Regenerates on Demand</div>
-          <div class="feat-desc">Strategy updates as new data flows in — always reflecting current project reality</div>
-        </div>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- ═══════════ SLIDE 9 — COMPETITIVE DIFFERENTIATION ═══════════ -->
-<div class="slide" data-slide="9">
-  <div class="s-content" style="text-align:center">
-    <div class="s-eyebrow">Competitive Edge</div>
-    <div class="s-title">What makes CarbonIQ <span class="g">different</span></div>
-    <p class="s-sub">Most carbon tools are single-user calculators or static reporting tools. CarbonIQ is a live, multi-stakeholder accountability platform with embedded AI.</p>
-    <div class="three-col">
-      <div class="feat-card fc-green">
-        <div class="feat-icon">🔗</div>
-        <div class="feat-title">Multi-stakeholder</div>
-        <div class="feat-desc" style="margin-bottom:8px">Three distinct roles with scoped access. Not a single-user calculator.</div>
-        <div class="pills" style="justify-content:flex-start;margin-bottom:0"><span class="pill pill-g" style="font-size:9px">Live</span></div>
-      </div>
-      <div class="feat-card fc-blue">
-        <div class="feat-icon">🧠</div>
-        <div class="feat-title">3 AI Engines</div>
-        <div class="feat-desc" style="margin-bottom:8px">Tender parsing, document intelligence, and carbon advisory — all integrated with live project data.</div>
-        <div class="pills" style="justify-content:flex-start;margin-bottom:0"><span class="pill pill-b" style="font-size:9px">Live</span></div>
-      </div>
-      <div class="feat-card fc-purple">
-        <div class="feat-icon">🏆</div>
-        <div class="feat-title">5 Certifications</div>
-        <div class="feat-desc" style="margin-bottom:8px">LEED, BREEAM, Envision, Mostadam, WELL — live credit tracking per project.</div>
-        <div class="pills" style="justify-content:flex-start;margin-bottom:0"><span class="pill pill-p" style="font-size:9px">Live</span></div>
-      </div>
-    </div>
-    <div style="margin-top:24px">
-      <div class="two-col" style="max-width:700px;margin:0 auto">
-        <div class="feat-card" style="border-left:3px solid var(--slate)">
-          <div class="feat-title" style="color:var(--slate)">Typical Carbon Tools</div>
-          <ul class="feat-list">
-            <li style="color:var(--slate)">Single user, manual input</li>
-            <li style="color:var(--slate)">Static calculation output</li>
-            <li style="color:var(--slate)">No approval workflow</li>
-            <li style="color:var(--slate)">No AI capabilities</li>
-            <li style="color:var(--slate)">Single-project scope</li>
-          </ul>
-        </div>
-        <div class="feat-card" style="border-left:3px solid var(--green)">
-          <div class="feat-title" style="color:var(--green)">CarbonIQ</div>
-          <ul class="feat-list">
-            <li>Multi-stakeholder with role-based access</li>
-            <li>Live dashboard with real-time updates</li>
-            <li>Multi-stage approval workflow</li>
-            <li>3 integrated AI engines</li>
-            <li>Portfolio-wide management</li>
-          </ul>
-        </div>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- ═══════════ SLIDE 10 — SCALABILITY & MULTI-INDUSTRY ═══════════ -->
-<div class="slide" data-slide="10">
-  <div class="s-content" style="text-align:center">
-    <div class="s-eyebrow">Scalability</div>
-    <div class="s-title">Beyond construction — <span class="g">multi-industry</span> emission monitoring</div>
-    <p class="s-sub">CarbonIQ's architecture — stakeholder roles, approval workflows, emission tracking, and AI engines — is designed to scale across any industry that needs carbon accountability.</p>
-    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:24px">
-      <div class="scale-card" style="border-top:3px solid var(--green)">
-        <div class="scale-icon">🏗️</div>
-        <div class="scale-name">Construction</div>
-        <div class="scale-desc">Material production, transport, and on-site emissions for buildings and infrastructure</div>
-      </div>
-      <div class="scale-card" style="border-top:3px solid var(--blue)">
-        <div class="scale-icon">🛢️</div>
-        <div class="scale-name">Oil & Gas</div>
-        <div class="scale-desc">Pipeline emissions, fugitive methane, flaring — operational carbon tracking</div>
-      </div>
-      <div class="scale-card" style="border-top:3px solid var(--purple)">
-        <div class="scale-icon">🏭</div>
-        <div class="scale-name">Manufacturing</div>
-        <div class="scale-desc">Factory-level emission monitoring across supply chains and production lines</div>
-      </div>
-      <div class="scale-card" style="border-top:3px solid var(--orange)">
-        <div class="scale-icon">⚡</div>
-        <div class="scale-name">Energy & Utilities</div>
-        <div class="scale-desc">Grid emissions, renewable integration, and net-zero compliance reporting</div>
-      </div>
-    </div>
-    <div class="two-col" style="max-width:700px;margin:0 auto">
-      <div class="feat-card fc-green">
-        <div class="feat-title">Phase 2: IoT Sensor Integration</div>
-        <div class="feat-desc" style="margin-bottom:8px">Replace manual data entry with real-time sensor feeds — fuel flow meters, smart electricity sub-meters, water sensors, and environmental monitors.</div>
-        <ul class="feat-list">
-          <li>Same data model and accountability chain</li>
-          <li>Automated anomaly detection</li>
-          <li>Continuous monitoring vs monthly reporting</li>
+    <div class="grid-2">
+      <div class="s-card purple">
+        <div class="s-card-icon">🔍</div>
+        <div class="s-card-title">5-Dimension Analysis</div>
+        <ul class="s-card-list">
+          <li>Material compliance — specs vs standards</li>
+          <li>Reduction opportunities — lower-carbon alternatives</li>
+          <li>Cross-document consistency checks</li>
+          <li>Certification gap identification</li>
+          <li>Actionable recommendations with citations</li>
         </ul>
       </div>
-      <div class="feat-card fc-purple">
-        <div class="feat-title">Phase 3: Predictive Intelligence</div>
-        <div class="feat-desc" style="margin-bottom:8px">Machine learning forecasting from historical patterns — predict carbon outcomes before they happen.</div>
-        <ul class="feat-list">
-          <li>ML-driven carbon forecasting</li>
+      <div class="s-card purple">
+        <div class="s-card-icon">🧠</div>
+        <div class="s-card-title">RAG Pipeline</div>
+        <ul class="s-card-list">
+          <li>Documents chunked, embedded, and stored</li>
+          <li>Retrieval-augmented generation at query time</li>
+          <li>Live project carbon context injected</li>
+          <li>Findings reference both document and live data</li>
+          <li>Page-level source citations on every finding</li>
+        </ul>
+      </div>
+    </div>
+
+    <div style="margin-top:24px;padding:16px 20px;background:rgba(167,139,250,0.06);border:1px solid rgba(167,139,250,0.15);border-radius:12px">
+      <div style="font-size:12px;color:var(--purple);font-weight:700;margin-bottom:4px">Technology Stack</div>
+      <div style="font-size:12px;color:var(--text3);line-height:1.7">Claude AI for multi-dimensional document analysis &middot; Vector embedding for retrieval-augmented generation &middot; Real-time project data context injection &middot; Page-level citation engine</div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!-- SLIDE 7 — AI ENGINE 3: CARBON ADVISOR                  -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="6">
+  <div class="slide-inner">
+    <div class="slide-badge badge-green">AI Engine 3 — Live</div>
+    <div class="slide-title"><span class="g">Carbon Advisor</span> — Reduction Strategy</div>
+    <div class="slide-subtitle">
+      A live AI integration inside every project. It reads actual project carbon data — totals, materials, contractor performance — and generates a specific, prioritised reduction strategy. Not a static report. A real AI call with live project data.
+    </div>
+
+    <div class="grid-2">
+      <div class="s-card green">
+        <div class="s-card-icon">🎯</div>
+        <div class="s-card-title">How It Works</div>
+        <ul class="s-card-list">
+          <li>Platform builds structured payload on click</li>
+          <li>Total baseline, actual, materials breakdown included</li>
+          <li>Contractor gap analysis with performance ranking</li>
+          <li>AI generates prioritised reduction strategy</li>
+          <li>Response rendered live in project modal</li>
+        </ul>
+      </div>
+      <div class="s-card green">
+        <div class="s-card-icon">📊</div>
+        <div class="s-card-title">Output Includes</div>
+        <ul class="s-card-list">
+          <li>Material-specific substitution recommendations</li>
+          <li>Contractor-specific improvement actions</li>
+          <li>Quantified carbon reduction estimates</li>
+          <li>Priority ranking by impact potential</li>
+          <li>Certification credit implications</li>
+        </ul>
+      </div>
+    </div>
+
+    <div style="margin-top:24px;padding:16px 20px;background:var(--green-dim);border:1px solid rgba(34,197,94,0.15);border-radius:12px">
+      <div style="font-size:12px;color:var(--green);font-weight:700;margin-bottom:4px">Technology Stack</div>
+      <div style="font-size:12px;color:var(--text3);line-height:1.7">Claude AI with structured project context &middot; Real-time data aggregation pipeline &middot; Material-level and contractor-level gap analysis &middot; Live rendering with markdown support</div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!-- SLIDE 8 — TECHNOLOGY READINESS                         -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="7">
+  <div class="slide-inner">
+    <div class="slide-badge badge-cyan">Technology Readiness</div>
+    <div class="slide-title">Built. <span class="c">Deployed.</span> Working.</div>
+    <div class="slide-subtitle">
+      CarbonIQ is not a concept or prototype. The full platform is deployed, live, and demonstrable today. Every feature described in this deck is operational.
+    </div>
+
+    <div class="grid-2" style="margin-bottom:24px">
+      <div class="s-card cyan">
+        <div class="s-card-icon">✅</div>
+        <div class="s-card-title">Live Today (TRL 7-8)</div>
+        <ul class="s-card-list">
+          <li>Full construction lifecycle tracking deployed</li>
+          <li>3 stakeholder roles with RBAC</li>
+          <li>3 AI engines operational (BOQ, RAG, Advisor)</li>
+          <li>5 green certification frameworks tracked</li>
+          <li>200+ material emission factors (ICE DB)</li>
+          <li>Approval workflow with full audit trail</li>
+          <li>Cloud-deployed on Netlify + Firebase</li>
+          <li>Open source under Apache 2.0</li>
+        </ul>
+      </div>
+      <div class="s-card blue">
+        <div class="s-card-icon">📡</div>
+        <div class="s-card-title">Sensor-Ready (TRL 5-6)</div>
+        <ul class="s-card-list">
+          <li>Architecture designed for IoT sensor ingestion</li>
+          <li>Site data model accepts sensor feed format</li>
+          <li>Fuel flow meters, electricity sub-meters, water sensors</li>
+          <li>Same accountability chain, automated data source</li>
+          <li>Oil &amp; gas extension for operational emissions</li>
+          <li>Fugitive methane detection pipeline</li>
+          <li>MQTT / REST API ingestion endpoints planned</li>
+          <li>Digital twin integration pathway</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="grid-4">
+      <div style="text-align:center;padding:16px;background:var(--bg3);border:1px solid var(--border);border-radius:12px">
+        <div style="font-size:24px;font-weight:900;color:var(--green)">TRL 8</div>
+        <div class="stat-label">Platform Core</div>
+      </div>
+      <div style="text-align:center;padding:16px;background:var(--bg3);border:1px solid var(--border);border-radius:12px">
+        <div style="font-size:24px;font-weight:900;color:var(--blue)">TRL 7</div>
+        <div class="stat-label">AI Engines</div>
+      </div>
+      <div style="text-align:center;padding:16px;background:var(--bg3);border:1px solid var(--border);border-radius:12px">
+        <div style="font-size:24px;font-weight:900;color:var(--orange)">TRL 5</div>
+        <div class="stat-label">IoT Integration</div>
+      </div>
+      <div style="text-align:center;padding:16px;background:var(--bg3);border:1px solid var(--border);border-radius:12px">
+        <div style="font-size:24px;font-weight:900;color:var(--purple)">TRL 4</div>
+        <div class="stat-label">ML Forecasting</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!-- SLIDE 9 — IoT & 4TH AI ENGINE                         -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="8">
+  <div class="slide-inner">
+    <div class="slide-badge badge-orange">IoT + 4th AI Engine</div>
+    <div class="slide-title">Real-time <span class="o">site monitoring</span></div>
+    <div class="slide-subtitle">
+      Phase 2 replaces manual site emission entries with live IoT sensor data. The 4th AI engine adds ML forecasting, anomaly detection, and predictive intelligence on top of the sensor feed.
+    </div>
+
+    <div class="grid-2" style="margin-bottom:20px">
+      <div class="s-card orange">
+        <div class="s-card-icon">📡</div>
+        <div class="s-card-title">IoT Sensor Network</div>
+        <ul class="s-card-list">
+          <li>Fuel flow meters — live diesel consumption</li>
+          <li>Smart sub-meters — real-time electricity</li>
+          <li>Water sensors — site usage monitoring</li>
+          <li>MQTT/REST ingestion into same data model</li>
+          <li>Same accountability chain, automated source</li>
+        </ul>
+      </div>
+      <div class="s-card purple">
+        <div class="s-card-icon">🤖</div>
+        <div class="s-card-title">4th AI Engine — ML Forecasting</div>
+        <ul class="s-card-list">
+          <li>Historical sensor pattern analysis</li>
+          <li>Anomaly detection and threshold alerts</li>
+          <li>Predictive carbon forecasting per project</li>
           <li>Digital twin integration</li>
           <li>White-label for national regulators</li>
         </ul>
       </div>
     </div>
+
+    <div class="grid-2">
+      <div class="s-card blue">
+        <div class="s-card-icon">🛢️</div>
+        <div class="s-card-title">Oil &amp; Gas Extension</div>
+        <ul class="s-card-list">
+          <li>IoT extends to pipelines and wellheads</li>
+          <li>Fugitive methane detection in real time</li>
+          <li>Same platform, different data source</li>
+          <li>Net-zero 2050 accountability for energy sector</li>
+        </ul>
+      </div>
+      <div class="s-card green">
+        <div class="s-card-icon">🌍</div>
+        <div class="s-card-title">Smart City Integration</div>
+        <ul class="s-card-list">
+          <li>District-level carbon monitoring</li>
+          <li>Multi-project portfolio aggregation</li>
+          <li>Regulatory reporting automation</li>
+          <li>National carbon accounting layer</li>
+        </ul>
+      </div>
+    </div>
   </div>
 </div>
 
-<!-- ═══════════ SLIDE 11 — CALL TO ACTION ═══════════ -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<!-- SLIDE 10 — COMPETITIVE DIFFERENTIATION                 -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="9">
+  <div class="slide-inner">
+    <div class="slide-badge badge-green">Competitive Edge</div>
+    <div class="slide-title">Why <span class="g">CarbonIQ</span> wins.</div>
+    <div class="slide-subtitle">
+      CarbonIQ is the only open-source, multi-stakeholder construction carbon platform with 3 AI engines, sensor readiness, and global certification tracking.
+    </div>
+
+    <div style="background:var(--bg3);border:1px solid var(--border);border-radius:16px;overflow:hidden">
+      <div class="compare-row header">
+        <div class="compare-cell header-cell" style="color:var(--text)">Capability</div>
+        <div class="compare-cell header-cell green-header">CarbonIQ (Open Source)</div>
+        <div class="compare-cell header-cell slate-header">Proprietary SaaS Tools</div>
+      </div>
+      <div class="compare-row">
+        <div class="compare-cell label">License</div>
+        <div class="compare-cell"><span class="check">Apache 2.0 — free forever</span></div>
+        <div class="compare-cell"><span class="cross">$50K-500K/yr subscriptions</span></div>
+      </div>
+      <div class="compare-row">
+        <div class="compare-cell label">Full Construction Lifecycle</div>
+        <div class="compare-cell"><span class="check">Yes — factory to site</span></div>
+        <div class="compare-cell">Partial — most cover manufacturing only</div>
+      </div>
+      <div class="compare-row">
+        <div class="compare-cell label">Multi-Stakeholder Roles</div>
+        <div class="compare-cell"><span class="check">3 roles with RBAC</span></div>
+        <div class="compare-cell"><span class="cross">Single-user or limited</span></div>
+      </div>
+      <div class="compare-row">
+        <div class="compare-cell label">AI Engines</div>
+        <div class="compare-cell"><span class="check">3 live + 4th planned</span></div>
+        <div class="compare-cell">0-1 basic features</div>
+      </div>
+      <div class="compare-row">
+        <div class="compare-cell label">IoT Sensor-Ready</div>
+        <div class="compare-cell"><span class="check">Architecture designed</span></div>
+        <div class="compare-cell"><span class="cross">Not on roadmap</span></div>
+      </div>
+      <div class="compare-row">
+        <div class="compare-cell label">Certification Tracking</div>
+        <div class="compare-cell"><span class="check">5 frameworks live</span></div>
+        <div class="compare-cell">1-2 frameworks</div>
+      </div>
+      <div class="compare-row">
+        <div class="compare-cell label">Source Code Access</div>
+        <div class="compare-cell"><span class="check">Full — audit, extend, fork</span></div>
+        <div class="compare-cell"><span class="cross">Closed — black box</span></div>
+      </div>
+      <div class="compare-row">
+        <div class="compare-cell label">Vendor Lock-in</div>
+        <div class="compare-cell"><span class="check">Zero — self-host anytime</span></div>
+        <div class="compare-cell"><span class="cross">Complete dependency</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!-- SLIDE 11 — MARKET OPPORTUNITY                          -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="10">
+  <div class="slide-inner">
+    <div class="slide-badge badge-green">Market Opportunity</div>
+    <div class="slide-title"><span class="g">$15.5 Trillion</span> construction market.</div>
+    <div class="slide-subtitle">
+      Global construction output is $15.5T annually. Every project will need carbon tracking as regulations tighten. The market for construction carbon management tools is projected to grow 25%+ CAGR through 2030.
+    </div>
+
+    <div class="grid-3" style="margin-bottom:28px">
+      <div class="s-card green">
+        <div class="s-card-icon">🌍</div>
+        <div class="s-card-title">TAM — $15.5T</div>
+        <div class="s-card-text">Total global construction market. Every project generates embodied carbon that must be measured under emerging regulations (EU, UK, GCC, APAC).</div>
+      </div>
+      <div class="s-card blue">
+        <div class="s-card-icon">🎯</div>
+        <div class="s-card-title">SAM — $2.1B</div>
+        <div class="s-card-text">Construction carbon management software market. Currently fragmented across proprietary tools with no open standard.</div>
+      </div>
+      <div class="s-card purple">
+        <div class="s-card-icon">📈</div>
+        <div class="s-card-title">SOM — $120M</div>
+        <div class="s-card-text">Enterprise support, managed cloud, and premium features for firms adopting open-source CarbonIQ as their carbon tracking standard.</div>
+      </div>
+    </div>
+
+    <div class="grid-3">
+      <div style="text-align:center;padding:16px;background:var(--bg3);border:1px solid var(--border);border-radius:12px">
+        <div style="font-size:10px;font-weight:700;color:var(--orange);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:6px">Regulatory Tailwinds</div>
+        <div style="font-size:12px;color:var(--text3);line-height:1.6">EU taxonomy, UK Part Z, Saudi Vision 2030, Abu Dhabi Estidama — all mandating embodied carbon reporting</div>
+      </div>
+      <div style="text-align:center;padding:16px;background:var(--bg3);border:1px solid var(--border);border-radius:12px">
+        <div style="font-size:10px;font-weight:700;color:var(--cyan);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:6px">GCC Mega Projects</div>
+        <div style="font-size:12px;color:var(--text3);line-height:1.6">NEOM, The Line, Expo City, Masdar City — $1T+ in projects requiring carbon accountability</div>
+      </div>
+      <div style="text-align:center;padding:16px;background:var(--bg3);border:1px solid var(--border);border-radius:12px">
+        <div style="font-size:10px;font-weight:700;color:var(--green);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:6px">Net Zero 2050</div>
+        <div style="font-size:12px;color:var(--text3);line-height:1.6">150+ countries committed. Construction is the largest untracked sector. CarbonIQ fills the gap.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!-- SLIDE 12 — REVENUE MODEL (OPEN SOURCE)                 -->
+<!-- ═══════════════════════════════════════════════════════ -->
 <div class="slide" data-slide="11">
-  <div class="s-content" style="text-align:center">
-    <div style="width:72px;height:72px;border-radius:20px;margin:0 auto 20px;background:linear-gradient(135deg,#22c55e 0%,#0d9488 100%);display:flex;align-items:center;justify-content:center;font-size:36px;box-shadow:0 0 40px rgba(34,197,94,0.25)">🌿</div>
-    <div class="s-title">Carbon<span class="g">IQ</span></div>
-    <p class="s-sub">
-      A live, working platform — not a concept. Every screen, every AI engine, every workflow demonstrated here is operational today.
-    </p>
-    <div class="stat-grid" style="max-width:600px;margin:0 auto 28px">
-      <div class="stat-card">
-        <div class="stat-val">3</div>
+  <div class="slide-inner">
+    <div class="slide-badge badge-green">Open-Source Revenue Model</div>
+    <div class="slide-title">Free core. <span class="g">Premium ecosystem.</span></div>
+    <div class="slide-subtitle">
+      CarbonIQ follows the proven open-core model pioneered by GitLab, Elastic, and HashiCorp. The full platform is free and open source. Revenue comes from enterprise services, managed hosting, and premium integrations.
+    </div>
+
+    <div class="grid-3" style="margin-bottom:24px">
+      <div class="revenue-card" style="border-top:3px solid var(--green)">
+        <div class="revenue-tier" style="color:var(--green)">Community Edition</div>
+        <div class="revenue-name">CarbonIQ Core</div>
+        <div class="revenue-price" style="color:var(--green)">Free &amp; Open Source</div>
+        <div class="revenue-desc">
+          Full lifecycle tracking, 3 stakeholder roles, 3 AI engines, 5 certifications, approval workflow, audit trail. Self-host on your infrastructure. Apache 2.0 license.
+        </div>
+      </div>
+      <div class="revenue-card" style="border-top:3px solid var(--blue)">
+        <div class="revenue-tier" style="color:var(--blue)">Enterprise Edition</div>
+        <div class="revenue-name">CarbonIQ Enterprise</div>
+        <div class="revenue-price" style="color:var(--blue)">Per-project licensing</div>
+        <div class="revenue-desc">
+          SSO/SAML, advanced RBAC, SLA-backed support, priority AI model access, custom emission factor databases, white-label branding, dedicated account manager.
+        </div>
+      </div>
+      <div class="revenue-card" style="border-top:3px solid var(--purple)">
+        <div class="revenue-tier" style="color:var(--purple)">Managed Cloud</div>
+        <div class="revenue-name">CarbonIQ Cloud</div>
+        <div class="revenue-price" style="color:var(--purple)">Subscription</div>
+        <div class="revenue-desc">
+          Fully managed hosting, automated backups, uptime SLA, zero-ops deployment, IoT ingestion endpoints, API rate limits scaled to portfolio size.
+        </div>
+      </div>
+    </div>
+
+    <div class="grid-2">
+      <div class="s-card orange">
+        <div class="s-card-icon">🔌</div>
+        <div class="s-card-title">Premium Integrations</div>
+        <ul class="s-card-list">
+          <li>IoT sensor gateway service (Phase 2)</li>
+          <li>ERP connectors (SAP, Oracle, Procore)</li>
+          <li>BIM model carbon overlay</li>
+          <li>National regulatory reporting API</li>
+          <li>Custom AI model fine-tuning</li>
+        </ul>
+      </div>
+      <div class="s-card cyan">
+        <div class="s-card-icon">🎓</div>
+        <div class="s-card-title">Professional Services</div>
+        <ul class="s-card-list">
+          <li>Implementation consulting</li>
+          <li>Carbon strategy advisory</li>
+          <li>Training and certification programs</li>
+          <li>Custom emission factor development</li>
+          <li>Regulatory compliance audit support</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!-- SLIDE 13 — SCALE-UP ROADMAP                            -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="12">
+  <div class="slide-inner">
+    <div class="slide-badge badge-blue">Scale-Up Roadmap</div>
+    <div class="slide-title">From startup to <span class="b">global standard.</span></div>
+    <div class="slide-subtitle">
+      A clear four-phase execution plan — from the live platform today to becoming the global open standard for construction carbon accountability.
+    </div>
+
+    <div class="timeline">
+      <div class="timeline-item active">
+        <div class="timeline-dot"></div>
+        <div class="timeline-phase" style="color:var(--green)">Phase 1 — Now</div>
+        <div class="timeline-title">Platform Live</div>
+        <div class="timeline-text">Full lifecycle tracking, 3 AI engines, 5 certifications. Open-source release. Community building. Early adopter onboarding. GitHub stars and contributions.</div>
+      </div>
+      <div class="timeline-item next">
+        <div class="timeline-dot"></div>
+        <div class="timeline-phase" style="color:var(--blue)">Phase 2 — 6-12 months</div>
+        <div class="timeline-title">IoT + Enterprise</div>
+        <div class="timeline-text">IoT sensor integration live. 4th AI engine (ML forecasting). Enterprise edition launch. First managed cloud customers. ERP connectors.</div>
+      </div>
+      <div class="timeline-item future">
+        <div class="timeline-dot"></div>
+        <div class="timeline-phase" style="color:var(--purple)">Phase 3 — 12-24 months</div>
+        <div class="timeline-title">Vertical Expansion</div>
+        <div class="timeline-text">Oil &amp; gas extension. Smart city integration. National regulator white-label. BIM integration. Digital twin. 10+ enterprise customers.</div>
+      </div>
+      <div class="timeline-item future">
+        <div class="timeline-dot"></div>
+        <div class="timeline-phase" style="color:var(--orange)">Phase 4 — 24-36 months</div>
+        <div class="timeline-title">Global Standard</div>
+        <div class="timeline-text">De facto open standard for construction carbon. 100+ contributing organizations. Multi-language. Regional emission factor databases. IPO or strategic exit pathway.</div>
+      </div>
+    </div>
+
+    <div style="margin-top:28px;padding:16px 20px;background:var(--green-dim);border:1px solid rgba(34,197,94,0.15);border-radius:12px;text-align:center">
+      <div style="font-size:13px;color:var(--green);font-weight:700;margin-bottom:4px">The Linux Model for Carbon</div>
+      <div style="font-size:12px;color:var(--text3);line-height:1.7">Like Linux became the standard for servers, CarbonIQ aims to become the standard for construction carbon tracking — free, open, extensible, and backed by a commercial ecosystem.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!-- SLIDE 14 — CALL TO ACTION                              -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<div class="slide" data-slide="13">
+  <div class="hero-glow"></div>
+  <div class="slide-inner" style="text-align:center;display:flex;flex-direction:column;align-items:center">
+    <div class="slide-badge badge-green">Call to Action</div>
+    <div style="width:72px;height:72px;border-radius:20px;background:linear-gradient(135deg,#22c55e 0%,#0d9488 100%);display:flex;align-items:center;justify-content:center;font-size:36px;margin-bottom:20px;box-shadow:0 0 40px rgba(34,197,94,0.3)">
+      🌿
+    </div>
+    <div class="slide-title" style="font-size:52px;">Carbon<span class="g">IQ</span></div>
+    <div class="slide-subtitle" style="text-align:center;max-width:600px;margin-bottom:28px">
+      The open-source platform that makes construction carbon visible, accountable, and actionable. Built today. Scaling tomorrow.
+    </div>
+
+    <div class="grid-4" style="max-width:800px;margin-bottom:32px">
+      <div style="text-align:center;padding:20px;background:var(--bg3);border:1px solid var(--border);border-radius:14px">
+        <div style="font-size:28px;font-weight:900;color:var(--green)">3</div>
         <div class="stat-label">AI Engines Live</div>
       </div>
-      <div class="stat-card">
-        <div class="stat-val" style="color:var(--blue)">3</div>
-        <div class="stat-label">Stakeholder Roles</div>
+      <div style="text-align:center;padding:20px;background:var(--bg3);border:1px solid var(--border);border-radius:14px">
+        <div style="font-size:28px;font-weight:900;color:var(--blue)">3 Stages</div>
+        <div class="stat-label">Full Lifecycle</div>
       </div>
-      <div class="stat-card">
-        <div class="stat-val" style="color:var(--purple)">5</div>
-        <div class="stat-label">Green Certifications</div>
+      <div style="text-align:center;padding:20px;background:var(--bg3);border:1px solid var(--border);border-radius:14px">
+        <div style="font-size:28px;font-weight:900;color:var(--orange)">IoT</div>
+        <div class="stat-label">Sensor-Ready</div>
       </div>
-      <div class="stat-card">
-        <div class="stat-val" style="color:var(--orange)">200+</div>
-        <div class="stat-label">Emission Factors</div>
+      <div style="text-align:center;padding:20px;background:var(--bg3);border:1px solid var(--border);border-radius:14px">
+        <div style="font-size:28px;font-weight:900;color:var(--purple)">OSS</div>
+        <div class="stat-label">Apache 2.0</div>
       </div>
     </div>
-    <div style="display:flex;gap:16px;justify-content:center;flex-wrap:wrap;margin-bottom:24px">
-      <a class="cta-btn" href="index.html">Launch Platform →</a>
-      <a class="cta-btn-outline" href="walkthrough.html">Product Walkthrough</a>
+
+    <div class="pills" style="justify-content:center;margin-bottom:32px">
+      <span class="pill pill-g">Open Source — Free Forever</span>
+      <span class="pill pill-b">Enterprise Support Available</span>
+      <span class="pill">Managed Cloud Option</span>
+      <span class="pill">Multi-Industry Scalable</span>
     </div>
-    <div style="font-size:11px;color:var(--slate);margin-top:12px">
-      CarbonIQ — Construction Carbon Accountability Platform — 3 AI Engines — 5 Green Certifications — Sensor-Ready
+
+    <div style="display:flex;gap:16px;flex-wrap:wrap;justify-content:center;margin-bottom:24px">
+      <a href="walkthrough.html" style="display:inline-flex;align-items:center;gap:8px;background:var(--green);color:#000;font-size:14px;font-weight:700;padding:14px 32px;border-radius:30px;text-decoration:none;transition:all 0.2s">Product Walkthrough &#8594;</a>
+      <a href="index.html" style="display:inline-flex;align-items:center;gap:8px;background:rgba(96,165,250,0.12);border:1px solid rgba(96,165,250,0.3);color:var(--blue);font-size:14px;font-weight:700;padding:14px 32px;border-radius:30px;text-decoration:none;transition:all 0.2s">Launch Platform &#8594;</a>
+    </div>
+
+    <div style="font-size:11px;color:var(--slate);line-height:1.8;max-width:500px">
+      CarbonIQ &middot; Open-Source Carbon Accountability Platform<br>
+      3 AI Engines &middot; 5 Certifications &middot; Sensor-Ready &middot; Apache 2.0<br>
+      This presentation contains no source code, API keys, or backend access.
     </div>
   </div>
 </div>
 
-<!-- ═══════════ NAVIGATION ═══════════ -->
-<div class="nav">
-  <button class="nav-btn" onclick="go(-1)">‹</button>
-  <div class="nav-dots" id="navDots"></div>
-  <div class="slide-num" id="slideNum">1 / 11</div>
-  <button class="nav-btn" onclick="go(1)">›</button>
+<!-- ═══════════════════════════════════════════════════════ -->
+<!-- NAVIGATION BAR                                         -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<div class="nav-bar">
+  <button class="nav-btn" id="prevBtn" onclick="navigate(-1)">&#8592; Prev</button>
+  <div style="display:flex;flex-direction:column;align-items:center;gap:8px">
+    <div class="nav-dots" id="navDots"></div>
+    <div class="nav-counter" id="navCounter">1 / 14</div>
+  </div>
+  <button class="nav-btn" id="nextBtn" onclick="navigate(1)">Next &#8594;</button>
 </div>
 
 <script>
   const slides = document.querySelectorAll('.slide');
   const total = slides.length;
-  let cur = 0;
+  let current = 0;
 
-  // Build dots
-  const dotsEl = document.getElementById('navDots');
-  for (let i = 0; i < total; i++) {
-    const d = document.createElement('div');
-    d.className = 'nav-dot' + (i === 0 ? ' active' : '');
-    d.onclick = () => goTo(i);
-    dotsEl.appendChild(d);
+  function showSlide(n) {
+    slides.forEach((s, i) => {
+      s.classList.remove('active', 'prev');
+      if (i === n) s.classList.add('active');
+      else if (i < n) s.classList.add('prev');
+    });
+    current = n;
+    updateNav();
   }
 
-  function goTo(n) {
-    if (n < 0 || n >= total) return;
-    slides[cur].classList.remove('active');
-    dotsEl.children[cur].classList.remove('active');
-    cur = n;
-    slides[cur].classList.add('active');
-    dotsEl.children[cur].classList.add('active');
-    document.getElementById('slideNum').textContent = (cur + 1) + ' / ' + total;
+  function navigate(dir) {
+    const next = current + dir;
+    if (next >= 0 && next < total) showSlide(next);
   }
 
-  function go(dir) { goTo(cur + dir); }
+  function updateNav() {
+    document.getElementById('navCounter').textContent = (current + 1) + ' / ' + total;
+    document.getElementById('prevBtn').disabled = current === 0;
+    document.getElementById('nextBtn').disabled = current === total - 1;
 
-  // Keyboard
+    const dots = document.getElementById('navDots');
+    dots.innerHTML = '';
+    for (let i = 0; i < total; i++) {
+      const d = document.createElement('button');
+      d.className = 'nav-dot' + (i === current ? ' active' : '');
+      d.onclick = () => showSlide(i);
+      dots.appendChild(d);
+    }
+  }
+
+  // Keyboard navigation
   document.addEventListener('keydown', e => {
-    if (e.key === 'ArrowRight' || e.key === ' ') { e.preventDefault(); go(1); }
-    if (e.key === 'ArrowLeft') { e.preventDefault(); go(-1); }
-    if (e.key === 'Home') { e.preventDefault(); goTo(0); }
-    if (e.key === 'End') { e.preventDefault(); goTo(total - 1); }
+    if (e.key === 'ArrowRight' || e.key === ' ') { e.preventDefault(); navigate(1); }
+    if (e.key === 'ArrowLeft') { e.preventDefault(); navigate(-1); }
+    if (e.key === 'Home') { e.preventDefault(); showSlide(0); }
+    if (e.key === 'End') { e.preventDefault(); showSlide(total - 1); }
   });
 
-  // Touch/swipe
-  let touchX = 0;
-  document.addEventListener('touchstart', e => { touchX = e.touches[0].clientX; });
+  // Touch / swipe navigation
+  let touchStartX = 0;
+  document.addEventListener('touchstart', e => { touchStartX = e.changedTouches[0].screenX; });
   document.addEventListener('touchend', e => {
-    const dx = e.changedTouches[0].clientX - touchX;
-    if (Math.abs(dx) > 50) go(dx < 0 ? 1 : -1);
+    const diff = touchStartX - e.changedTouches[0].screenX;
+    if (Math.abs(diff) > 50) navigate(diff > 0 ? 1 : -1);
   });
+
+  updateNav();
 </script>
 </body>
 </html>

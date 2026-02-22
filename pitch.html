@@ -3,12 +3,13 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>CarbonIQ — Competition Submission</title>
-<meta name="description" content="CarbonIQ: The multi-stakeholder carbon accountability platform. From material manufacturing to on-site construction. Multi-industry scalable.">
+<title>CarbonIQ — Startup Competition Submission 2026</title>
+<meta name="description" content="CarbonIQ: Open-source carbon accountability platform. From material manufacturing to on-site construction. Multi-industry scalable. Apache 2.0.">
 <style>
   :root {
     --green: #22c55e; --green-dim: rgba(34,197,94,0.10);
     --blue: #60a5fa; --purple: #a78bfa; --orange: #fb923c;
+    --cyan: #22d3ee;
     --bg: #0a0e1a; --bg2: #0f1626; --bg3: #141d2e;
     --border: rgba(255,255,255,0.07);
     --text: #f1f5f9; --text3: #94a3b8; --slate: #64748b;
@@ -33,7 +34,7 @@
   .wrapper { max-width: 860px; width: 100%; position: relative; z-index: 1; }
 
   /* ── HEADER ── */
-  .header { text-align: center; margin-bottom: 52px; }
+  .header { text-align: center; margin-bottom: 48px; }
 
   .competition-badge {
     display: inline-flex; align-items: center; gap: 8px;
@@ -58,9 +59,17 @@
   .logo-title .g { color: var(--green); }
 
   .tagline {
-    font-size: 16px; color: var(--text3); max-width: 540px;
-    margin: 0 auto 28px; line-height: 1.6;
+    font-size: 16px; color: var(--text3); max-width: 580px;
+    margin: 0 auto 16px; line-height: 1.6;
   }
+
+  .oss-tag {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: rgba(34,197,94,0.06); border: 1px solid rgba(34,197,94,0.15);
+    border-radius: 10px; padding: 10px 20px; margin-bottom: 28px;
+    font-size: 13px; color: var(--text3); line-height: 1.5;
+  }
+  .oss-tag strong { color: var(--green); }
 
   /* ── PILL STRIP ── */
   .pills { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; margin-bottom: 48px; }
@@ -135,7 +144,7 @@
   .download-btn:hover { background: rgba(251,146,60,0.2); }
 
   /* ── WHAT'S INSIDE ── */
-  .inside { margin-bottom: 40px; }
+  .inside { margin-bottom: 32px; }
   .inside-title { font-size: 11px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: var(--slate); text-align: center; margin-bottom: 16px; }
   .inside-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 10px; }
   .inside-item {
@@ -144,6 +153,20 @@
   }
   .ii-val { font-size: 20px; font-weight: 900; color: var(--green); }
   .ii-label { font-size: 9px; color: var(--slate); margin-top: 3px; font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase; }
+
+  /* ── REVENUE MODEL STRIP ── */
+  .model-strip {
+    margin-bottom: 32px;
+  }
+  .model-strip-title { font-size: 11px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: var(--slate); text-align: center; margin-bottom: 16px; }
+  .model-cards { display: grid; grid-template-columns: repeat(3,1fr); gap: 10px; }
+  .model-card {
+    background: var(--bg3); border: 1px solid var(--border); border-radius: 10px;
+    padding: 16px 14px; text-align: center;
+  }
+  .mc-tier { font-size: 9px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; margin-bottom: 4px; }
+  .mc-name { font-size: 14px; font-weight: 800; margin-bottom: 4px; }
+  .mc-desc { font-size: 10px; color: var(--slate); line-height: 1.5; }
 
   /* ── FOOTER ── */
   .footer { text-align: center; }
@@ -154,6 +177,7 @@
   @media (max-width: 600px) {
     .cards { grid-template-columns: 1fr; }
     .inside-grid { grid-template-columns: repeat(2,1fr); }
+    .model-cards { grid-template-columns: 1fr; }
     .logo-title { font-size: 38px; }
     .download-row { flex-direction: column; align-items: flex-start; }
   }
@@ -164,19 +188,22 @@
 
   <!-- HEADER -->
   <div class="header">
-    <div class="competition-badge">🏆 Competition Submission 2026</div>
+    <div class="competition-badge">Startup Competition 2026</div>
     <div class="logo-mark">🌿</div>
     <div class="logo-title">Carbon<span class="g">IQ</span></div>
     <p class="tagline">
-      Just as a hospital tracks every patient's vitals in real time, CarbonIQ tracks every building's carbon — from the first material manufactured to the last nail driven on site.
+      The open-source construction carbon accountability platform. From material manufacturing to on-site construction. Multi-industry scalable.
     </p>
+    <div class="oss-tag">
+      <strong>Open Source &middot; Apache 2.0</strong> &mdash; Free core platform. Enterprise support, managed cloud, and premium integrations available.
+    </div>
     <div class="pills">
-      <span class="pill pill-g">✓ Full Construction Lifecycle</span>
-      <span class="pill pill-b">✓ 3 AI Engines Live</span>
-      <span class="pill pill-p">✓ 3 Stakeholder Roles</span>
-      <span class="pill pill-o">✓ IoT Sensor-Ready</span>
-      <span class="pill">✓ Multi-Industry Scalable</span>
-      <span class="pill">✓ 5 Green Certifications</span>
+      <span class="pill pill-g">Open Source &middot; Apache 2.0</span>
+      <span class="pill pill-b">3 AI Engines Live</span>
+      <span class="pill pill-p">3 Stakeholder Roles</span>
+      <span class="pill pill-o">IoT Sensor-Ready</span>
+      <span class="pill">Multi-Industry Scalable</span>
+      <span class="pill">5 Green Certifications</span>
     </div>
   </div>
 
@@ -184,22 +211,22 @@
   <div class="cards">
     <a class="card card-main" href="presentation.html">
       <div class="card-icon">🎯</div>
-      <div class="card-label cl-green">11 Slides · Keyboard / Swipe Navigation</div>
-      <div class="card-title">Competition Presentation</div>
+      <div class="card-label cl-green">14 Slides &middot; Keyboard / Swipe Navigation</div>
+      <div class="card-title">Competition Pitch Deck</div>
       <div class="card-desc">
-        Full pitch deck with embedded UI visuals: the problem, our solution, three stakeholder roles, AI engines, lifecycle tracking, competitive differentiation, multi-industry scalability, and call to action.
+        Full pitch deck with embedded UI visuals: the problem, open-source solution, lifecycle tracking, 3 AI engines, technology readiness, competitive differentiation, multi-industry scalability, revenue model, and call to action.
       </div>
-      <span class="card-cta cta-green">Open Presentation →</span>
+      <span class="card-cta cta-green">Open Pitch Deck &#8594;</span>
     </a>
 
     <a class="card card-walk" href="walkthrough.html">
       <div class="card-icon">📖</div>
-      <div class="card-label cl-blue">9 Sections · Sidebar Navigation</div>
+      <div class="card-label cl-blue">10 Sections &middot; Sidebar Navigation</div>
       <div class="card-title">Product Walkthrough</div>
       <div class="card-desc">
-        Deep-dive into every feature — all three roles step-by-step, all three AI engines explained, how carbon is tracked from material manufacturing to on-site construction, certifications, and the sensor integration roadmap.
+        Deep-dive into every feature — all three roles step-by-step, all three AI engines explained, full construction lifecycle tracking, certifications, sensor integration roadmap, and open-source contribution guide.
       </div>
-      <span class="card-cta cta-blue">Open Walkthrough →</span>
+      <span class="card-cta cta-blue">Open Walkthrough &#8594;</span>
     </a>
   </div>
 
@@ -209,21 +236,21 @@
       <div class="download-icon">📊</div>
       <div>
         <div class="download-title">PowerPoint Presentation</div>
-        <div class="download-sub">11 slides · Dark theme · Offline-ready · Print-ready</div>
+        <div class="download-sub">14 slides &middot; Dark theme &middot; Offline-ready &middot; Print-ready</div>
       </div>
     </div>
     <a class="download-btn" href="CarbonIQ_Presentation.pptx" download>
-      ⬇ Download PPTX
+      &#11015; Download PPTX
     </a>
   </div>
 
   <!-- WHAT'S INSIDE -->
   <div class="inside">
-    <div class="inside-title">Platform at a glance</div>
+    <div class="inside-title">Platform at a Glance</div>
     <div class="inside-grid">
       <div class="inside-item">
         <div class="ii-val">3 Stages</div>
-        <div class="ii-label">Manufacturing · Transport · Site</div>
+        <div class="ii-label">Manufacturing &middot; Transport &middot; Site</div>
       </div>
       <div class="inside-item">
         <div class="ii-val" style="color:var(--blue)">3 AI</div>
@@ -231,14 +258,14 @@
       </div>
       <div class="inside-item">
         <div class="ii-val" style="color:var(--purple)">3 Roles</div>
-        <div class="ii-label">Stakeholder Accountability</div>
+        <div class="ii-label">Stakeholder RBAC</div>
       </div>
       <div class="inside-item">
         <div class="ii-val" style="color:var(--orange)">IoT</div>
         <div class="ii-label">Sensor-Ready Phase 2</div>
       </div>
       <div class="inside-item">
-        <div class="ii-val" style="color:var(--cyan, #22d3ee)">5</div>
+        <div class="ii-val" style="color:var(--cyan)">5</div>
         <div class="ii-label">Green Certifications</div>
       </div>
       <div class="inside-item">
@@ -246,12 +273,34 @@
         <div class="ii-label">Material Carbon Factors</div>
       </div>
       <div class="inside-item">
-        <div class="ii-val" style="color:var(--green)">$15.5T</div>
-        <div class="ii-label">Market Opportunity</div>
+        <div class="ii-val" style="color:var(--green)">TRL 8</div>
+        <div class="ii-label">Technology Readiness</div>
       </div>
       <div class="inside-item">
-        <div class="ii-val" style="color:var(--blue)">AI</div>
-        <div class="ii-label">Document Analysis</div>
+        <div class="ii-val" style="color:var(--blue)">OSS</div>
+        <div class="ii-label">Apache 2.0 License</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- REVENUE MODEL -->
+  <div class="model-strip">
+    <div class="model-strip-title">Open-Source Revenue Model</div>
+    <div class="model-cards">
+      <div class="model-card" style="border-top:3px solid var(--green)">
+        <div class="mc-tier" style="color:var(--green)">Community</div>
+        <div class="mc-name">CarbonIQ Core</div>
+        <div class="mc-desc">Free &amp; open source. Full lifecycle tracking, 3 AI engines, 5 certifications. Self-host. Apache 2.0.</div>
+      </div>
+      <div class="model-card" style="border-top:3px solid var(--blue)">
+        <div class="mc-tier" style="color:var(--blue)">Enterprise</div>
+        <div class="mc-name">CarbonIQ Enterprise</div>
+        <div class="mc-desc">SSO, advanced RBAC, SLA support, custom EF databases, white-label. Per-project licensing.</div>
+      </div>
+      <div class="model-card" style="border-top:3px solid var(--purple)">
+        <div class="mc-tier" style="color:var(--purple)">Managed</div>
+        <div class="mc-name">CarbonIQ Cloud</div>
+        <div class="mc-desc">Fully managed hosting, automated backups, IoT endpoints, uptime SLA. Subscription.</div>
       </div>
     </div>
   </div>
@@ -259,7 +308,7 @@
   <!-- FOOTER -->
   <div class="footer">
     <div class="footer-note">
-      CarbonIQ &nbsp;·&nbsp; Multi-Stakeholder Carbon Accountability Platform &nbsp;·&nbsp; 3 AI Engines · 5 Certifications · Sensor-Ready<br>
+      CarbonIQ &nbsp;&middot;&nbsp; Open-Source Carbon Accountability Platform &nbsp;&middot;&nbsp; Apache 2.0 &nbsp;&middot;&nbsp; 3 AI Engines &middot; 5 Certifications &middot; Sensor-Ready<br>
       This page contains no source code, no API keys, and no backend access. Safe to share.
     </div>
   </div>
