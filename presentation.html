@@ -4,25 +4,24 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>CarbonIQ — Startup Competition Pitch Deck 2026</title>
-<meta name="description" content="CarbonIQ: Open-source construction carbon accountability platform. 3 AI engines, IoT-ready, Apache 2.0 licensed.">
+<meta name="description" content="CarbonIQ: Open-source carbon accountability platform. 3 AI engines, IoT sensor-ready, multi-industry scalable. Apache 2.0 licensed.">
 <style>
   :root {
     --green: #22c55e; --green2: #059669; --green-dim: rgba(34,197,94,0.10);
     --blue: #60a5fa; --purple: #a78bfa; --orange: #fb923c;
     --cyan: #22d3ee; --red: #f87171; --yellow: #fbbf24;
-    --bg: #0a0e1a; --bg2: #0f1626; --bg3: #141d2e;
+    --bg: #0a0e1a; --bg2: #0f1626; --bg3: #141d2e; --bg4: #1a2540;
     --border: rgba(255,255,255,0.07);
     --text: #f1f5f9; --text2: #cbd5e1; --text3: #94a3b8; --slate: #64748b;
   }
   * { margin:0; padding:0; box-sizing:border-box; }
-  html { scroll-behavior: smooth; }
+  html, body { width:100%; height:100%; overflow:hidden; }
   body {
     font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
     background: var(--bg); color: var(--text);
-    overflow: hidden; height: 100vh;
   }
 
-  /* ── SLIDE SYSTEM ── */
+  /* ── SLIDE ENGINE ── */
   .slide {
     position: absolute; inset: 0;
     display: flex; flex-direction: column; justify-content: center; align-items: center;
@@ -235,12 +234,12 @@
     <div class="slide-title" style="font-size:64px;margin-bottom:12px;">Carbon<span class="g">IQ</span></div>
     <div class="slide-subtitle" style="max-width:620px;text-align:center">
       The open-source construction carbon accountability platform.<br>
-      AI-powered. IoT-ready. From factory to finished floor.
+      From material manufacturing to on-site construction. Multi-industry scalable.
     </div>
     <div class="pills" style="justify-content:center">
       <span class="pill pill-g">Open Source &middot; Apache 2.0</span>
       <span class="pill pill-b">3 AI Engines Live</span>
-      <span class="pill">IoT-Ready Architecture</span>
+      <span class="pill">IoT Sensor-Ready</span>
       <span class="pill">5 Green Certifications</span>
     </div>
     <div style="margin-top:16px;font-size:11px;color:var(--slate)">
@@ -295,7 +294,7 @@
     <div class="slide-badge badge-green">The Solution</div>
     <div class="slide-title">Carbon<span class="g">IQ</span> — Track every kilogram.</div>
     <div class="slide-subtitle">
-      An open-source platform that tracks embodied carbon from material manufacturing (A1) through construction on site (A5). Role-based access for clients, consultants, and contractors. AI-powered analysis. IoT-ready.
+      An open-source platform that tracks embodied carbon from material manufacturing through transport to on-site construction. Role-based access for clients, consultants, and contractors. AI-powered analysis. Sensor-ready.
     </div>
 
     <div class="oss-highlight">
@@ -311,7 +310,7 @@
         <div class="s-card-title">3 Stakeholder Roles</div>
         <ul class="s-card-list">
           <li>Client / Owner — portfolio oversight</li>
-          <li>Consultant / Engineer — review & approve</li>
+          <li>Consultant / Engineer — review &amp; approve</li>
           <li>Contractor / Builder — submit data</li>
         </ul>
       </div>
@@ -326,9 +325,9 @@
       </div>
       <div class="s-card green">
         <div class="s-card-icon">📡</div>
-        <div class="s-card-title">IoT-Ready Architecture</div>
+        <div class="s-card-title">Sensor-Ready Architecture</div>
         <ul class="s-card-list">
-          <li>Phase 2: live sensor feeds replace manual A5</li>
+          <li>Phase 2: live sensor feeds replace manual site entry</li>
           <li>Fuel flow, electricity sub-meters, water</li>
           <li>Same data model, real-time pipeline</li>
         </ul>
@@ -343,30 +342,30 @@
 <div class="slide" data-slide="3">
   <div class="slide-inner">
     <div class="slide-badge badge-green">Product Overview</div>
-    <div class="slide-title">Full lifecycle. <span class="g">A1 to A5.</span></div>
+    <div class="slide-title">Full construction <span class="g">lifecycle.</span></div>
     <div class="slide-subtitle">
-      CarbonIQ covers the complete ISO 21930 embodied carbon lifecycle. Every material, every delivery, every site emission — tracked with audit trail and approval workflow.
+      CarbonIQ covers the complete embodied carbon lifecycle — from raw material manufacturing through transport to on-site construction. Every material, every delivery, every site emission — tracked with audit trail and approval workflow.
     </div>
 
     <table class="s-table">
-      <thead><tr><th>Phase</th><th>Name</th><th>What is Tracked</th><th>Who Submits</th></tr></thead>
+      <thead><tr><th>Stage</th><th>Name</th><th>What is Tracked</th><th>Who Submits</th></tr></thead>
       <tbody>
         <tr>
-          <td style="color:var(--green);font-weight:800;font-family:monospace">A1-A3</td>
+          <td style="color:var(--green);font-weight:800;font-family:monospace">Manufacturing</td>
           <td style="font-weight:700;color:var(--text)">Product Stage</td>
           <td>Raw material extraction, manufacturing, transport to factory. ICE DB baseline EF vs supplier EPD actual EF — per material, per month.</td>
           <td>Contractor</td>
         </tr>
         <tr>
-          <td style="color:var(--green);font-weight:800;font-family:monospace">A4</td>
+          <td style="color:var(--green);font-weight:800;font-family:monospace">Transport</td>
           <td style="font-weight:700;color:var(--text)">Transport to Site</td>
-          <td>Delivery distance and transport mode. Auto-calculated alongside each A1-A3 entry.</td>
+          <td>Delivery distance and transport mode. Auto-calculated alongside each material entry.</td>
           <td>Contractor</td>
         </tr>
         <tr>
-          <td style="color:var(--green);font-weight:800;font-family:monospace">A5</td>
-          <td style="font-weight:700;color:var(--text)">Construction Process</td>
-          <td>Monthly fuel, grid electricity, and water consumption on site. IoT-ready for Phase 2 sensor replacement.</td>
+          <td style="color:var(--green);font-weight:800;font-family:monospace">Construction</td>
+          <td style="font-weight:700;color:var(--text)">On-Site Process</td>
+          <td>Monthly fuel, grid electricity, and water consumption on site. Sensor-ready for Phase 2 automated data collection.</td>
           <td>Contractor / IoT</td>
         </tr>
       </tbody>
@@ -485,7 +484,7 @@
 <div class="slide" data-slide="6">
   <div class="slide-inner">
     <div class="slide-badge badge-green">AI Engine 3 — Live</div>
-    <div class="slide-title"><span class="g">Carbon Advisor</span> — AI Reduction Strategy</div>
+    <div class="slide-title"><span class="g">Carbon Advisor</span> — Reduction Strategy</div>
     <div class="slide-subtitle">
       A live AI integration inside every project. It reads actual project carbon data — totals, materials, contractor performance — and generates a specific, prioritised reduction strategy. Not a static report. A real AI call with live project data.
     </div>
@@ -517,7 +516,7 @@
 
     <div style="margin-top:24px;padding:16px 20px;background:var(--green-dim);border:1px solid rgba(34,197,94,0.15);border-radius:12px">
       <div style="font-size:12px;color:var(--green);font-weight:700;margin-bottom:4px">Technology Stack</div>
-      <div style="font-size:12px;color:var(--text3);line-height:1.7">Claude AI with structured project context &middot; Real-time data aggregation pipeline &middot; Material-level and contractor-level gap analysis &middot; Live rendering with markdown support &middot; Powered by Claude AI</div>
+      <div style="font-size:12px;color:var(--text3);line-height:1.7">Claude AI with structured project context &middot; Real-time data aggregation pipeline &middot; Material-level and contractor-level gap analysis &middot; Live rendering with markdown support</div>
     </div>
   </div>
 </div>
@@ -538,7 +537,7 @@
         <div class="s-card-icon">✅</div>
         <div class="s-card-title">Live Today (TRL 7-8)</div>
         <ul class="s-card-list">
-          <li>Full A1-A5 lifecycle tracking deployed</li>
+          <li>Full construction lifecycle tracking deployed</li>
           <li>3 stakeholder roles with RBAC</li>
           <li>3 AI engines operational (BOQ, RAG, Advisor)</li>
           <li>5 green certification frameworks tracked</li>
@@ -550,13 +549,13 @@
       </div>
       <div class="s-card blue">
         <div class="s-card-icon">📡</div>
-        <div class="s-card-title">IoT-Ready (TRL 5-6)</div>
+        <div class="s-card-title">Sensor-Ready (TRL 5-6)</div>
         <ul class="s-card-list">
           <li>Architecture designed for IoT sensor ingestion</li>
-          <li>A5 data model accepts sensor feed format</li>
+          <li>Site data model accepts sensor feed format</li>
           <li>Fuel flow meters, electricity sub-meters, water sensors</li>
           <li>Same accountability chain, automated data source</li>
-          <li>Oil & gas extension for operational emissions</li>
+          <li>Oil &amp; gas extension for operational emissions</li>
           <li>Fugitive methane detection pipeline</li>
           <li>MQTT / REST API ingestion endpoints planned</li>
           <li>Digital twin integration pathway</li>
@@ -593,7 +592,7 @@
     <div class="slide-badge badge-orange">IoT + 4th AI Engine</div>
     <div class="slide-title">Real-time <span class="o">site monitoring</span></div>
     <div class="slide-subtitle">
-      Phase 2 replaces manual A5 site emission entries with live IoT sensor data. The 4th AI engine adds ML forecasting, anomaly detection, and predictive intelligence on top of the sensor feed.
+      Phase 2 replaces manual site emission entries with live IoT sensor data. The 4th AI engine adds ML forecasting, anomaly detection, and predictive intelligence on top of the sensor feed.
     </div>
 
     <div class="grid-2" style="margin-bottom:20px">
@@ -624,7 +623,7 @@
     <div class="grid-2">
       <div class="s-card blue">
         <div class="s-card-icon">🛢️</div>
-        <div class="s-card-title">Oil & Gas Extension</div>
+        <div class="s-card-title">Oil &amp; Gas Extension</div>
         <ul class="s-card-list">
           <li>IoT extends to pipelines and wellheads</li>
           <li>Fugitive methane detection in real time</li>
@@ -654,7 +653,7 @@
     <div class="slide-badge badge-green">Competitive Edge</div>
     <div class="slide-title">Why <span class="g">CarbonIQ</span> wins.</div>
     <div class="slide-subtitle">
-      CarbonIQ is the only open-source, AI-powered, multi-stakeholder construction carbon platform with IoT readiness and global certification tracking.
+      CarbonIQ is the only open-source, multi-stakeholder construction carbon platform with 3 AI engines, sensor readiness, and global certification tracking.
     </div>
 
     <div style="background:var(--bg3);border:1px solid var(--border);border-radius:16px;overflow:hidden">
@@ -669,9 +668,9 @@
         <div class="compare-cell"><span class="cross">$50K-500K/yr subscriptions</span></div>
       </div>
       <div class="compare-row">
-        <div class="compare-cell label">Full A1-A5 Lifecycle</div>
+        <div class="compare-cell label">Full Construction Lifecycle</div>
         <div class="compare-cell"><span class="check">Yes — factory to site</span></div>
-        <div class="compare-cell">Partial — most cover A1-A3 only</div>
+        <div class="compare-cell">Partial — most cover manufacturing only</div>
       </div>
       <div class="compare-row">
         <div class="compare-cell label">Multi-Stakeholder Roles</div>
@@ -684,7 +683,7 @@
         <div class="compare-cell">0-1 basic features</div>
       </div>
       <div class="compare-row">
-        <div class="compare-cell label">IoT Ready</div>
+        <div class="compare-cell label">IoT Sensor-Ready</div>
         <div class="compare-cell"><span class="check">Architecture designed</span></div>
         <div class="compare-cell"><span class="cross">Not on roadmap</span></div>
       </div>
@@ -770,7 +769,7 @@
         <div class="revenue-name">CarbonIQ Core</div>
         <div class="revenue-price" style="color:var(--green)">Free &amp; Open Source</div>
         <div class="revenue-desc">
-          Full A1-A5 tracking, 3 stakeholder roles, 3 AI engines, 5 certifications, approval workflow, audit trail. Self-host on your infrastructure. Apache 2.0 license.
+          Full lifecycle tracking, 3 stakeholder roles, 3 AI engines, 5 certifications, approval workflow, audit trail. Self-host on your infrastructure. Apache 2.0 license.
         </div>
       </div>
       <div class="revenue-card" style="border-top:3px solid var(--blue)">
@@ -834,7 +833,7 @@
         <div class="timeline-dot"></div>
         <div class="timeline-phase" style="color:var(--green)">Phase 1 — Now</div>
         <div class="timeline-title">Platform Live</div>
-        <div class="timeline-text">Full A1-A5 tracking, 3 AI engines, 5 certifications. Open-source release. Community building. Early adopter onboarding. GitHub stars and contributions.</div>
+        <div class="timeline-text">Full lifecycle tracking, 3 AI engines, 5 certifications. Open-source release. Community building. Early adopter onboarding. GitHub stars and contributions.</div>
       </div>
       <div class="timeline-item next">
         <div class="timeline-dot"></div>
@@ -846,7 +845,7 @@
         <div class="timeline-dot"></div>
         <div class="timeline-phase" style="color:var(--purple)">Phase 3 — 12-24 months</div>
         <div class="timeline-title">Vertical Expansion</div>
-        <div class="timeline-text">Oil & gas extension. Smart city integration. National regulator white-label. BIM integration. Digital twin. 10+ enterprise customers.</div>
+        <div class="timeline-text">Oil &amp; gas extension. Smart city integration. National regulator white-label. BIM integration. Digital twin. 10+ enterprise customers.</div>
       </div>
       <div class="timeline-item future">
         <div class="timeline-dot"></div>
@@ -884,12 +883,12 @@
         <div class="stat-label">AI Engines Live</div>
       </div>
       <div style="text-align:center;padding:20px;background:var(--bg3);border:1px solid var(--border);border-radius:14px">
-        <div style="font-size:28px;font-weight:900;color:var(--blue)">A1-A5</div>
+        <div style="font-size:28px;font-weight:900;color:var(--blue)">3 Stages</div>
         <div class="stat-label">Full Lifecycle</div>
       </div>
       <div style="text-align:center;padding:20px;background:var(--bg3);border:1px solid var(--border);border-radius:14px">
-        <div style="font-size:28px;font-weight:900;color:var(--orange)">IoT+</div>
-        <div class="stat-label">Ready Architecture</div>
+        <div style="font-size:28px;font-weight:900;color:var(--orange)">IoT</div>
+        <div class="stat-label">Sensor-Ready</div>
       </div>
       <div style="text-align:center;padding:20px;background:var(--bg3);border:1px solid var(--border);border-radius:14px">
         <div style="font-size:28px;font-weight:900;color:var(--purple)">OSS</div>
@@ -901,7 +900,7 @@
       <span class="pill pill-g">Open Source — Free Forever</span>
       <span class="pill pill-b">Enterprise Support Available</span>
       <span class="pill">Managed Cloud Option</span>
-      <span class="pill">IoT Phase 2 Ready</span>
+      <span class="pill">Multi-Industry Scalable</span>
     </div>
 
     <div style="display:flex;gap:16px;flex-wrap:wrap;justify-content:center;margin-bottom:24px">
@@ -910,8 +909,8 @@
     </div>
 
     <div style="font-size:11px;color:var(--slate);line-height:1.8;max-width:500px">
-      CarbonIQ &middot; Open-Source Construction Carbon Accountability<br>
-      3 AI Engines &middot; 5 Certifications &middot; IoT-Ready &middot; Apache 2.0<br>
+      CarbonIQ &middot; Open-Source Carbon Accountability Platform<br>
+      3 AI Engines &middot; 5 Certifications &middot; Sensor-Ready &middot; Apache 2.0<br>
       This presentation contains no source code, API keys, or backend access.
     </div>
   </div>

@@ -250,26 +250,26 @@
   <!-- ══════════ SECTION 1 — ARCHITECTURE ══════════ -->
   <div class="section" id="architecture">
     <div class="section-eyebrow">Data Architecture</div>
-    <div class="section-title">ISO 21930 aligned — <span>A1 to A5</span> lifecycle</div>
-    <div class="section-desc">CarbonIQ tracks the full embodied carbon lifecycle from material production through site construction, aligned with ISO 21930 and the ICE Database emission factors.</div>
+    <div class="section-title">ISO 21930 aligned — <span>Full Construction Lifecycle</span></div>
+    <div class="section-desc">CarbonIQ tracks the full embodied carbon lifecycle from material manufacturing through transportation to on-site construction, aligned with ISO 21930 and the ICE Database emission factors.</div>
 
     <table class="phase-table">
-      <thead><tr><th>Phase</th><th>Name</th><th>What is tracked</th><th>Who submits</th></tr></thead>
+      <thead><tr><th>Stage</th><th>Name</th><th>What is tracked</th><th>Who submits</th></tr></thead>
       <tbody>
-        <tr><td>A1–A3</td><td>Product Stage</td><td>Raw material extraction, manufacturing, transport to factory. ICE DB baseline EF vs supplier EPD actual EF — per material, per month.</td><td>Contractor</td></tr>
-        <tr><td>A4</td><td>Transport to Site</td><td>Delivery distance and transport mode. Auto-calculated alongside each A1–A3 entry.</td><td>Contractor</td></tr>
-        <tr><td>A5</td><td>Construction Process</td><td>Monthly fuel, grid electricity and water consumption on site. Separate entry form.</td><td>Contractor</td></tr>
+        <tr><td>Stage 1</td><td>Material Production & Manufacturing</td><td>Raw material extraction, manufacturing, transport to factory. ICE DB baseline emission factor vs supplier EPD actual — per material, per month.</td><td>Contractor</td></tr>
+        <tr><td>Stage 2</td><td>Transport & Logistics</td><td>Delivery distance and transport mode. Auto-calculated alongside each material entry.</td><td>Contractor</td></tr>
+        <tr><td>Stage 3</td><td>On-site Construction</td><td>Monthly fuel, grid electricity and water consumption on site. Separate entry form.</td><td>Contractor</td></tr>
       </tbody>
     </table>
 
     <div class="screen-frame">
-      <div class="screen-bar"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div><span class="screen-url">carboniq.app — A1-A5 data model</span></div>
+      <div class="screen-bar"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div><span class="screen-url">carboniq.app — Full lifecycle data model</span></div>
       <div class="screen-body">
         <img src="screenshots/01-architecture.png" alt="Data Architecture" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
         <div class="placeholder"><div class="placeholder-icon">🏗️</div><div class="placeholder-name">screenshots/01-architecture.png</div></div>
       </div>
     </div>
-    <div class="screen-caption">A1–A5 lifecycle coverage — material entry form showing ICE DB baseline vs actual EPD emission factor</div>
+    <div class="screen-caption">Full lifecycle coverage — material entry form showing ICE DB baseline vs actual EPD emission factor</div>
   </div>
 
   <!-- ══════════ SECTION 2 — CLIENT DASHBOARD ══════════ -->
@@ -338,8 +338,8 @@
   <!-- ══════════ SECTION 3 — CONSULTANT DASHBOARD ══════════ -->
   <div class="section" id="consultant">
     <div class="section-eyebrow">Role — Consultant / Engineer</div>
-    <div class="section-title">Project intelligence — <span>AI-powered review</span></div>
-    <div class="section-desc">The Consultant role sees their assigned projects, reviews contractor submissions, manages edit/delete requests, runs the AI Carbon Advisor, and uses the Document Intelligence and Tender tools.</div>
+    <div class="section-title">Project intelligence — <span>smart review workflow</span></div>
+    <div class="section-desc">The Consultant role sees their assigned projects, reviews contractor submissions, manages edit/delete requests, runs the Carbon Advisor, and uses the Document Intelligence and Tender tools.</div>
 
     <div class="screen-frame">
       <div class="screen-bar"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div><span class="screen-url">carboniq.app/dashboard — Consultant view</span></div>
@@ -391,28 +391,28 @@
   <div class="section" id="contractor">
     <div class="section-eyebrow">Role — Contractor / Builder</div>
     <div class="section-title">Structured <span>carbon reporting</span></div>
-    <div class="section-desc">Contractors submit A1–A3 material entries with ICE DB pre-filled baseline emission factors, their supplier EPD actual EF, and transport (A4). A5 site emissions are logged separately by month.</div>
+    <div class="section-desc">Contractors submit material entries with ICE DB pre-filled baseline emission factors, their supplier EPD actual values, and transport data. On-site construction emissions (fuel, electricity, water) are logged separately by month.</div>
 
     <div class="screen-grid">
       <div>
         <div class="screen-frame">
-          <div class="screen-bar"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div><span class="screen-url">carboniq.app/entry_a13</span></div>
+          <div class="screen-bar"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div><span class="screen-url">carboniq.app/materials — Material Entry</span></div>
           <div class="screen-body">
-            <img src="screenshots/10-a13-entry.png" alt="A1-3 Material Entry" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+            <img src="screenshots/10-a13-entry.png" alt="Material Entry" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
             <div class="placeholder"><div class="placeholder-icon">🧱</div><div class="placeholder-name">screenshots/10-a13-entry.png</div></div>
           </div>
         </div>
-        <div class="screen-caption">A1–A3 entry form — category, type, quantity, ICE DB baseline EF (pre-filled), actual EPD EF, A4 transport</div>
+        <div class="screen-caption">Material entry form — category, type, quantity, ICE DB baseline EF (pre-filled), actual EPD EF, transport data</div>
       </div>
       <div>
         <div class="screen-frame">
-          <div class="screen-bar"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div><span class="screen-url">carboniq.app/entry_a5</span></div>
+          <div class="screen-bar"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div><span class="screen-url">carboniq.app/site — Site Emissions</span></div>
           <div class="screen-body">
-            <img src="screenshots/11-a5-entry.png" alt="A5 Site Emissions" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+            <img src="screenshots/11-a5-entry.png" alt="Site Emissions" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
             <div class="placeholder"><div class="placeholder-icon">⚡</div><div class="placeholder-name">screenshots/11-a5-entry.png</div></div>
           </div>
         </div>
-        <div class="screen-caption">A5 site emissions — monthly diesel, grid electricity and water consumption on construction site</div>
+        <div class="screen-caption">On-site construction emissions — monthly diesel, grid electricity and water consumption</div>
       </div>
     </div>
 
@@ -568,12 +568,12 @@
   <div class="section" id="iot">
     <div class="section-eyebrow">Phase 2 Roadmap</div>
     <div class="section-title">IoT — <span>real-time site monitoring</span></div>
-    <div class="section-desc">The platform architecture is designed to receive live IoT sensor data. Phase 2 replaces manual A5 entries with real-time readings from fuel flow meters, electricity sub-meters, and water sensors on site.</div>
+    <div class="section-desc">The platform architecture is designed to receive live IoT sensor data. Phase 2 replaces manual site emission entries with real-time readings from fuel flow meters, electricity sub-meters, and water sensors on site.</div>
 
     <div class="iot-grid">
       <div class="iot-card">
         <div class="iot-card-label">Current — Phase 1</div>
-        <div class="iot-card-title">Manual A5 Entry</div>
+        <div class="iot-card-title">Manual Site Entry</div>
         <ul>
           <li>Monthly fuel and electricity consumption entered manually</li>
           <li>Contractor submits, consultant reviews</li>
@@ -620,7 +620,7 @@
         <div class="placeholder"><div class="placeholder-icon">📡</div><div class="placeholder-name">screenshots/22-iot-roadmap.png</div></div>
       </div>
     </div>
-    <div class="screen-caption">IoT roadmap screen — current manual A5 entry vs Phase 2 real-time sensor architecture</div>
+    <div class="screen-caption">IoT roadmap screen — current manual site entry vs Phase 2 real-time sensor architecture</div>
 
     <div style="margin-top:40px;padding:20px 24px;background:var(--green-dim);border:1px solid rgba(52,211,153,0.2);border-radius:14px;text-align:center">
       <div style="font-size:13px;font-weight:800;color:var(--green);margin-bottom:8px">Platform is live. Every screen above is from the running system.</div>
@@ -778,8 +778,8 @@
     'screenshots/07-contributors-tab.png': 'Contributors view showing submission activity per team member',
     'screenshots/08-requests-tab.png': 'Edit and deletion request tracking with approval workflow',
     'screenshots/09-approvals.png': 'Multi-stage approval workflow: Pending → Review → Approved/Rejected',
-    'screenshots/10-a13-entry.png': 'A1-A3 material entry form with quantity, emission factors, and anomaly detection',
-    'screenshots/11-a5-entry.png': 'A5 site emissions entry for fuel consumption, water usage, and generator hours',
+    'screenshots/10-a13-entry.png': 'Material entry form with quantity, emission factors, and anomaly detection',
+    'screenshots/11-a5-entry.png': 'On-site construction emissions entry for fuel consumption, water usage, and generator hours',
     'screenshots/12-contractor-dashboard.png': 'Contractor dashboard with draft batch submission and emission summaries',
     'screenshots/13-boq-upload.png': 'Excel BOQ upload with AI-powered material classification and mapping',
     'screenshots/14-boq-results.png': 'AI classification results showing matched materials with emission factors',
