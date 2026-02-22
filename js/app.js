@@ -1,8 +1,8 @@
 // ===== SIDEBAR =====
 function buildSidebar() {
   const r=state.role;
-  const pending=state.entries.filter(e=>e.status==='pending').length;
-  const review=state.entries.filter(e=>e.status==='review').length;
+  const pending=(state.entries||[]).filter(e=>e.status==='pending').length;
+  const review=(state.entries||[]).filter(e=>e.status==='review').length;
   let items=[{section:"Main"},{id:'dashboard',icon:'\ud83d\udcca',label:'Dashboard'}];
   if(r==='contractor'||r==='consultant'){const draftCount=r==='contractor'?DB.getDraftEntries().length:0;items.push({section:"Data Entry"},{id:'entry_a13',icon:'\ud83e\uddf1',label:'A1-A3 Materials',badge:draftCount},{id:'entry_a5',icon:'\u26a1',label:'A5 Site Emissions'});}
   items.push({section:"Tender"},{id:'tender_entry',icon:'\ud83d\udccb',label:'Tender Quantities'},{id:'tender_compare',icon:'\ud83d\udcca',label:'Compare Scenarios'});
@@ -12,8 +12,7 @@ function buildSidebar() {
   items.push({section:"Manage"},{id:'team',icon:'\ud83d\udc65',label:'Team'});
   items.push({id:'projects',icon:'\ud83d\udccb',label:'Projects'});
   if(r==='consultant'||r==='client'){items.push({id:'organizations',icon:'\ud83c\udfe2',label:'Organizations'});}
-  const _projCount=(state.projects||[]).length;
-  if(_projCount>0){items.push({section:"Intelligence"},{id:'intelligence',icon:'\ud83e\udde0',label:'Doc Intelligence',badge:_projCount});}
+  items.push({section:"Intelligence"},{id:'intelligence',icon:'\ud83e\udde0',label:'Doc Intelligence'});
   items.push({id:'certifications',icon:'\ud83c\udfc6',label:'Certifications'},{id:'integrations',icon:'\ud83d\udd0c',label:'API Hub'});
   items.push({section:"Competition"},{id:'pitch_deck',icon:'\ud83c\udfc6',label:'Pitch Deck',href:'pitch.html'});
 
