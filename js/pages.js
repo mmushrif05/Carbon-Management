@@ -135,8 +135,9 @@ function openProjectModal(idx, opts) {
   const pOrgLinks = (state.projectOrgLinks || []).filter(l => l.projectId === p.id);
   const pConsOrgs = pOrgLinks.filter(l => l.orgType === 'consultant_firm');
   let pB=0,pA=0,pA4=0; pe.forEach(e=>{pB+=e.a13B||0;pA+=e.a13A||0;pA4+=e.a4||0;});
-  let pA5=0; pa5.forEach(e=>{pA5+=e.emission||0;});
-  const pRed=pB>0?((pB-pA)/pB)*100:0, pTotal=pA+pA4+pA5, pSav=Math.max(pB-pA,0);
+  pa5.filter(e=>e.stage==='a4').forEach(e=>{pA4+=e.emission||0;});
+  let pA5=0; pa5.filter(e=>e.stage!=='a4').forEach(e=>{pA5+=e.emission||0;});
+  const pRed=pB>0?((pB-pA)/pB)*100:0, pTotal=pA+pA4, pSav=Math.max(pB-pA,0); // A1-A4 only — A5 separate
   const rc=_rc(pRed,target);
   const consC=pAsgn.filter(a=>a.userRole==='consultant').length;
   const contC=pAsgn.filter(a=>a.userRole==='contractor').length;
@@ -156,7 +157,12 @@ function openProjectModal(idx, opts) {
       <div class="stat-card blue" style="padding:8px 10px"><div class="sc-label" style="font-size:9px">Actual</div><div class="sc-value" style="font-size:16px">${fmt(pA)}</div><div class="sc-sub">tCO\u2082eq</div></div>
       <div class="stat-card green" style="padding:8px 10px"><div class="sc-label" style="font-size:9px">Savings</div><div class="sc-value" style="font-size:16px">${fmt(pSav)}</div><div class="sc-sub">tCO\u2082eq</div></div>
       <div class="stat-card" style="padding:8px 10px;background:${_rbg(pRed,target)};border:1px solid ${rc}22"><div class="sc-label" style="font-size:9px;color:${rc}">Reduction</div><div class="sc-value" style="font-size:16px;color:${rc}">${fmt(pRed)}%</div><div class="sc-sub" style="color:${rc}">vs ${target}%</div></div>
-      <div class="stat-card orange" style="padding:8px 10px"><div class="sc-label" style="font-size:9px">A4+A5</div><div class="sc-value" style="font-size:16px">${fmt(pA4+pA5)}</div><div class="sc-sub">tCO\u2082eq</div></div>
+      <div class="stat-card orange" style="padding:8px 10px"><div class="sc-label" style="font-size:9px">A4 Transport</div><div class="sc-value" style="font-size:16px">${fmt(pA4)}</div><div class="sc-sub">tCO\u2082eq</div></div>
+    </div>
+    ${pA5>0?`<div style="margin-top:6px;padding:6px 10px;background:rgba(6,182,212,0.06);border:1px solid rgba(6,182,212,0.12);border-radius:8px;display:flex;align-items:center;gap:12px">
+      <div style="font-size:9px;font-weight:700;color:var(--cyan);text-transform:uppercase">A5 Installation (Separate)</div>
+      <div style="font-size:14px;font-weight:800;color:var(--cyan)">${fmt(pA5)} <span style="font-size:9px;font-weight:400;color:var(--slate5)">tCO\u2082eq</span></div>
+    </div>`:''}
     </div>
     ${buildReductionGauge(pA, pB, target)}
     ${pe.length>0?`<div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:12px">
@@ -261,9 +267,19 @@ function openProjectModal(idx, opts) {
         <td><span class="badge ${e.status||'pending'}" style="font-size:9px">${e.status||'pending'}</span></td>
         ${_ctbActions(e)}
       </tr>`;}).join('')}</tbody></table></div>
-    ${pa5.length>0?`<div style="margin-top:10px;font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;margin-bottom:4px">A5 Site (${pa5.length})</div>
+    ${pa5.filter(e=>e.stage==='a4').length>0?`<div style="margin-top:12px;padding:8px 10px;background:rgba(251,146,60,0.04);border:1px solid rgba(251,146,60,0.1);border-radius:8px">
+    <div style="font-size:10px;font-weight:700;color:var(--orange);text-transform:uppercase;margin-bottom:6px">A4 Transport Entries (EN 15804)</div>
+    <div class="tbl-wrap"><table><thead><tr><th>Month</th><th>Material</th><th>Source</th><th>Input</th><th class="r">Emission</th><th>By</th></tr></thead>
+    <tbody>${[...pa5.filter(e=>e.stage==='a4')].sort((a,b)=>(b.emission||0)-(a.emission||0)).map(e=>{
+      const matLabel=e.materialCategory||(e.cargoMaterials&&e.cargoMaterials.length?e.cargoMaterials.join(', '):'--');
+      return `<tr><td style="font-size:10px">${e.monthLabel||'--'}</td><td style="font-weight:600;font-size:10px;color:var(--orange)">${matLabel}</td><td style="font-size:10px">${e.source||'--'}</td><td style="font-size:10px;color:${e.dataSource==='iot'?'var(--purple)':'var(--orange)'}">${e.dataSource==='iot'?'IoT':'Manual'}</td><td class="r mono" style="font-size:10px;font-weight:700">${fmt(e.emission)}</td><td style="font-size:9px;color:var(--slate5)">${e.submittedBy||'--'}</td></tr>`;
+    }).join('')}</tbody></table></div>
+    </div>`:''}
+    ${pa5.filter(e=>e.stage!=='a4').length>0?`<div style="margin-top:12px;padding:8px 10px;background:rgba(6,182,212,0.04);border:1px solid rgba(6,182,212,0.1);border-radius:8px">
+    <div style="font-size:10px;font-weight:700;color:var(--cyan);text-transform:uppercase;margin-bottom:6px">A5 Installation Emissions (Separate)</div>
     <div class="tbl-wrap"><table><thead><tr><th>Month</th><th>Source</th><th class="r">Qty</th><th>Unit</th><th class="r">Emission</th><th>By</th></tr></thead>
-    <tbody>${[...pa5].sort((a,b)=>(b.emission||0)-(a.emission||0)).map(e=>`<tr><td style="font-size:10px">${e.monthLabel||'--'}</td><td style="font-weight:600;font-size:10px">${e.source||'--'}</td><td class="r mono" style="font-size:10px">${fmtI(e.qty)}</td><td style="font-size:10px">${e.unit||'--'}</td><td class="r mono" style="font-size:10px;font-weight:700">${fmt(e.emission)}</td><td style="font-size:9px;color:var(--slate5)">${e.submittedBy||'--'}</td></tr>`).join('')}</tbody></table></div>`:''}
+    <tbody>${[...pa5.filter(e=>e.stage!=='a4')].sort((a,b)=>(b.emission||0)-(a.emission||0)).map(e=>`<tr><td style="font-size:10px">${e.monthLabel||'--'}</td><td style="font-weight:600;font-size:10px">${e.source||'--'}</td><td class="r mono" style="font-size:10px">${fmtI(e.qty)}</td><td style="font-size:10px">${e.unit||'--'}</td><td class="r mono" style="font-size:10px;font-weight:700">${fmt(e.emission)}</td><td style="font-size:9px;color:var(--slate5)">${e.submittedBy||'--'}</td></tr>`).join('')}</tbody></table></div>
+    </div>`:''}
     `:'<div style="padding:24px;text-align:center;color:var(--slate5);font-size:12px">No entries yet. Contributors appear here when data is submitted.</div>'}
   </div>`;
 
@@ -533,10 +549,26 @@ function buildEntryTable(entries, a5entries) {
       <td><span class="badge ${e.status||'pending'}" style="font-size:10px">${e.status||'pending'}</span></td>
     </tr>`;}).join('')}</tbody></table></div>`;
   }
-  if(a5entries&&a5entries.length>0){const s5=[...a5entries].sort((a,b)=>(b.emission||0)-(a.emission||0));
-    html+=`<div style="margin-top:14px;font-size:12px;font-weight:700;color:var(--slate4);margin-bottom:6px">A5 Site (${s5.length})</div>
+  // Show A4 transport entries (stage='a4') — with material linkage
+  const a4Entries=a5entries?a5entries.filter(e=>e.stage==='a4'):[];
+  if(a4Entries.length>0){
+    html+=`<div style="margin-top:18px;padding:10px 14px;background:rgba(251,146,60,0.04);border:1px solid rgba(251,146,60,0.12);border-radius:10px">
+    <div style="font-size:11px;font-weight:800;color:var(--orange);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">A4 Transport Entries (EN 15804)</div>
+    <div class="tbl-wrap"><table><thead><tr><th>Month</th><th>Material</th><th>Source</th><th>Input</th><th class="r">Mass (t)</th><th class="r">Emission</th><th>By</th></tr></thead>
+    <tbody>${[...a4Entries].sort((a,b)=>(b.emission||0)-(a.emission||0)).map(e=>{
+      const matLabel=e.materialCategory||(e.cargoMaterials&&e.cargoMaterials.length?e.cargoMaterials.join(', '):'--');
+      return `<tr><td style="font-size:11px">${e.monthLabel||'--'}</td><td style="font-weight:600;color:var(--orange);font-size:11px">${matLabel}</td><td style="font-size:11px">${e.source||'--'}</td><td style="font-size:11px;color:${e.dataSource==='iot'?'var(--purple)':'var(--orange)'}">${e.dataSource==='iot'?'IoT':'Manual'}</td><td class="r mono" style="font-size:11px">${e.massTonnes?fmt(e.massTonnes):'--'}</td><td class="r mono" style="font-size:11px;font-weight:700">${fmt(e.emission)}</td><td style="font-size:10px;color:var(--slate5)">${e.submittedBy||'--'}</td></tr>`;
+    }).join('')}</tbody></table></div>
+    </div>`;
+  }
+  // Show A5 installation entries (stage!='a4')
+  const a5Only=a5entries?a5entries.filter(e=>e.stage!=='a4'):[];
+  if(a5Only.length>0){
+    html+=`<div style="margin-top:12px;padding:10px 14px;background:rgba(6,182,212,0.04);border:1px solid rgba(6,182,212,0.12);border-radius:10px">
+    <div style="font-size:11px;font-weight:800;color:var(--cyan);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">A5 Installation Emissions</div>
     <div class="tbl-wrap"><table><thead><tr><th>Month</th><th>Source</th><th class="r">Qty</th><th>Unit</th><th class="r">Emission</th><th>By</th><th>Org</th></tr></thead>
-    <tbody>${s5.map(e=>`<tr><td style="font-size:11px">${e.monthLabel||'--'}</td><td style="font-weight:600">${e.source||'--'}</td><td class="r mono" style="font-size:11px">${fmtI(e.qty)}</td><td style="font-size:11px">${e.unit||'--'}</td><td class="r mono" style="font-size:11px;font-weight:700">${fmt(e.emission)}</td><td style="font-size:10px;color:var(--slate5)">${e.submittedBy||'--'}</td><td style="font-size:10px;color:var(--slate5)">${e.organizationName||'--'}</td></tr>`).join('')}</tbody></table></div>`;
+    <tbody>${[...a5Only].sort((a,b)=>(b.emission||0)-(a.emission||0)).map(e=>`<tr><td style="font-size:11px">${e.monthLabel||'--'}</td><td style="font-weight:600">${e.source||'--'}</td><td class="r mono" style="font-size:11px">${fmtI(e.qty)}</td><td style="font-size:11px">${e.unit||'--'}</td><td class="r mono" style="font-size:11px;font-weight:700">${fmt(e.emission)}</td><td style="font-size:10px;color:var(--slate5)">${e.submittedBy||'--'}</td><td style="font-size:10px;color:var(--slate5)">${e.organizationName||'--'}</td></tr>`).join('')}</tbody></table></div>
+    </div>`;
   }
   if(!html) html='<div style="padding:16px;text-align:center;color:var(--slate5);font-size:12px">No entries yet.</div>';
   return html;
@@ -577,11 +609,12 @@ function renderPortfolioDashboard(el, projects) {
     a5e = state.a5entries || [];
   }
 
-  // Totals
+  // Totals — A4 includes legacy material entries + separate A4 entries (stage='a4')
   let tB=0,tA=0,tA4=0; d.forEach(e=>{tB+=e.a13B||0;tA+=e.a13A||0;tA4+=e.a4||0;});
-  let a5T=0; a5e.forEach(e=>{a5T+=e.emission||0;});
+  a5e.filter(e=>e.stage==='a4').forEach(e=>{tA4+=e.emission||0;});
+  let a5T=0; a5e.filter(e=>e.stage!=='a4').forEach(e=>{a5T+=e.emission||0;});
   const rP=tB>0?((tB-tA)/tB)*100:0;
-  const tTotal=tA+tA4+a5T, tSav=Math.max(tB-tA,0);
+  const tTotal=tA+tA4, tSav=Math.max(tB-tA,0); // A1-A4 only — A5 is separate
   const orc=_rc(rP,target), onTrack=rP>=target;
 
   // Aggregate per-project
@@ -593,8 +626,9 @@ function renderPortfolioDashboard(el, projects) {
     const pe=d.filter(e=>e.projectId===p.id);
     const pa5=a5e.filter(e=>e.projectId===p.id);
     let pB=0,pA=0,pA4=0;pe.forEach(e=>{pB+=e.a13B||0;pA+=e.a13A||0;pA4+=e.a4||0;});
-    let pA5=0;pa5.forEach(e=>{pA5+=e.emission||0;});
-    const pRed=pB>0?((pB-pA)/pB)*100:0, pTotal=pA+pA4+pA5, pSav=Math.max(pB-pA,0);
+    pa5.filter(e=>e.stage==='a4').forEach(e=>{pA4+=e.emission||0;});
+    let pA5=0;pa5.filter(e=>e.stage!=='a4').forEach(e=>{pA5+=e.emission||0;});
+    const pRed=pB>0?((pB-pA)/pB)*100:0, pTotal=pA+pA4, pSav=Math.max(pB-pA,0); // A1-A4 only — A5 separate
     // Worst contractor per project
     const orgs=_aggContractors(pe);
     const worstOrg=orgs.length>0?orgs[0]:null;
@@ -818,7 +852,7 @@ function renderPortfolioDashboard(el, projects) {
     <div class="dash-kpi-row">
       <div class="dash-kpi"><div class="dash-kpi-v" style="color:var(--slate3)">${fmt(tB)}</div><div class="dash-kpi-l">BAU Baseline</div></div>
       <div class="dash-kpi-sep"></div>
-      <div class="dash-kpi"><div class="dash-kpi-v" style="color:var(--blue)">${fmt(tTotal)}</div><div class="dash-kpi-l">Actual</div></div>
+      <div class="dash-kpi"><div class="dash-kpi-v" style="color:var(--blue)">${fmt(tTotal)}</div><div class="dash-kpi-l">A1-A4 Actual</div></div>
       <div class="dash-kpi-sep"></div>
       <div class="dash-kpi"><div class="dash-kpi-v" style="color:var(--green)">${fmt(tSav)}</div><div class="dash-kpi-l">Savings</div></div>
       <div class="dash-kpi-sep"></div>
@@ -915,8 +949,10 @@ async function saveReductionTarget() {
 function renderClassicDashboard(el) {
   const d=getFilteredEntries();const target=state.reductionTarget||20;
   let tB=0,tA=0,tA4=0;d.forEach(e=>{tB+=e.a13B||0;tA+=e.a13A||0;tA4+=e.a4||0;});
-  let a5T=0;state.a5entries.forEach(e=>{a5T+=e.emission||0;});
-  const a5Arr=state.a5entries||[];
+  // Add separate A4 entries (stage='a4') to A4 total
+  (state.a5entries||[]).filter(e=>e.stage==='a4').forEach(e=>{tA4+=e.emission||0;});
+  let a5T=0;(state.a5entries||[]).filter(e=>e.stage!=='a4').forEach(e=>{a5T+=e.emission||0;});
+  const a5Arr=(state.a5entries||[]).filter(e=>e.stage!=='a4');
   el.innerHTML=`
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
     <div style="font-size:16px;font-weight:700;color:var(--slate2)">Carbon Overview</div>
@@ -926,8 +962,10 @@ function renderClassicDashboard(el) {
     <div class="stat-card slate"><div class="sc-label">A1-A3 BAU Baseline</div><div class="sc-value">${fmt(tB)}</div><div class="sc-sub">tCO\u2082eq</div></div>
     <div class="stat-card blue"><div class="sc-label">A1-A3 Actual</div><div class="sc-value">${fmt(tA)}</div><div class="sc-sub">tCO\u2082eq</div></div>
     <div class="stat-card orange"><div class="sc-label">A4 Transport</div><div class="sc-value">${fmt(tA4)}</div><div class="sc-sub">tCO\u2082eq</div></div>
-    <div class="stat-card cyan"><div class="sc-label">A5 Site</div><div class="sc-value">${fmt(a5T)}</div><div class="sc-sub">tCO\u2082eq</div></div>
-    <div class="stat-card green"><div class="sc-label">A1-A5 Total</div><div class="sc-value">${fmt(tA+tA4+a5T)}</div><div class="sc-sub">tCO\u2082eq</div></div>
+    <div class="stat-card green"><div class="sc-label">A1-A4 Total</div><div class="sc-value">${fmt(tA+tA4)}</div><div class="sc-sub">tCO\u2082eq (Core Carbon)</div></div>
+  </div>
+  <div class="stats-row" style="margin-top:8px">
+    <div class="stat-card cyan"><div class="sc-label">A5 Installation</div><div class="sc-value">${fmt(a5T)}</div><div class="sc-sub">tCO\u2082eq (Energy & Water)</div></div>
   </div>
   ${buildReductionGauge(tA, tB, target)}
   ${d.length>0?`<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:16px 0">
@@ -957,7 +995,7 @@ function renderEntry(el) {
     : '';
 
   el.innerHTML=`
-  <div class="card"><div class="card-title">Add Material \u2014 A1-A4</div>
+  <div class="card"><div class="card-title">Add Material \u2014 A1-A3</div>
   ${isContractor?`<div style="padding:10px 14px;background:rgba(96,165,250,0.08);border:1px solid rgba(96,165,250,0.2);border-radius:10px;margin-bottom:14px;font-size:13px;color:var(--blue)">
     <strong>Batch Mode:</strong> Add as many entries as you need, then submit them all to the consultant at once.
   </div>`:''}
@@ -983,9 +1021,6 @@ function renderEntry(el) {
   <div class="form-row c3"><div class="fg"><label>Baseline EF</label><input id="eBL" class="fg-readonly" readonly></div>
   <div class="fg"><label>Target EF</label><input id="eTG" class="fg-readonly" readonly></div>
   <div class="fg"><label>Actual EF (from EPD)</label><input type="number" id="eA" step="0.01" placeholder="EF per unit" oninput="preview()"><div class="fg-help" id="eAU">\u2014</div></div></div>
-  <div class="form-row c3"><div class="fg"><label>Road (km)</label><input type="number" id="eR" value="0" oninput="preview()"></div>
-  <div class="fg"><label>Sea (km)</label><input type="number" id="eS" value="0" oninput="preview()"></div>
-  <div class="fg"><label>Train (km)</label><input type="number" id="eT" value="0" oninput="preview()"></div></div>
   <div class="fg" style="margin-bottom:12px"><label>Notes</label><input id="eN" placeholder="EPD reference, assumptions..."></div>
   <div id="ePrev"></div>
   <div class="btn-row">
@@ -1004,10 +1039,10 @@ function renderEntry(el) {
       </div>
     </div>
     <div id="batchMsg"></div>
-    <div class="tbl-wrap"><table><thead><tr><th>Project</th><th>Month</th><th>Material</th><th>Type</th><th class="r">Qty</th><th class="r">Baseline</th><th class="r">Actual</th><th class="r">A4</th><th class="r">Total</th><th></th></tr></thead><tbody id="batchTbl"></tbody></table></div>
+    <div class="tbl-wrap"><table><thead><tr><th>Project</th><th>Month</th><th>Material</th><th>Type</th><th class="r">Qty</th><th class="r">Baseline</th><th class="r">Actual</th><th class="r">Red%</th><th></th></tr></thead><tbody id="batchTbl"></tbody></table></div>
   </div>` : ''}
 
-  <div class="card"><div class="card-title">${isContractor ? 'Submitted Entries' : 'Recent Entries'}</div><div class="tbl-wrap"><table><thead><tr><th>Project</th><th>Month</th><th>Material</th><th>Type</th><th class="r">Qty</th><th class="r">Baseline</th><th class="r">Actual</th><th class="r">A4</th><th class="r">Total</th><th>Status</th><th></th></tr></thead><tbody id="reTbl"></tbody></table></div></div>`;
+  <div class="card"><div class="card-title">${isContractor ? 'Submitted Entries' : 'Recent Entries'}</div><div class="tbl-wrap"><table><thead><tr><th>Project</th><th>Month</th><th>Material</th><th>Type</th><th class="r">Qty</th><th class="r">Baseline</th><th class="r">Actual</th><th class="r">Red%</th><th>Status</th><th></th></tr></thead><tbody id="reTbl"></tbody></table></div></div>`;
 
   if (isContractor) renderBatch();
   renderRecent();
@@ -1021,14 +1056,13 @@ function onType(){const c=$('eCat').value,i=$('eType').value;if(!c||i==='')retur
 function preview(){
   const c=$('eCat').value,i=$('eType').value,q=parseFloat($('eQ').value),a=parseFloat($('eA').value);
   if(!c||i===''||isNaN(q)||isNaN(a)||q<=0||a<=0){$('ePrev').innerHTML='';return;}
-  const m=MATERIALS[c],t=m.types[i],mass=q*m.massFactor;
-  const rd=parseFloat($('eR').value)||0,se=parseFloat($('eS').value)||0,tr=parseFloat($('eT').value)||0;
-  const b=(q*t.baseline)/1000,ac=(q*a)/1000,a4=(mass*rd*TEF.road+mass*se*TEF.sea+mass*tr*TEF.train)/1000;
-  const tot=ac+a4,p=b>0?((b-ac)/b)*100:0,cl=p>20?'green':p>=10?'orange':'purple';
+  const m=MATERIALS[c],t=m.types[i];
+  const b=(q*t.baseline)/1000,ac=(q*a)/1000;
+  const p=b>0?((b-ac)/b)*100:0,cl=p>20?'green':p>=10?'orange':'purple';
   // Validate: warn if actualEF is unreasonable vs baseline
   const efRatio=t.baseline>0?a/t.baseline:0;
   const warn=efRatio>5?`<div style="padding:8px 12px;background:rgba(248,113,113,0.1);border:1px solid rgba(248,113,113,0.2);border-radius:8px;color:var(--red);font-size:11px;margin-bottom:8px"><strong>Warning:</strong> Actual EF (${a} ${m.efUnit}) is ${efRatio.toFixed(0)}x the baseline (${t.baseline} ${m.efUnit}). Please check — you should enter the <strong>Emission Factor per ${m.unit}</strong> from the EPD, not the total emission value.</div>`:efRatio>3?`<div style="padding:8px 12px;background:rgba(251,191,36,0.1);border:1px solid rgba(251,191,36,0.2);border-radius:8px;color:var(--orange);font-size:11px;margin-bottom:8px"><strong>Note:</strong> Actual EF (${a}) is higher than baseline (${t.baseline}). Ensure you are entering the EF in ${m.efUnit}.</div>`:'';
-  $('ePrev').innerHTML=`${warn}<div class="stats-row" style="margin:16px 0 8px"><div class="stat-card slate"><div class="sc-label">A1-A3 Baseline</div><div class="sc-value">${fmt(b)}</div><div class="sc-sub">ton CO\u2082eq</div></div><div class="stat-card blue"><div class="sc-label">A1-A3 Actual</div><div class="sc-value">${fmt(ac)}</div><div class="sc-sub">ton CO\u2082eq</div></div><div class="stat-card orange"><div class="sc-label">A4 Transport</div><div class="sc-value">${fmt(a4)}</div><div class="sc-sub">ton CO\u2082eq</div></div><div class="stat-card green"><div class="sc-label">A1-A4 Total</div><div class="sc-value">${fmt(tot)}</div><div class="sc-sub">ton CO\u2082eq</div></div><div class="stat-card ${cl}"><div class="sc-label">Reduction</div><div class="sc-value">${fmt(p)}%</div><div class="sc-sub">${fmt(b-ac)} saved</div></div></div>`;
+  $('ePrev').innerHTML=`${warn}<div class="stats-row" style="margin:16px 0 8px"><div class="stat-card slate"><div class="sc-label">A1-A3 Baseline</div><div class="sc-value">${fmt(b)}</div><div class="sc-sub">ton CO\u2082eq</div></div><div class="stat-card blue"><div class="sc-label">A1-A3 Actual</div><div class="sc-value">${fmt(ac)}</div><div class="sc-sub">ton CO\u2082eq</div></div><div class="stat-card ${cl}"><div class="sc-label">Reduction</div><div class="sc-value">${fmt(p)}%</div><div class="sc-sub">${fmt(b-ac)} saved</div></div></div>`;
 }
 
 // Add an entry to the local draft batch (contractor only)
@@ -1042,16 +1076,15 @@ function addToBatch() {
   if (!projId) { alert('Please select a project first.'); return; }
   const proj = (state.projects || []).find(p => p.id === projId);
 
-  const m=MATERIALS[c],t=m.types[i],mass=q*m.massFactor;
+  const m=MATERIALS[c],t=m.types[i];
   // Validate actualEF vs baselineEF
   const efRatio=t.baseline>0?a/t.baseline:0;
   if(efRatio>10){if(!confirm(`Warning: Actual EF (${a} ${m.efUnit}) is ${efRatio.toFixed(0)}x the baseline (${t.baseline} ${m.efUnit}).\n\nYou should enter the Emission Factor per ${m.unit} from the EPD, NOT the total emission.\n\nAre you sure this value is correct?`))return;}
-  const rd=parseFloat($('eR').value)||0,se=parseFloat($('eS').value)||0,tr=parseFloat($('eT').value)||0;
-  const b=(q*t.baseline)/1000,ac=(q*a)/1000,a4=(mass*rd*TEF.road+mass*se*TEF.sea+mass*tr*TEF.train)/1000;
+  const b=(q*t.baseline)/1000,ac=(q*a)/1000;
   const yr=$('eY').value,mo=$('eM').value;
 
   const entry={id:Date.now(),category:c,type:t.name,qty:q,unit:m.unit,actual:a,baseline:t.baseline,target:t.target,baselineEF:t.baseline,actualEF:a,
-    road:rd,sea:se,train:tr,a13B:b,a13A:ac,a4,a14:ac+a4,pct:b>0?((b-ac)/b)*100:0,
+    road:0,sea:0,train:0,a13B:b,a13A:ac,a4:0,a14:ac,pct:b>0?((b-ac)/b)*100:0,
     year:yr,month:mo,monthKey:yr+'-'+mo,monthLabel:MONTHS[parseInt(mo)-1]+' '+yr,
     district:$('eD').value,contract:$('eC').value,notes:$('eN').value,
     projectId:projId,projectName:proj?proj.name:'',
@@ -1082,17 +1115,16 @@ function renderBatch() {
   if (submitRow) submitRow.style.display = drafts.length > 0 ? '' : 'none';
 
   tbl.innerHTML = drafts.length
-    ? drafts.map(e=>`<tr>
+    ? drafts.map(e=>{const pct=e.a13B>0?((e.a13B-e.a13A)/e.a13B)*100:0;return`<tr>
         <td style="font-weight:600;color:var(--blue);font-size:11px">${e.projectName||'--'}</td>
         <td>${e.monthLabel}</td><td>${e.category}</td><td>${e.type}</td>
         <td class="r mono">${fmtI(e.qty)}</td>
         <td class="r mono">${fmt(e.a13B)}</td>
         <td class="r mono">${fmt(e.a13A)}</td>
-        <td class="r mono">${fmt(e.a4)}</td>
-        <td class="r mono" style="font-weight:700">${fmt(e.a14)}</td>
+        <td class="r mono" style="font-weight:700;color:${_rc(pct,20)}">${fmt(pct)}%</td>
         <td><button class="btn btn-danger btn-sm" onclick="removeDraftEntry(${e.id})">\u2715</button></td>
-      </tr>`).join('')
-    : '<tr><td colspan="10" class="empty">No items in batch — add entries above</td></tr>';
+      </tr>`;}).join('')
+    : '<tr><td colspan="9" class="empty">No items in batch — add entries above</td></tr>';
 }
 
 // Submit all draft entries to the server at once, then notify consultants
@@ -1147,16 +1179,15 @@ async function submitEntry(){
   if (!projId) { alert('Please select a project first.'); return; }
   const proj = (state.projects || []).find(p => p.id === projId);
 
-  const m=MATERIALS[c],t=m.types[i],mass=q*m.massFactor;
+  const m=MATERIALS[c],t=m.types[i];
   // Validate actualEF vs baselineEF
   const efRatio=t.baseline>0?a/t.baseline:0;
   if(efRatio>10){if(!confirm(`Warning: Actual EF (${a} ${m.efUnit}) is ${efRatio.toFixed(0)}x the baseline (${t.baseline} ${m.efUnit}).\n\nYou should enter the Emission Factor per ${m.unit} from the EPD, NOT the total emission.\n\nAre you sure this value is correct?`))return;}
-  const rd=parseFloat($('eR').value)||0,se=parseFloat($('eS').value)||0,tr=parseFloat($('eT').value)||0;
-  const b=(q*t.baseline)/1000,ac=(q*a)/1000,a4=(mass*rd*TEF.road+mass*se*TEF.sea+mass*tr*TEF.train)/1000;
+  const b=(q*t.baseline)/1000,ac=(q*a)/1000;
   const yr=$('eY').value,mo=$('eM').value;
 
   const entry={id:Date.now(),category:c,type:t.name,qty:q,unit:m.unit,actual:a,baseline:t.baseline,target:t.target,baselineEF:t.baseline,actualEF:a,
-    road:rd,sea:se,train:tr,a13B:b,a13A:ac,a4,a14:ac+a4,pct:b>0?((b-ac)/b)*100:0,
+    road:0,sea:0,train:0,a13B:b,a13A:ac,a4:0,a14:ac,pct:b>0?((b-ac)/b)*100:0,
     year:yr,month:mo,monthKey:yr+'-'+mo,monthLabel:MONTHS[parseInt(mo)-1]+' '+yr,
     district:$('eD').value,contract:$('eC').value,notes:$('eN').value,
     projectId:projId,projectName:proj?proj.name:'',
@@ -1204,9 +1235,9 @@ function renderRecent(){
     }
     return`<tr${suspect?' style="background:rgba(248,113,113,0.06)"':''}>
     <td style="font-weight:600;color:var(--blue);font-size:11px">${e.projectName||'--'}</td><td>${e.monthLabel}</td><td>${e.category}</td><td>${e.type}</td>
-    <td class="r mono">${fmtI(e.qty)}</td><td class="r mono">${fmt(e.a13B)}</td><td class="r mono"${suspect?' style="color:var(--red)"':''}>${fmt(e.a13A)}${suspect?' !':''}</td><td class="r mono">${fmt(e.a4)}</td><td class="r mono" style="font-weight:700">${fmt(e.a14)}</td>
+    <td class="r mono">${fmtI(e.qty)}</td><td class="r mono">${fmt(e.a13B)}</td><td class="r mono"${suspect?' style="color:var(--red)"':''}>${fmt(e.a13A)}${suspect?' !':''}</td><td class="r mono" style="font-weight:700;color:${_rc(pct,20)}">${fmt(pct)}%</td>
     <td><span class="badge ${e.status}">${e.status}</span></td>
-    <td>${actionHtml}</td></tr>`;}).join(''):'<tr><td colspan="11" class="empty">No entries</td></tr>';
+    <td>${actionHtml}</td></tr>`;}).join(''):'<tr><td colspan="10" class="empty">No entries</td></tr>';
 }
 
 async function delEntry(id){await DB.deleteEntry(id);state.entries=state.entries.filter(e=>String(e.id)!==String(id));navigate(state.page);}
@@ -1522,14 +1553,6 @@ function openEditEntryForm(entryId) {
           <div class="fg"><label style="font-size:10px;font-weight:700;color:var(--text3)">Baseline EF</label>
             <input id="editBlEF" value="${entry.baselineEF||entry.baseline||''} ${efUnit}" readonly class="fg-readonly" style="width:100%;padding:8px 10px;background:var(--bg4);border:1px solid var(--border2);border-radius:8px;color:var(--slate5);font-size:13px"></div>
         </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:14px">
-          <div class="fg"><label style="font-size:10px;font-weight:700;color:var(--text3)">Road (km)</label>
-            <input type="number" id="editRoad" value="${entry.road||0}" style="width:100%;padding:8px 10px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px"></div>
-          <div class="fg"><label style="font-size:10px;font-weight:700;color:var(--text3)">Sea (km)</label>
-            <input type="number" id="editSea" value="${entry.sea||0}" style="width:100%;padding:8px 10px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px"></div>
-          <div class="fg"><label style="font-size:10px;font-weight:700;color:var(--text3)">Train (km)</label>
-            <input type="number" id="editTrain" value="${entry.train||0}" style="width:100%;padding:8px 10px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px"></div>
-        </div>
         <div class="fg" style="margin-bottom:14px"><label style="font-size:10px;font-weight:700;color:var(--text3)">Notes</label>
           <input id="editNotes" value="${entry.notes||''}" style="width:100%;padding:8px 10px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px"></div>
         <div id="editPreview" style="margin-bottom:14px"></div>
@@ -1546,7 +1569,7 @@ function openEditEntryForm(entryId) {
 
   // Preview the recalculated values
   previewEdit(entryId);
-  ['editQty', 'editActEF', 'editRoad', 'editSea', 'editTrain'].forEach(id => {
+  ['editQty', 'editActEF'].forEach(id => {
     const el = $(id); if (el) el.addEventListener('input', () => previewEdit(entryId));
   });
 }
@@ -1559,15 +1582,12 @@ function previewEdit(entryId) {
   if (isNaN(q) || isNaN(a) || q <= 0 || a <= 0) { prev.innerHTML = ''; return; }
   const m = MATERIALS[entry.category]; if (!m) return;
   const t = m.types.find(t => t.name === entry.type); if (!t) return;
-  const mass = q * m.massFactor;
-  const rd = parseFloat($('editRoad').value) || 0, se = parseFloat($('editSea').value) || 0, tr = parseFloat($('editTrain').value) || 0;
-  const b = (q * t.baseline) / 1000, ac = (q * a) / 1000, a4 = (mass * rd * TEF.road + mass * se * TEF.sea + mass * tr * TEF.train) / 1000;
-  const tot = ac + a4, pct = b > 0 ? ((b - ac) / b) * 100 : 0;
+  const b = (q * t.baseline) / 1000, ac = (q * a) / 1000;
+  const pct = b > 0 ? ((b - ac) / b) * 100 : 0;
   const rc = _rc(pct, state.reductionTarget || 20);
-  prev.innerHTML = `<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px">
+  prev.innerHTML = `<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">
     <div style="padding:8px;background:var(--bg3);border-radius:8px;text-align:center"><div style="font-size:9px;color:var(--slate5)">Baseline</div><div style="font-size:14px;font-weight:800;color:var(--slate3)">${fmt(b)}</div></div>
     <div style="padding:8px;background:var(--bg3);border-radius:8px;text-align:center"><div style="font-size:9px;color:var(--slate5)">Actual</div><div style="font-size:14px;font-weight:800;color:var(--blue)">${fmt(ac)}</div></div>
-    <div style="padding:8px;background:var(--bg3);border-radius:8px;text-align:center"><div style="font-size:9px;color:var(--slate5)">A4</div><div style="font-size:14px;font-weight:800;color:var(--orange)">${fmt(a4)}</div></div>
     <div style="padding:8px;background:var(--bg3);border-radius:8px;text-align:center"><div style="font-size:9px;color:var(--slate5)">Reduction</div><div style="font-size:14px;font-weight:800;color:${rc}">${fmt(pct)}%</div></div>
   </div>`;
 }
@@ -1580,15 +1600,12 @@ async function applyEntryEdit(entryId) {
 
   const m = MATERIALS[entry.category]; if (!m) { alert('Material not found'); return; }
   const t = m.types.find(t => t.name === entry.type); if (!t) { alert('Type not found'); return; }
-  const mass = q * m.massFactor;
-  const rd = parseFloat($('editRoad').value) || 0, se = parseFloat($('editSea').value) || 0, tr = parseFloat($('editTrain').value) || 0;
-  const b = (q * t.baseline) / 1000, ac = (q * a) / 1000, a4 = (mass * rd * TEF.road + mass * se * TEF.sea + mass * tr * TEF.train) / 1000;
+  const b = (q * t.baseline) / 1000, ac = (q * a) / 1000;
   const pct = b > 0 ? ((b - ac) / b) * 100 : 0;
 
   const changes = {
     qty: q, actual: a, actualEF: a,
-    road: rd, sea: se, train: tr,
-    a13B: b, a13A: ac, a4, a14: ac + a4, pct,
+    a13B: b, a13A: ac, a4: 0, a14: ac, pct,
     notes: $('editNotes').value || ''
   };
 
@@ -1618,13 +1635,318 @@ function closeEditForm() {
   ov.classList.remove('pm-visible'); setTimeout(() => ov.remove(), 350);
 }
 
+// ===== A4 TRANSPORT =====
+function renderA4Transport(el){
+  const yr=new Date().getFullYear(),mo=String(new Date().getMonth()+1).padStart(2,'0');
+  const myProjects = (state.projects || []).filter(p => p.status === 'active');
+  const projOptions = myProjects.map(p => `<option value="${p.id}" ${state.selectedProjectId === p.id ? 'selected' : ''}>${p.name}${p.code ? ' (' + p.code + ')' : ''}</option>`).join('');
+
+  // Material category options from A1-A3 MATERIALS constant (EN 15804 linkage)
+  const matCatOptions = Object.keys(MATERIALS).map(c => `<option value="${c}">${c} (${MATERIALS[c].unit})</option>`).join('');
+
+  // A4 entries from a5entries storage with stage='a4'
+  const a4Manual = (state.a5entries || []).filter(e => e.stage === 'a4' && e.dataSource === 'manual');
+  const a4Iot = (state.a5entries || []).filter(e => e.stage === 'a4' && e.dataSource === 'iot');
+  const manualTotal = a4Manual.reduce((s, e) => s + (e.emission || 0), 0);
+  const iotTotal = a4Iot.reduce((s, e) => s + (e.emission || 0), 0);
+  // Also include legacy A4 from material entries
+  const legacyA4 = (state.entries || []).reduce((s, e) => s + (e.a4 || 0), 0);
+  const liveIoT = _vehSim.cumulative || 0;
+
+  el.innerHTML=`
+  <!-- A4 Context Banner -->
+  <div style="padding:10px 14px;background:rgba(251,146,60,0.06);border:1px solid rgba(251,146,60,0.15);border-radius:10px;margin-bottom:14px;font-size:12px;color:var(--orange)">
+    <strong>A4 Transport Emissions (EN 15804)</strong> — Transport of materials from <strong>factory gate to construction site</strong>.<br>
+    <span style="font-size:11px;opacity:0.85">Formula: A4 = &Sigma;(mass &times; distance &times; TEF<sub>mode</sub>) per material delivery. Each entry links to a specific material category for LEED MRc2 / BREEAM Mat01 / Envision CR1.1 compliance.</span>
+  </div>
+
+  <!-- A4 Summary Stats -->
+  <div class="stats-row" style="grid-template-columns:repeat(4,1fr);margin-bottom:14px">
+    <div class="stat-card orange"><div class="sc-label">A4 Manual</div><div class="sc-value">${fmt(manualTotal)}</div><div class="sc-sub">tCO\u2082eq (Material Deliveries)</div></div>
+    <div class="stat-card purple"><div class="sc-label">A4 IoT (Saved)</div><div class="sc-value">${fmt(iotTotal)}</div><div class="sc-sub">tCO\u2082eq (Vehicle Tracking)</div></div>
+    <div class="stat-card cyan"><div class="sc-label">A4 IoT (Live)</div><div class="sc-value">${fmt(liveIoT)}</div><div class="sc-sub">tCO\u2082eq (Unsaved Session)</div></div>
+    <div class="stat-card green"><div class="sc-label">A4 Grand Total</div><div class="sc-value">${fmt(manualTotal + iotTotal + legacyA4)}</div><div class="sc-sub">tCO\u2082eq (All A4 Sources)</div></div>
+  </div>
+
+  <!-- MANUAL A4 ENTRY — EN 15804 Compliant: material-linked transport -->
+  <div class="card"><div class="card-title" style="display:flex;align-items:center;gap:8px">A4 Manual Entry <span style="font-size:9px;padding:2px 8px;background:rgba(251,146,60,0.1);border:1px solid rgba(251,146,60,0.2);border-radius:4px;color:var(--orange);font-weight:700">MANUAL</span></div>
+  <div style="font-size:11px;color:var(--slate5);margin-bottom:12px">Link each transport entry to the material being delivered. Mass is auto-calculated from quantity &times; material density (massFactor). Distances split by mode (road, sea, rail).</div>
+  ${myProjects.length > 0 ? `<div class="form-row" style="margin-bottom:12px">
+    <div class="fg" style="max-width:400px">
+      <label style="font-weight:700;color:var(--blue)">Project <span style="color:var(--red)">*</span></label>
+      <select id="a4Proj" onchange="onProjectSelect(this.value)">
+        <option value="">Select project...</option>
+        ${projOptions}
+      </select>
+    </div>
+  </div>` : `<div style="padding:10px 14px;background:rgba(248,113,113,0.08);border:1px solid rgba(248,113,113,0.2);border-radius:10px;margin-bottom:14px;font-size:13px;color:var(--red)">
+    No projects assigned to you yet. Contact your administrator to assign you to a project before entering data.
+  </div>`}
+  <div class="form-row c3"><div class="fg"><label>Year</label><select id="a4Y">${[yr-1,yr,yr+1].map(y=>`<option ${y===yr?'selected':''}>${y}</option>`).join('')}</select></div>
+  <div class="fg"><label>Month</label><select id="a4M">${MONTHS.map((m,i)=>`<option value="${String(i+1).padStart(2,'0')}" ${String(i+1).padStart(2,'0')===mo?'selected':''}>${m}</option>`).join('')}</select></div>
+  <div class="fg"><label>Description</label><input id="a4Desc" placeholder="e.g. C30-40 concrete for pile caps"></div></div>
+
+  <!-- Material Selection Row -->
+  <div class="form-row c3" style="margin-top:4px">
+    <div class="fg"><label style="font-weight:700;color:var(--orange)">Material Category <span style="color:var(--red)">*</span></label>
+      <select id="a4MatCat" onchange="_a4MatCatChange()">
+        <option value="">Select material...</option>
+        ${matCatOptions}
+      </select></div>
+    <div class="fg"><label>Material Type</label>
+      <select id="a4MatType" onchange="calcA4()">
+        <option value="">Select category first...</option>
+      </select></div>
+    <div class="fg"><label>Quantity <span id="a4QtyUnit" style="color:var(--slate5);font-weight:400"></span></label>
+      <input type="number" id="a4Qty" placeholder="e.g. 450" oninput="_a4QtyToMass()"></div>
+  </div>
+
+  <!-- Mass & Distance Row -->
+  <div class="form-row c3"><div class="fg"><label>Cargo Mass (tonnes) <span style="font-size:9px;color:var(--slate5)">auto from qty &times; density</span></label><input type="number" id="a4Mass" placeholder="Mass in tonnes" oninput="calcA4()"></div>
+  <div class="fg"><label>Road (km)</label><input type="number" id="a4Rd" value="0" oninput="calcA4()"></div>
+  <div class="fg"><label>Sea (km)</label><input type="number" id="a4Se" value="0" oninput="calcA4()"></div></div>
+  <div class="form-row c3"><div class="fg"><label>Train (km)</label><input type="number" id="a4Tr" value="0" oninput="calcA4()"></div>
+  <div class="fg"><label>A4 Emission (auto)</label><input id="a4R" class="fg-readonly" readonly></div>
+  <div class="fg"><label>TEF Reference</label><input id="a4TEF" class="fg-readonly" readonly value="Road: ${TEF.road} | Sea: ${TEF.sea} | Rail: ${TEF.train} tCO\u2082/t\u00b7km"></div></div>
+  <div id="a4MassInfo" style="font-size:10px;color:var(--slate5);margin:4px 0 8px 0"></div>
+  <div class="btn-row"><button class="btn btn-primary" onclick="subA4Manual()">\ud83d\udcbe Submit A4 Manual Entry</button></div></div>
+
+  <!-- IoT VEHICLE SECTION -->
+  <div class="card"><div class="card-title" style="display:flex;align-items:center;gap:8px">A4 IoT Vehicle Tracking <span style="font-size:9px;padding:2px 8px;background:rgba(168,85,247,0.1);border:1px solid rgba(168,85,247,0.2);border-radius:4px;color:var(--purple);font-weight:700">IoT</span></div>
+  <div style="font-size:11px;color:var(--slate5);margin-bottom:12px">Real-time vehicle tracking with material cargo mapping. Each vehicle has a default cargo type and transport mode (road/rail/sea) per EN 15804. IoT devices record distance &times; vehicle EF; the saved entry also stores the material link.</div>
+  <div style="padding:12px;background:var(--bg3);border-radius:10px;margin-bottom:12px">
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <div>
+        <div style="font-size:11px;color:var(--slate5)">Live IoT Session</div>
+        <div style="font-size:18px;font-weight:800;color:var(--purple)" id="a4IotLive">${fmt(liveIoT)} tCO\u2082eq</div>
+        <div style="font-size:10px;color:var(--slate5)" id="a4IotVehicles">${_vehSim.running ? _vehSim.vehicles.filter(v=>v.status==='moving').length + ' vehicles moving' : 'Tracking stopped'}</div>
+      </div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-secondary btn-sm" onclick="navigate('vehicle_emissions')">Open Live Tracker</button>
+        <button class="btn btn-primary btn-sm" onclick="saveIoTtoA4()" ${!_vehSim.cumulative || _vehSim.cumulative <= 0 ? 'disabled style="opacity:0.4"' : ''}>Save IoT to A4</button>
+      </div>
+    </div>
+  </div>
+  ${myProjects.length > 0 ? `<div class="form-row" style="margin-bottom:12px">
+    <div class="fg" style="max-width:400px">
+      <label style="font-weight:700;color:var(--purple)">Project for IoT data <span style="color:var(--red)">*</span></label>
+      <select id="a4IotProj">
+        <option value="">Select project...</option>
+        ${projOptions}
+      </select>
+    </div>
+  </div>` : ''}
+  <!-- Vehicle-Material Cargo Summary -->
+  <div style="font-size:11px;color:var(--slate5);margin-bottom:8px">Vehicle Fleet — Cargo &amp; Transport Mode Mapping</div>
+  <div class="tbl-wrap"><table style="font-size:11px"><thead><tr><th>Vehicle</th><th>Type</th><th>Mode</th><th>Default Cargo</th><th class="r">Capacity (t)</th><th class="r">EF</th></tr></thead>
+  <tbody>${VEHICLE_FLEET.map(v=>`<tr>
+    <td style="font-weight:600">${v.name}</td><td>${v.type}</td>
+    <td><span style="padding:1px 6px;border-radius:4px;font-size:10px;font-weight:700;background:${v.transportMode==='road'?'rgba(96,165,250,0.1);color:var(--blue)':v.transportMode==='sea'?'rgba(6,182,212,0.1);color:var(--cyan)':'rgba(168,85,247,0.1);color:var(--purple)'}">${v.transportMode.toUpperCase()}</span></td>
+    <td>${v.defaultCargo||'<span style="color:var(--slate5)">N/A</span>'}</td>
+    <td class="r mono">${v.cargoCapacity}</td>
+    <td class="r mono" style="color:var(--orange)">${v.ef} ${v.unit}</td>
+  </tr>`).join('')}</tbody></table></div>
+  </div>
+
+  <!-- MANUAL A4 ENTRIES TABLE -->
+  <div class="card"><div class="card-title">Manual A4 Entries</div><div class="tbl-wrap"><table><thead><tr><th>Project</th><th>Month</th><th>Material</th><th>Type</th><th class="r">Qty</th><th class="r">Mass (t)</th><th class="r">Road</th><th class="r">Sea</th><th class="r">Rail</th><th class="r">Emission</th><th></th></tr></thead><tbody id="a4ManB"></tbody></table></div></div>
+
+  <!-- IoT A4 ENTRIES TABLE -->
+  <div class="card"><div class="card-title" style="color:var(--purple)">IoT A4 Entries</div><div class="tbl-wrap"><table><thead><tr><th>Project</th><th>Month</th><th>Source</th><th>Cargo</th><th>Mode</th><th class="r">Vehicles</th><th class="r">Distance</th><th class="r">Emission</th><th></th></tr></thead><tbody id="a4IotB"></tbody></table></div></div>`;
+  calcA4(); rA4();
+}
+
+// Material category change — populate type dropdown and update unit label
+function _a4MatCatChange(){
+  const cat=$('a4MatCat')?$('a4MatCat').value:'';
+  const typeEl=$('a4MatType');
+  const unitEl=$('a4QtyUnit');
+  if(!cat||!MATERIALS[cat]){
+    if(typeEl)typeEl.innerHTML='<option value="">Select category first...</option>';
+    if(unitEl)unitEl.textContent='';
+    return;
+  }
+  const m=MATERIALS[cat];
+  if(typeEl)typeEl.innerHTML='<option value="">-- All Types --</option>'+m.types.map((t,i)=>`<option value="${i}">${t.name}</option>`).join('');
+  if(unitEl)unitEl.textContent='('+m.unit+')';
+  _a4QtyToMass();
+}
+
+// Auto-calculate mass from qty × massFactor
+function _a4QtyToMass(){
+  const cat=$('a4MatCat')?$('a4MatCat').value:'';
+  const qty=parseFloat($('a4Qty')?$('a4Qty').value:'')||0;
+  const massEl=$('a4Mass');
+  const infoEl=$('a4MassInfo');
+  if(cat&&MATERIALS[cat]&&qty>0){
+    const mf=MATERIALS[cat].massFactor;
+    const massKg=qty*mf;
+    const massTonnes=massKg/1000;
+    if(massEl)massEl.value=massTonnes.toFixed(3);
+    if(infoEl)infoEl.textContent=`${qty} ${MATERIALS[cat].unit} \u00d7 ${mf.toLocaleString()} kg/${MATERIALS[cat].unit} = ${massKg.toLocaleString()} kg = ${massTonnes.toFixed(3)} tonnes`;
+    calcA4();
+  } else if(infoEl){
+    infoEl.textContent='';
+  }
+}
+
+function calcA4(){
+  const mass=parseFloat($('a4Mass')&&$('a4Mass').value)||0;
+  const rd=parseFloat($('a4Rd')&&$('a4Rd').value)||0;
+  const se=parseFloat($('a4Se')&&$('a4Se').value)||0;
+  const tr=parseFloat($('a4Tr')&&$('a4Tr').value)||0;
+  const a4=(mass*rd*TEF.road+mass*se*TEF.sea+mass*tr*TEF.train)/1000;
+  const el=$('a4R');if(el) el.value=mass>0&&(rd+se+tr)>0?fmt(a4)+' tCO\u2082eq':'';
+}
+
+async function subA4Manual(){
+  const catEl=$('a4MatCat');const cat=catEl?catEl.value:'';
+  if(!cat){alert('Please select a material category (EN 15804 requires material-linked A4 entries).');return;}
+  const mass=parseFloat($('a4Mass').value);
+  if(isNaN(mass)||mass<=0){alert('Enter cargo mass in tonnes (or use Quantity to auto-calculate)');return;}
+  const rd=parseFloat($('a4Rd').value)||0,se=parseFloat($('a4Se').value)||0,tr=parseFloat($('a4Tr').value)||0;
+  if(rd+se+tr<=0){alert('Enter at least one transport distance');return;}
+  const projEl=$('a4Proj');const projId=projEl?projEl.value:'';
+  if(!projId){alert('Please select a project first.');return;}
+  const proj=(state.projects||[]).find(p=>p.id===projId);
+  const yr=$('a4Y').value,mo=$('a4M').value;
+  const a4em=(mass*rd*TEF.road+mass*se*TEF.sea+mass*tr*TEF.train)/1000;
+  const desc=$('a4Desc')?$('a4Desc').value:'';
+  // Material type info
+  const typeEl=$('a4MatType');const typeIdx=typeEl?parseInt(typeEl.value):-1;
+  const matObj=MATERIALS[cat];
+  const typeName=(typeIdx>=0&&matObj&&matObj.types[typeIdx])?matObj.types[typeIdx].name:'General';
+  const matQty=parseFloat($('a4Qty')?$('a4Qty').value:'')||0;
+  const matUnit=matObj?matObj.unit:'';
+  const e={id:Date.now(),source:desc||cat+' - '+typeName+' delivery',qty:matQty||mass,unit:matQty?matUnit:'tonnes',ef:0,emission:a4em,
+    road:rd,sea:se,train:tr,massTonnes:mass,
+    // EN 15804 A4 material linkage
+    materialCategory:cat,materialType:typeName,materialQty:matQty,materialUnit:matUnit,
+    massFactor:matObj?matObj.massFactor:1,
+    year:yr,month:mo,monthKey:yr+'-'+mo,monthLabel:MONTHS[parseInt(mo)-1]+' '+yr,
+    projectId:projId,projectName:proj?proj.name:'',submittedBy:state.name,role:state.role,
+    dataSource:'manual',stage:'a4'};
+  await DB.saveA5Entry(e);state.a5entries.push(e);rA4();
+  // Reset form
+  $('a4Mass').value='';$('a4Rd').value='0';$('a4Se').value='0';$('a4Tr').value='0';
+  if($('a4Qty'))$('a4Qty').value='';
+  $('a4R').value='\u2705 Saved';if($('a4Desc'))$('a4Desc').value='';
+  if($('a4MassInfo'))$('a4MassInfo').textContent='';
+}
+
+function rA4(){
+  // Manual A4 entries — show material linkage
+  const manT=$('a4ManB');if(manT){
+    const manualEntries=[...(state.a5entries||[]).filter(e=>e.stage==='a4'&&e.dataSource==='manual')].reverse();
+    manT.innerHTML=manualEntries.length?manualEntries.map(e=>`<tr>
+      <td style="font-weight:600;color:var(--blue);font-size:11px">${e.projectName||'--'}</td>
+      <td>${e.monthLabel}</td>
+      <td style="font-weight:600;color:var(--orange);font-size:11px">${e.materialCategory||'--'}</td>
+      <td style="font-size:11px">${e.materialType||e.source||'--'}</td>
+      <td class="r mono" style="font-size:11px">${e.materialQty?fmt(e.materialQty)+' '+( e.materialUnit||''):'--'}</td>
+      <td class="r mono">${e.massTonnes?fmt(e.massTonnes):(e.qty?fmt(e.qty):'--')}</td>
+      <td class="r mono">${e.road||0} km</td><td class="r mono">${e.sea||0} km</td><td class="r mono">${e.train||0} km</td>
+      <td class="r mono" style="font-weight:700">${fmt(e.emission)}</td>
+      <td><button class="btn btn-danger btn-sm" onclick="dA4(${e.id})">\u2715</button></td></tr>`).join('')
+    :'<tr><td colspan="11" class="empty">No manual A4 entries</td></tr>';
+  }
+  // IoT A4 entries — show cargo material and transport mode
+  const iotT=$('a4IotB');if(iotT){
+    const iotEntries=[...(state.a5entries||[]).filter(e=>e.stage==='a4'&&e.dataSource==='iot')].reverse();
+    iotT.innerHTML=iotEntries.length?iotEntries.map(e=>{
+      // Build cargo summary from vehicle details
+      const cargoMats=(e.vehicleDetails||[]).filter(v=>v.defaultCargo).map(v=>v.defaultCargo);
+      const uniqueCargo=[...new Set(cargoMats)];
+      const modeSet=(e.vehicleDetails||[]).map(v=>v.transportMode||'road');
+      const uniqueModes=[...new Set(modeSet)];
+      return `<tr>
+      <td style="font-weight:600;color:var(--purple);font-size:11px">${e.projectName||'--'}</td>
+      <td>${e.monthLabel}</td><td style="color:var(--purple);font-weight:600;font-size:11px">${e.source}</td>
+      <td style="font-size:11px">${uniqueCargo.length?uniqueCargo.join(', '):'<span style="color:var(--slate5)">Mixed</span>'}</td>
+      <td>${uniqueModes.map(m=>`<span style="padding:1px 5px;border-radius:3px;font-size:9px;font-weight:700;background:${m==='road'?'rgba(96,165,250,0.1);color:var(--blue)':m==='sea'?'rgba(6,182,212,0.1);color:var(--cyan)':'rgba(168,85,247,0.1);color:var(--purple)'}">${m.toUpperCase()}</span>`).join(' ')}</td>
+      <td class="r mono">${e.vehicleCount||'--'}</td>
+      <td class="r mono">${e.totalDistanceKm?fmt(e.totalDistanceKm)+' km':'--'}</td>
+      <td class="r mono" style="font-weight:700">${fmt(e.emission)}</td>
+      <td><button class="btn btn-danger btn-sm" onclick="dA4(${e.id})">\u2715</button></td></tr>`;
+    }).join('')
+    :'<tr><td colspan="9" class="empty">No IoT A4 entries \u2014 use IoT Live Tracker to generate data</td></tr>';
+  }
+}
+
+async function dA4(id){await DB.deleteA5Entry(id);state.a5entries=state.a5entries.filter(e=>e.id!==id);rA4();}
+
+// Save current IoT vehicle simulation data as an A4 transport entry
+// Includes vehicle-material cargo mapping and transport modes per EN 15804
+async function saveIoTtoA4(){
+  if(!_vehSim.cumulative || _vehSim.cumulative <= 0){alert('No IoT emission data to save. Start vehicle tracking first.');return;}
+  const projEl=$('a4IotProj');const projId=projEl?projEl.value:'';
+  if(!projId){alert('Please select a project for the IoT data.');return;}
+  const proj=(state.projects||[]).find(p=>p.id===projId);
+  const yr=new Date().getFullYear(),mo=String(new Date().getMonth()+1).padStart(2,'0');
+  const totalDist=_vehSim.vehicles.reduce((s,v)=>s+v.distanceKm,0);
+  const totalFuel=_vehSim.vehicles.reduce((s,v)=>s+v.fuelConsumedL,0);
+  const vehicleCount=_vehSim.vehicles.filter(v=>v.emissionKg>0).length;
+  // Collect unique cargo materials and transport modes from vehicle fleet
+  const cargoMats=_vehSim.vehicles.filter(v=>v.defaultCargo&&v.emissionKg>0).map(v=>v.defaultCargo);
+  const uniqueCargo=[...new Set(cargoMats)];
+  const modes=_vehSim.vehicles.filter(v=>v.emissionKg>0).map(v=>v.transportMode||'road');
+  const uniqueModes=[...new Set(modes)];
+  const e={
+    id:Date.now(),
+    source:'IoT Vehicle Tracking',
+    qty:totalFuel,
+    unit:'L (fuel)',
+    ef:0,
+    emission:_vehSim.cumulative,
+    year:String(yr),
+    month:mo,
+    monthKey:yr+'-'+mo,
+    monthLabel:MONTHS[parseInt(mo)-1]+' '+yr,
+    projectId:projId,
+    projectName:proj?proj.name:'',
+    submittedBy:state.name,
+    role:state.role,
+    dataSource:'iot',
+    stage:'a4',
+    vehicleCount:vehicleCount,
+    totalDistanceKm:totalDist,
+    totalFuelL:totalFuel,
+    // EN 15804 A4 material & transport mode linkage
+    cargoMaterials:uniqueCargo,
+    transportModes:uniqueModes,
+    vehicleDetails:_vehSim.vehicles.map(v=>({id:v.id,name:v.name,type:v.type,distKm:v.distanceKm,emKg:v.emissionKg,fuelL:v.fuelConsumedL,defaultCargo:v.defaultCargo,transportMode:v.transportMode||'road',cargoCapacity:v.cargoCapacity})),
+  };
+  await DB.saveA5Entry(e);
+  state.a5entries.push(e);
+  rA4();
+  alert('IoT vehicle emissions saved to A4 Transport (' + fmt(_vehSim.cumulative) + ' tCO\u2082eq). Cargo: ' + (uniqueCargo.length?uniqueCargo.join(', '):'Mixed') + '.');
+}
+
 // ===== A5 =====
 function renderA5(el){
   const yr=new Date().getFullYear(),mo=String(new Date().getMonth()+1).padStart(2,'0');
   const myProjects = (state.projects || []).filter(p => p.status === 'active');
   const projOptions = myProjects.map(p => `<option value="${p.id}" ${state.selectedProjectId === p.id ? 'selected' : ''}>${p.name}${p.code ? ' (' + p.code + ')' : ''}</option>`).join('');
 
-  el.innerHTML=`<div class="card"><div class="card-title">A5 \u2014 Site Energy & Water</div>
+  // A5 entries = only non-A4 entries (exclude stage='a4')
+  const a5Only = (state.a5entries || []).filter(e => e.stage !== 'a4');
+  const manualTotal = a5Only.reduce((s, e) => s + (e.emission || 0), 0);
+
+  el.innerHTML=`
+  <!-- A5 Context Banner -->
+  <div style="padding:10px 14px;background:rgba(6,182,212,0.06);border:1px solid rgba(6,182,212,0.15);border-radius:10px;margin-bottom:14px;font-size:12px;color:var(--cyan)">
+    <strong>A5 Installation Emissions</strong> cover on-site energy and water consumption during construction. A5 is tracked <strong>separately</strong> from A1-A3 (Materials) and A4 (Transport).
+  </div>
+
+  <!-- A5 Summary Stats -->
+  <div class="stats-row" style="grid-template-columns:repeat(2,1fr);margin-bottom:14px">
+    <div class="stat-card cyan"><div class="sc-label">A5 Total</div><div class="sc-value">${fmt(manualTotal)}</div><div class="sc-sub">tCO\u2082eq (Energy & Water)</div></div>
+    <div class="stat-card green"><div class="sc-label">Entries</div><div class="sc-value">${a5Only.length}</div><div class="sc-sub">A5 records</div></div>
+  </div>
+
+  <!-- MANUAL ENTRY SECTION -->
+  <div class="card"><div class="card-title" style="display:flex;align-items:center;gap:8px">A5 Installation Entry <span style="font-size:9px;padding:2px 8px;background:rgba(6,182,212,0.1);border:1px solid rgba(6,182,212,0.2);border-radius:4px;color:var(--cyan);font-weight:700">ENERGY & WATER</span></div>
+  <div style="font-size:11px;color:var(--slate5);margin-bottom:12px">Enter site energy consumption (diesel, gasoline, electricity) and water usage during installation.</div>
   ${myProjects.length > 0 ? `<div class="form-row" style="margin-bottom:12px">
     <div class="fg" style="max-width:400px">
       <label style="font-weight:700;color:var(--blue)">Project <span style="color:var(--red)">*</span></label>
@@ -1642,8 +1964,10 @@ function renderA5(el){
   <div class="form-row c3"><div class="fg"><label>Quantity</label><input type="number" id="a5Q" placeholder="Amount" oninput="calcA5()"><div class="fg-help" id="a5U">L</div></div>
   <div class="fg"><label>EF (auto)</label><input id="a5E" class="fg-readonly" readonly></div>
   <div class="fg"><label>Emission</label><input id="a5R" class="fg-readonly" readonly></div></div>
-  <div class="btn-row"><button class="btn btn-primary" onclick="subA5()">\ud83d\udcbe Submit</button></div></div>
-  <div class="card"><div class="card-title">A5 Entries</div><div class="tbl-wrap"><table><thead><tr><th>Project</th><th>Month</th><th>Source</th><th class="r">Qty</th><th>Unit</th><th class="r">Emission</th><th></th></tr></thead><tbody id="a5B"></tbody></table></div></div>`;
+  <div class="btn-row"><button class="btn btn-primary" onclick="subA5()">\ud83d\udcbe Submit A5 Entry</button></div></div>
+
+  <!-- A5 ENTRIES TABLE -->
+  <div class="card"><div class="card-title">A5 Installation Entries</div><div class="tbl-wrap"><table><thead><tr><th>Project</th><th>Month</th><th>Source</th><th class="r">Qty</th><th>Unit</th><th class="r">Emission</th><th></th></tr></thead><tbody id="a5B"></tbody></table></div></div>`;
   onA5S(); rA5();
 }
 function getA5S(){const v=$('a5S').value;const t=v[0],i=parseInt(v.slice(1));return t==='e'?A5_EFS.energy[i]:A5_EFS.water[i];}
@@ -1653,8 +1977,11 @@ async function subA5(){const s=getA5S(),q=parseFloat($('a5Q').value);if(isNaN(q)
   const projEl=$('a5Proj');const projId=projEl?projEl.value:'';
   if(!projId){alert('Please select a project first.');return;}
   const proj=(state.projects||[]).find(p=>p.id===projId);
-  const yr=$('a5Y').value,mo=$('a5M').value;const e={id:Date.now(),source:s.name,qty:q,unit:s.unit,ef:s.ef,emission:(q*s.ef)/1000,year:yr,month:mo,monthKey:yr+'-'+mo,monthLabel:MONTHS[parseInt(mo)-1]+' '+yr,projectId:projId,projectName:proj?proj.name:'',submittedBy:state.name,role:state.role};await DB.saveA5Entry(e);state.a5entries.push(e);rA5();$('a5Q').value='';$('a5R').value='\u2705 Saved';}
-function rA5(){const t=$('a5B');if(!t)return;const a=[...state.a5entries].reverse();t.innerHTML=a.length?a.map(e=>`<tr><td style="font-weight:600;color:var(--blue);font-size:11px">${e.projectName||'--'}</td><td>${e.monthLabel}</td><td>${e.source}</td><td class="r mono">${fmtI(e.qty)}</td><td>${e.unit}</td><td class="r mono" style="font-weight:700">${fmt(e.emission)}</td><td><button class="btn btn-danger btn-sm" onclick="dA5(${e.id})">\u2715</button></td></tr>`).join(''):'<tr><td colspan="7" class="empty">No entries</td></tr>';}
+  const yr=$('a5Y').value,mo=$('a5M').value;const e={id:Date.now(),source:s.name,qty:q,unit:s.unit,ef:s.ef,emission:(q*s.ef)/1000,year:yr,month:mo,monthKey:yr+'-'+mo,monthLabel:MONTHS[parseInt(mo)-1]+' '+yr,projectId:projId,projectName:proj?proj.name:'',submittedBy:state.name,role:state.role,dataSource:'manual',stage:'a5'};await DB.saveA5Entry(e);state.a5entries.push(e);rA5();$('a5Q').value='';$('a5R').value='\u2705 Saved';}
+function rA5(){
+  // A5 entries only (exclude A4 stage entries)
+  const t=$('a5B');if(t){const entries=[...(state.a5entries||[]).filter(e=>e.stage!=='a4')].reverse();t.innerHTML=entries.length?entries.map(e=>`<tr><td style="font-weight:600;color:var(--blue);font-size:11px">${e.projectName||'--'}</td><td>${e.monthLabel}</td><td>${e.source}</td><td class="r mono">${fmtI(e.qty)}</td><td>${e.unit}</td><td class="r mono" style="font-weight:700">${fmt(e.emission)}</td><td><button class="btn btn-danger btn-sm" onclick="dA5(${e.id})">\u2715</button></td></tr>`).join(''):'<tr><td colspan="7" class="empty">No A5 entries yet</td></tr>';}
+}
 async function dA5(id){await DB.deleteA5Entry(id);state.a5entries=state.a5entries.filter(e=>e.id!==id);rA5();}
 
 // ===== APPROVALS =====
@@ -3517,4 +3844,394 @@ function renderIntegrations(el){
   const apis=[{i:"\ud83d\udd17",n:"EPD Hub API",d:"Auto-fetch emission factors"},{i:"\ud83d\udcca",n:"EC3 / Building Transparency",d:"Material carbon benchmarks"},{i:"\ud83c\udf10",n:"One Click LCA",d:"Whole-building LCA sync"},{i:"\ud83d\udce1",n:"IEA Data API",d:"Grid emission factors by region"},{i:"\ud83d\udcc1",n:"Power BI Export",d:"Advanced analytics export"},{i:"\ud83d\udd10",n:"Project Portal",d:"Project management sync"},{i:"\u2601\ufe0f",n:"Firebase Cloud DB",d:"Real-time cloud database",on:dbConnected},{i:"\ud83d\udce7",n:"Email Notifications",d:"Stakeholder alerts"}];
   el.innerHTML=`<div class="card"><div class="card-title">Integration Hub</div>${apis.map(a=>`<div class="api-item"><div class="api-left"><span class="api-icon">${a.i}</span><div><div class="api-name">${a.n}</div><div class="api-desc">${a.d}</div></div></div><div class="toggle${a.on?' on':''}" onclick="this.classList.toggle('on')"></div></div>`).join('')}</div>
   <div class="card"><div class="card-title">Database Status</div><div style="padding:16px;background:var(--bg3);border-radius:10px;font-size:13px"><strong style="color:${dbConnected?'var(--green)':'var(--red)'}">●</strong> ${dbConnected?'Connected to Firebase Cloud Database \u2014 data syncs in real-time across all users':'Running in offline mode \u2014 data saved locally. Connect Firebase for cloud sync.'}<br><br><span style="color:var(--slate5);font-size:11px">Database: Firebase Realtime DB | Cloud Sync Enabled</span></div></div>`;
+}
+
+// ===== VEHICLE EMISSION TRACKING (IoT Simulation) =====
+
+// Vehicle fleet with IoT devices — simulated construction site vehicles
+// transportMode: road | rail | sea — determines TEF used for mass-based calculation
+// defaultCargo: linked material category from MATERIALS constant (EN 15804 A4 compliance)
+// cargoCapacity: typical payload in tonnes for mass-based TEF reconciliation
+const VEHICLE_FLEET = [
+  { id: 'V-001', name: 'Dump Truck A', type: 'Dump Truck', fuelType: 'Diesel', ef: 2.68, unit: 'kgCO2e/km', avgSpeed: 35, plate: 'KSA-4821', transportMode: 'road', defaultCargo: 'Earth_Work', cargoCapacity: 20 },
+  { id: 'V-002', name: 'Concrete Mixer B', type: 'Concrete Mixer', fuelType: 'Diesel', ef: 3.12, unit: 'kgCO2e/km', avgSpeed: 25, plate: 'KSA-7734', transportMode: 'road', defaultCargo: 'Concrete', cargoCapacity: 8 },
+  { id: 'V-003', name: 'Flatbed Hauler C', type: 'Flatbed Truck', fuelType: 'Diesel', ef: 2.45, unit: 'kgCO2e/km', avgSpeed: 40, plate: 'KSA-1156', transportMode: 'road', defaultCargo: 'Steel', cargoCapacity: 25 },
+  { id: 'V-004', name: 'Water Tanker D', type: 'Water Tanker', fuelType: 'Diesel', ef: 2.89, unit: 'kgCO2e/km', avgSpeed: 30, plate: 'KSA-3390', transportMode: 'road', defaultCargo: null, cargoCapacity: 20 },
+  { id: 'V-005', name: 'Crew Transport E', type: 'Pickup Truck', fuelType: 'Gasoline', ef: 0.21, unit: 'kgCO2e/km', avgSpeed: 55, plate: 'KSA-9012', transportMode: 'road', defaultCargo: null, cargoCapacity: 1 },
+  { id: 'V-006', name: 'Material Shuttle F', type: 'Light Truck', fuelType: 'Diesel', ef: 1.15, unit: 'kgCO2e/km', avgSpeed: 45, plate: 'KSA-6648', transportMode: 'road', defaultCargo: 'Asphalt', cargoCapacity: 10 },
+];
+
+// IoT simulation state
+let _vehSim = {
+  running: false,
+  intervalId: null,
+  vehicles: [],  // live vehicle states
+  log: [],       // recent emission events
+  cumulative: 0, // total tCO2 since tracking started
+  startTime: null,
+  tickCount: 0,
+};
+
+function _initVehicleSim() {
+  const now = Date.now();
+  _vehSim.startTime = now;
+  _vehSim.cumulative = 0;
+  _vehSim.tickCount = 0;
+  _vehSim.log = [];
+  _vehSim.vehicles = VEHICLE_FLEET.map(v => ({
+    ...v,
+    status: 'idle',         // idle | moving | stopped
+    distanceKm: 0,          // total km this session
+    emissionKg: 0,          // total kg CO2 this session
+    currentSpeed: 0,
+    lastUpdate: now,
+    tripStart: null,
+    tripDistKm: 0,
+    iotSignal: 100,
+    fuelConsumedL: 0,
+    lat: 24.7136 + (Math.random() - 0.5) * 0.05,
+    lng: 46.6753 + (Math.random() - 0.5) * 0.05,
+  }));
+}
+
+function _simTick() {
+  const now = Date.now();
+  _vehSim.tickCount++;
+  let tickEmission = 0;
+
+  _vehSim.vehicles.forEach(v => {
+    // Randomly change vehicle status
+    const rand = Math.random();
+    if (v.status === 'idle') {
+      if (rand < 0.35) { v.status = 'moving'; v.tripStart = now; v.tripDistKm = 0; }
+    } else if (v.status === 'moving') {
+      if (rand < 0.12) { v.status = 'stopped'; v.currentSpeed = 0; }
+      else if (rand < 0.18) { v.status = 'idle'; v.currentSpeed = 0; }
+    } else if (v.status === 'stopped') {
+      if (rand < 0.4) { v.status = 'moving'; }
+      else if (rand < 0.55) { v.status = 'idle'; v.currentSpeed = 0; }
+    }
+
+    if (v.status === 'moving') {
+      // Simulate speed with variation
+      const speedVariance = (Math.random() - 0.5) * 20;
+      v.currentSpeed = Math.max(5, Math.min(v.avgSpeed * 1.3, v.avgSpeed + speedVariance));
+
+      // Distance covered in this tick (5 seconds simulated)
+      const distKm = (v.currentSpeed / 3600) * 5;
+      v.distanceKm += distKm;
+      v.tripDistKm += distKm;
+
+      // Emission from this tick
+      const emKg = distKm * v.ef;
+      v.emissionKg += emKg;
+      tickEmission += emKg;
+
+      // Fuel consumed (approx: diesel ~0.3 L/km for heavy, gasoline ~0.12 L/km for light)
+      const fuelRate = v.fuelType === 'Diesel' ? (v.ef > 2 ? 0.35 : 0.18) : 0.12;
+      v.fuelConsumedL += distKm * fuelRate;
+
+      // Simulate GPS drift
+      v.lat += (Math.random() - 0.5) * 0.001;
+      v.lng += (Math.random() - 0.5) * 0.001;
+    }
+
+    // IoT signal fluctuation
+    v.iotSignal = Math.max(40, Math.min(100, v.iotSignal + (Math.random() - 0.5) * 10));
+    v.lastUpdate = now;
+  });
+
+  _vehSim.cumulative += tickEmission / 1000; // convert kg to tCO2
+
+  // Log significant events
+  if (_vehSim.tickCount % 3 === 0 && tickEmission > 0) {
+    const movingVehs = _vehSim.vehicles.filter(v => v.status === 'moving');
+    if (movingVehs.length > 0) {
+      const v = movingVehs[Math.floor(Math.random() * movingVehs.length)];
+      _vehSim.log.unshift({
+        time: new Date().toLocaleTimeString(),
+        vehicleId: v.id,
+        vehicleName: v.name,
+        type: v.type,
+        event: `Travelling at ${v.currentSpeed.toFixed(0)} km/h`,
+        emission: tickEmission.toFixed(3),
+        cumulative: _vehSim.cumulative.toFixed(4),
+      });
+      if (_vehSim.log.length > 50) _vehSim.log.length = 50;
+    }
+  }
+
+  // Update UI if on vehicle emissions page or A4 transport page
+  if (state.page === 'vehicle_emissions') {
+    _updateVehicleUI();
+  }
+  if (state.page === 'entry_a4') {
+    const el=$('a4IotLive');if(el)el.textContent=fmt(_vehSim.cumulative||0)+' tCO\u2082eq';
+    const vel=$('a4IotVehicles');if(vel)vel.textContent=_vehSim.running?_vehSim.vehicles.filter(v=>v.status==='moving').length+' vehicles moving':'Tracking stopped';
+  }
+}
+
+function _startVehicleSim() {
+  if (_vehSim.running) return;
+  _initVehicleSim();
+  _vehSim.running = true;
+  _vehSim.intervalId = setInterval(_simTick, 5000); // tick every 5 seconds
+  _simTick(); // immediate first tick
+}
+
+function _stopVehicleSim() {
+  if (!_vehSim.running) return;
+  _vehSim.running = false;
+  if (_vehSim.intervalId) { clearInterval(_vehSim.intervalId); _vehSim.intervalId = null; }
+}
+
+function _toggleVehicleSim() {
+  if (_vehSim.running) _stopVehicleSim(); else _startVehicleSim();
+  _updateVehicleUI();
+}
+
+function _getStatusColor(s) {
+  return s === 'moving' ? 'var(--green)' : s === 'stopped' ? 'var(--orange)' : 'var(--slate5)';
+}
+function _getStatusBg(s) {
+  return s === 'moving' ? 'rgba(52,211,153,0.1)' : s === 'stopped' ? 'rgba(251,146,60,0.1)' : 'rgba(148,163,184,0.06)';
+}
+function _getStatusIcon(s) {
+  return s === 'moving' ? '&#x25B6;' : s === 'stopped' ? '&#x25A0;' : '&#x23F8;';
+}
+
+function _buildCumulativeSparkSvg() {
+  // Build sparkline from logged cumulative values
+  const points = _vehSim.log.slice(0, 30).reverse().map(l => parseFloat(l.cumulative));
+  if (points.length < 2) return '<svg viewBox="0 0 120 40" style="width:120px;height:40px"><line x1="0" y1="20" x2="120" y2="20" stroke="rgba(148,163,184,0.15)" stroke-width="1"/></svg>';
+  const mx = Math.max(...points, 0.001);
+  const mn = Math.min(...points, 0);
+  const range = mx - mn || 1;
+  const pts = points.map((v, i) => {
+    const x = (i / (points.length - 1)) * 116 + 2;
+    const y = 38 - ((v - mn) / range) * 34;
+    return `${x.toFixed(1)},${y.toFixed(1)}`;
+  });
+  return `<svg viewBox="0 0 120 40" style="width:120px;height:40px">
+    <polyline points="${pts.join(' ')}" fill="none" stroke="var(--green)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="${pts[pts.length-1].split(',')[0]}" cy="${pts[pts.length-1].split(',')[1]}" r="3" fill="var(--green)"/>
+  </svg>`;
+}
+
+function _updateVehicleUI() {
+  const vehs = _vehSim.vehicles;
+  const movingCount = vehs.filter(v => v.status === 'moving').length;
+  const totalDist = vehs.reduce((s, v) => s + v.distanceKm, 0);
+  const totalEmKg = vehs.reduce((s, v) => s + v.emissionKg, 0);
+  const totalFuel = vehs.reduce((s, v) => s + v.fuelConsumedL, 0);
+  const elapsed = _vehSim.startTime ? Math.floor((Date.now() - _vehSim.startTime) / 1000) : 0;
+  const elMins = Math.floor(elapsed / 60);
+  const elSecs = elapsed % 60;
+
+  // Update stats
+  const el = id => document.getElementById(id);
+  if (el('vehStatMoving')) el('vehStatMoving').textContent = movingCount + ' / ' + vehs.length;
+  if (el('vehStatDist')) el('vehStatDist').textContent = totalDist.toFixed(2);
+  if (el('vehStatEmission')) el('vehStatEmission').textContent = totalEmKg.toFixed(2);
+  if (el('vehStatCumulative')) el('vehStatCumulative').textContent = _vehSim.cumulative.toFixed(4);
+  if (el('vehStatFuel')) el('vehStatFuel').textContent = totalFuel.toFixed(2);
+  if (el('vehStatElapsed')) el('vehStatElapsed').textContent = elMins + 'm ' + String(elSecs).padStart(2, '0') + 's';
+  if (el('vehSimBtn')) {
+    el('vehSimBtn').textContent = _vehSim.running ? 'Stop Tracking' : 'Start Tracking';
+    el('vehSimBtn').className = _vehSim.running ? 'btn btn-danger' : 'btn btn-primary';
+  }
+  if (el('vehSimStatus')) {
+    el('vehSimStatus').innerHTML = _vehSim.running
+      ? '<span class="veh-live-dot"></span> LIVE'
+      : '<span style="color:var(--slate5)">OFFLINE</span>';
+  }
+
+  // Update sparkline
+  if (el('vehCumSpark')) el('vehCumSpark').innerHTML = _buildCumulativeSparkSvg();
+
+  // Update vehicle cards — with cargo & transport mode
+  if (el('vehFleetGrid')) {
+    el('vehFleetGrid').innerHTML = vehs.map(v => {
+      const sc = _getStatusColor(v.status);
+      const sb = _getStatusBg(v.status);
+      const si = _getStatusIcon(v.status);
+      const modeColor = v.transportMode==='road'?'var(--blue)':v.transportMode==='sea'?'var(--cyan)':'var(--purple)';
+      const modeBg = v.transportMode==='road'?'rgba(96,165,250,0.1)':v.transportMode==='sea'?'rgba(6,182,212,0.1)':'rgba(168,85,247,0.1)';
+      return `<div class="veh-card" style="border-left:3px solid ${sc};background:${sb}">
+        <div class="veh-card-header">
+          <div>
+            <div class="veh-card-name">${v.name}</div>
+            <div class="veh-card-meta">${v.type} &middot; ${v.plate} &middot; ${v.fuelType}
+              <span style="margin-left:4px;padding:1px 5px;border-radius:3px;font-size:9px;font-weight:700;background:${modeBg};color:${modeColor}">${(v.transportMode||'road').toUpperCase()}</span>
+              ${v.defaultCargo?`<span style="margin-left:2px;padding:1px 5px;border-radius:3px;font-size:9px;font-weight:600;background:rgba(251,146,60,0.1);color:var(--orange)">${v.defaultCargo}</span>`:''}
+            </div>
+          </div>
+          <div class="veh-card-status" style="color:${sc}">${si} ${v.status.toUpperCase()}</div>
+        </div>
+        <div class="veh-card-metrics">
+          <div class="veh-metric"><div class="veh-metric-val">${v.currentSpeed.toFixed(0)}</div><div class="veh-metric-lbl">km/h</div></div>
+          <div class="veh-metric"><div class="veh-metric-val">${v.distanceKm.toFixed(1)}</div><div class="veh-metric-lbl">km total</div></div>
+          <div class="veh-metric"><div class="veh-metric-val" style="color:var(--orange)">${v.emissionKg.toFixed(2)}</div><div class="veh-metric-lbl">kgCO\u2082</div></div>
+          <div class="veh-metric"><div class="veh-metric-val">${v.fuelConsumedL.toFixed(2)}</div><div class="veh-metric-lbl">L fuel</div></div>
+          <div class="veh-metric"><div class="veh-metric-val" style="font-size:11px">${v.iotSignal.toFixed(0)}%</div><div class="veh-metric-lbl">IoT Signal</div></div>
+        </div>
+        <div class="veh-card-iot">
+          <div class="veh-iot-bar"><div class="veh-iot-fill" style="width:${v.iotSignal}%;background:${v.iotSignal>70?'var(--green)':v.iotSignal>50?'var(--orange)':'var(--red)'}"></div></div>
+          <span style="font-size:9px;color:var(--slate5)">IoT Device: ${v.id}-SNR &middot; Last ping: ${new Date(v.lastUpdate).toLocaleTimeString()}</span>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  // Update live log
+  if (el('vehLiveLog')) {
+    el('vehLiveLog').innerHTML = _vehSim.log.length ? _vehSim.log.slice(0, 20).map(l =>
+      `<tr>
+        <td style="font-size:11px;color:var(--slate5);white-space:nowrap">${l.time}</td>
+        <td style="font-weight:600;color:var(--blue);font-size:11px">${l.vehicleId}</td>
+        <td style="font-size:11px">${l.vehicleName}</td>
+        <td style="font-size:11px;color:var(--slate5)">${l.type}</td>
+        <td style="font-size:11px">${l.event}</td>
+        <td class="r mono" style="font-size:11px;color:var(--orange)">${l.emission}</td>
+        <td class="r mono" style="font-size:11px;font-weight:700;color:var(--green)">${l.cumulative}</td>
+      </tr>`
+    ).join('') : '<tr><td colspan="7" class="empty" style="padding:16px;font-size:11px">No events yet. Start tracking to see live data.</td></tr>';
+  }
+
+  // Update cumulative per-vehicle table
+  if (el('vehCumTable')) {
+    const sorted = [...vehs].sort((a, b) => b.emissionKg - a.emissionKg);
+    const totalKg = sorted.reduce((s, v) => s + v.emissionKg, 0) || 1;
+    el('vehCumTable').innerHTML = sorted.map(v => {
+      const pct = (v.emissionKg / totalKg) * 100;
+      const mc = v.transportMode==='road'?'var(--blue)':v.transportMode==='sea'?'var(--cyan)':'var(--purple)';
+      const mb = v.transportMode==='road'?'rgba(96,165,250,0.1)':v.transportMode==='sea'?'rgba(6,182,212,0.1)':'rgba(168,85,247,0.1)';
+      return `<tr>
+        <td style="font-weight:600;font-size:12px">${v.id}</td>
+        <td style="font-size:12px">${v.name}</td>
+        <td style="font-size:11px;color:var(--slate5)">${v.type}</td>
+        <td><span style="padding:1px 5px;border-radius:3px;font-size:9px;font-weight:700;background:${mb};color:${mc}">${(v.transportMode||'road').toUpperCase()}</span></td>
+        <td style="font-size:11px">${v.defaultCargo||'<span style="color:var(--slate5)">N/A</span>'}</td>
+        <td class="r mono" style="font-size:12px">${v.distanceKm.toFixed(2)}</td>
+        <td class="r mono" style="font-size:12px;color:var(--orange);font-weight:700">${v.emissionKg.toFixed(3)}</td>
+        <td class="r mono" style="font-size:12px;font-weight:700;color:var(--green)">${(v.emissionKg / 1000).toFixed(5)}</td>
+        <td class="r">
+          <div style="display:flex;align-items:center;gap:6px;justify-content:flex-end">
+            <div style="width:60px;height:6px;background:var(--bg);border-radius:3px;overflow:hidden">
+              <div style="width:${pct}%;height:100%;background:var(--blue);border-radius:3px"></div>
+            </div>
+            <span style="font-size:10px;color:var(--slate4);min-width:32px;text-align:right">${pct.toFixed(1)}%</span>
+          </div>
+        </td>
+      </tr>`;
+    }).join('');
+  }
+}
+
+function renderVehicleEmissions(el) {
+  // Start simulation automatically when page loads
+  if (!_vehSim.running) _startVehicleSim();
+
+  el.innerHTML = `
+  <!-- Live Status Banner -->
+  <div class="veh-live-banner">
+    <div class="veh-live-left">
+      <div id="vehSimStatus"><span class="veh-live-dot"></span> LIVE</div>
+      <span style="font-size:11px;color:var(--slate5)">A4 Transport IoT Tracking &middot; Updates every 5s &middot; <a href="#" onclick="navigate('entry_a4');return false" style="color:var(--blue)">Save to A4</a></span>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px">
+      <span style="font-size:11px;color:var(--slate5)">Elapsed: <strong id="vehStatElapsed" style="color:var(--text)">0m 00s</strong></span>
+      <button id="vehSimBtn" class="btn btn-danger" onclick="_toggleVehicleSim()">Stop Tracking</button>
+    </div>
+  </div>
+
+  <!-- KPI Stats Row -->
+  <div class="stats-row" style="grid-template-columns:repeat(6,1fr)">
+    <div class="stat-card green">
+      <div class="sc-label">Active Vehicles</div>
+      <div class="sc-value" id="vehStatMoving">0 / ${VEHICLE_FLEET.length}</div>
+      <div class="sc-sub">moving / total</div>
+    </div>
+    <div class="stat-card blue">
+      <div class="sc-label">Total Distance</div>
+      <div class="sc-value" id="vehStatDist">0.00</div>
+      <div class="sc-sub">km</div>
+    </div>
+    <div class="stat-card orange">
+      <div class="sc-label">Session Emissions</div>
+      <div class="sc-value" id="vehStatEmission">0.00</div>
+      <div class="sc-sub">kgCO\u2082eq</div>
+    </div>
+    <div class="stat-card cyan">
+      <div class="sc-label">Cumulative Total</div>
+      <div class="sc-value" id="vehStatCumulative">0.0000</div>
+      <div class="sc-sub">tCO\u2082eq</div>
+    </div>
+    <div class="stat-card purple">
+      <div class="sc-label">Fuel Consumed</div>
+      <div class="sc-value" id="vehStatFuel">0.00</div>
+      <div class="sc-sub">Liters</div>
+    </div>
+    <div class="stat-card slate">
+      <div class="sc-label">Cumulative Trend</div>
+      <div id="vehCumSpark" style="margin-top:4px">${_buildCumulativeSparkSvg()}</div>
+      <div class="sc-sub">tCO\u2082 over time</div>
+    </div>
+  </div>
+
+  <!-- Fleet Grid -->
+  <div class="card">
+    <div class="card-title">Fleet Status &mdash; IoT Devices</div>
+    <div class="veh-fleet-grid" id="vehFleetGrid"></div>
+  </div>
+
+  <!-- Live Event Log -->
+  <div class="card">
+    <div class="card-title">Live Emission Events</div>
+    <div class="tbl-wrap" style="max-height:300px;overflow-y:auto">
+      <table>
+        <thead><tr><th>Time</th><th>Vehicle</th><th>Name</th><th>Type</th><th>Event</th><th class="r">Emission (kg)</th><th class="r">Cumulative (t)</th></tr></thead>
+        <tbody id="vehLiveLog"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Cumulative Per-Vehicle Breakdown -->
+  <div class="card">
+    <div class="card-title">Cumulative Emissions by Vehicle</div>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>ID</th><th>Vehicle</th><th>Type</th><th>Mode</th><th>Cargo</th><th class="r">Distance (km)</th><th class="r">Emissions (kg)</th><th class="r">Emissions (t)</th><th class="r">Share</th></tr></thead>
+        <tbody id="vehCumTable"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Emission Factors Reference -->
+  <div class="card">
+    <div class="card-title">Vehicle Fleet — Emission Factors, Cargo &amp; Transport Modes</div>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>Vehicle</th><th>Type</th><th>Mode</th><th>Default Cargo</th><th class="r">Capacity (t)</th><th>Fuel</th><th class="r">EF</th><th>Unit</th><th class="r">Avg Speed</th></tr></thead>
+        <tbody>${VEHICLE_FLEET.map(v => {
+          const modeColor = v.transportMode==='road'?'var(--blue)':v.transportMode==='sea'?'var(--cyan)':'var(--purple)';
+          const modeBg = v.transportMode==='road'?'rgba(96,165,250,0.1)':v.transportMode==='sea'?'rgba(6,182,212,0.1)':'rgba(168,85,247,0.1)';
+          return `<tr>
+            <td style="font-weight:600">${v.name}</td>
+            <td>${v.type}</td>
+            <td><span style="padding:1px 6px;border-radius:4px;font-size:10px;font-weight:700;background:${modeBg};color:${modeColor}">${v.transportMode.toUpperCase()}</span></td>
+            <td>${v.defaultCargo||'<span style="color:var(--slate5)">N/A</span>'}</td>
+            <td class="r mono">${v.cargoCapacity} t</td>
+            <td>${v.fuelType}</td>
+            <td class="r mono" style="font-weight:700;color:var(--orange)">${v.ef}</td>
+            <td style="font-size:11px;color:var(--slate5)">${v.unit}</td>
+            <td class="r mono">${v.avgSpeed} km/h</td>
+          </tr>`;
+        }).join('')}</tbody>
+      </table>
+    </div>
+  </div>`;
+
+  // Initial UI update
+  _updateVehicleUI();
 }
