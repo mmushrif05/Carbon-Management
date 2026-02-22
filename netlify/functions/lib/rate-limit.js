@@ -12,7 +12,7 @@ const WINDOW_MS = 60 * 1000; // 1 minute window
 
 // Default limits per endpoint category
 const RATE_LIMITS = {
-  auth: { maxRequests: 10, windowMs: WINDOW_MS },       // Login/register: 10/min
+  auth: { maxRequests: 30, windowMs: WINDOW_MS },       // Login/register: 30/min
   ai: { maxRequests: 5, windowMs: WINDOW_MS },           // AI calls: 5/min
   upload: { maxRequests: 10, windowMs: WINDOW_MS },      // Document uploads: 10/min
   api: { maxRequests: 200, windowMs: WINDOW_MS },        // General API: 200/min (SPA makes many parallel calls per page)
