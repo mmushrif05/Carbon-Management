@@ -377,3 +377,25 @@ td.mono{font-family:'Courier New',monospace;font-size:11px}
 .anomaly-fix-btn:hover{background:rgba(251,146,60,0.2)!important}
 
 @media(max-width:768px){.intel-header{flex-direction:column;align-items:stretch}.intel-project-select select{width:100%}.intel-dim-card{flex-direction:column;align-items:stretch;gap:8px}.intel-dim-right{justify-content:flex-end}}
+
+/* ===== VEHICLE EMISSIONS ===== */
+.veh-live-banner{display:flex;align-items:center;justify-content:space-between;padding:12px 18px;background:var(--bg2);border:1px solid var(--border2);border-radius:var(--radius);margin-bottom:16px}
+.veh-live-left{display:flex;align-items:center;gap:12px}
+.veh-live-dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--red);margin-right:4px;animation:vehPulse 1.5s infinite}
+@keyframes vehPulse{0%,100%{opacity:1;box-shadow:0 0 0 0 rgba(248,113,113,0.5)}50%{opacity:0.7;box-shadow:0 0 0 6px rgba(248,113,113,0)}}
+#vehSimStatus{font-size:12px;font-weight:800;letter-spacing:1.5px;color:var(--red)}
+.veh-fleet-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:10px}
+.veh-card{padding:12px 14px;border-radius:10px;border:1px solid var(--border2);transition:all .2s}
+.veh-card:hover{border-color:rgba(96,165,250,0.3);box-shadow:0 4px 16px rgba(0,0,0,0.2)}
+.veh-card-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px}
+.veh-card-name{font-size:13px;font-weight:700;color:var(--text)}
+.veh-card-meta{font-size:9px;color:var(--slate5);margin-top:2px}
+.veh-card-status{font-size:10px;font-weight:800;letter-spacing:1px}
+.veh-card-metrics{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-bottom:8px}
+.veh-metric{text-align:center}
+.veh-metric-val{font-size:13px;font-weight:800;color:var(--text);line-height:1.2}
+.veh-metric-lbl{font-size:8px;color:var(--slate5);text-transform:uppercase;letter-spacing:0.5px}
+.veh-card-iot{margin-top:4px}
+.veh-iot-bar{height:3px;background:var(--bg);border-radius:2px;overflow:hidden;margin-bottom:4px}
+.veh-iot-fill{height:100%;border-radius:2px;transition:width .5s}
+@media(max-width:768px){.veh-fleet-grid{grid-template-columns:1fr}.veh-card-metrics{grid-template-columns:repeat(3,1fr)}}

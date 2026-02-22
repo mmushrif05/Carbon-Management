@@ -3518,3 +3518,372 @@ function renderIntegrations(el){
   el.innerHTML=`<div class="card"><div class="card-title">Integration Hub</div>${apis.map(a=>`<div class="api-item"><div class="api-left"><span class="api-icon">${a.i}</span><div><div class="api-name">${a.n}</div><div class="api-desc">${a.d}</div></div></div><div class="toggle${a.on?' on':''}" onclick="this.classList.toggle('on')"></div></div>`).join('')}</div>
   <div class="card"><div class="card-title">Database Status</div><div style="padding:16px;background:var(--bg3);border-radius:10px;font-size:13px"><strong style="color:${dbConnected?'var(--green)':'var(--red)'}">●</strong> ${dbConnected?'Connected to Firebase Cloud Database \u2014 data syncs in real-time across all users':'Running in offline mode \u2014 data saved locally. Connect Firebase for cloud sync.'}<br><br><span style="color:var(--slate5);font-size:11px">Database: Firebase Realtime DB | Cloud Sync Enabled</span></div></div>`;
 }
+
+// ===== VEHICLE EMISSION TRACKING (IoT Simulation) =====
+
+// Vehicle fleet with IoT devices — simulated construction site vehicles
+const VEHICLE_FLEET = [
+  { id: 'V-001', name: 'Dump Truck A', type: 'Dump Truck', fuelType: 'Diesel', ef: 2.68, unit: 'kgCO2e/km', avgSpeed: 35, plate: 'KSA-4821' },
+  { id: 'V-002', name: 'Concrete Mixer B', type: 'Concrete Mixer', fuelType: 'Diesel', ef: 3.12, unit: 'kgCO2e/km', avgSpeed: 25, plate: 'KSA-7734' },
+  { id: 'V-003', name: 'Flatbed Hauler C', type: 'Flatbed Truck', fuelType: 'Diesel', ef: 2.45, unit: 'kgCO2e/km', avgSpeed: 40, plate: 'KSA-1156' },
+  { id: 'V-004', name: 'Water Tanker D', type: 'Water Tanker', fuelType: 'Diesel', ef: 2.89, unit: 'kgCO2e/km', avgSpeed: 30, plate: 'KSA-3390' },
+  { id: 'V-005', name: 'Crew Transport E', type: 'Pickup Truck', fuelType: 'Gasoline', ef: 0.21, unit: 'kgCO2e/km', avgSpeed: 55, plate: 'KSA-9012' },
+  { id: 'V-006', name: 'Material Shuttle F', type: 'Light Truck', fuelType: 'Diesel', ef: 1.15, unit: 'kgCO2e/km', avgSpeed: 45, plate: 'KSA-6648' },
+];
+
+// IoT simulation state
+let _vehSim = {
+  running: false,
+  intervalId: null,
+  vehicles: [],  // live vehicle states
+  log: [],       // recent emission events
+  cumulative: 0, // total tCO2 since tracking started
+  startTime: null,
+  tickCount: 0,
+};
+
+function _initVehicleSim() {
+  const now = Date.now();
+  _vehSim.startTime = now;
+  _vehSim.cumulative = 0;
+  _vehSim.tickCount = 0;
+  _vehSim.log = [];
+  _vehSim.vehicles = VEHICLE_FLEET.map(v => ({
+    ...v,
+    status: 'idle',         // idle | moving | stopped
+    distanceKm: 0,          // total km this session
+    emissionKg: 0,          // total kg CO2 this session
+    currentSpeed: 0,
+    lastUpdate: now,
+    tripStart: null,
+    tripDistKm: 0,
+    iotSignal: 100,
+    fuelConsumedL: 0,
+    lat: 24.7136 + (Math.random() - 0.5) * 0.05,
+    lng: 46.6753 + (Math.random() - 0.5) * 0.05,
+  }));
+}
+
+function _simTick() {
+  const now = Date.now();
+  _vehSim.tickCount++;
+  let tickEmission = 0;
+
+  _vehSim.vehicles.forEach(v => {
+    // Randomly change vehicle status
+    const rand = Math.random();
+    if (v.status === 'idle') {
+      if (rand < 0.35) { v.status = 'moving'; v.tripStart = now; v.tripDistKm = 0; }
+    } else if (v.status === 'moving') {
+      if (rand < 0.12) { v.status = 'stopped'; v.currentSpeed = 0; }
+      else if (rand < 0.18) { v.status = 'idle'; v.currentSpeed = 0; }
+    } else if (v.status === 'stopped') {
+      if (rand < 0.4) { v.status = 'moving'; }
+      else if (rand < 0.55) { v.status = 'idle'; v.currentSpeed = 0; }
+    }
+
+    if (v.status === 'moving') {
+      // Simulate speed with variation
+      const speedVariance = (Math.random() - 0.5) * 20;
+      v.currentSpeed = Math.max(5, Math.min(v.avgSpeed * 1.3, v.avgSpeed + speedVariance));
+
+      // Distance covered in this tick (5 seconds simulated)
+      const distKm = (v.currentSpeed / 3600) * 5;
+      v.distanceKm += distKm;
+      v.tripDistKm += distKm;
+
+      // Emission from this tick
+      const emKg = distKm * v.ef;
+      v.emissionKg += emKg;
+      tickEmission += emKg;
+
+      // Fuel consumed (approx: diesel ~0.3 L/km for heavy, gasoline ~0.12 L/km for light)
+      const fuelRate = v.fuelType === 'Diesel' ? (v.ef > 2 ? 0.35 : 0.18) : 0.12;
+      v.fuelConsumedL += distKm * fuelRate;
+
+      // Simulate GPS drift
+      v.lat += (Math.random() - 0.5) * 0.001;
+      v.lng += (Math.random() - 0.5) * 0.001;
+    }
+
+    // IoT signal fluctuation
+    v.iotSignal = Math.max(40, Math.min(100, v.iotSignal + (Math.random() - 0.5) * 10));
+    v.lastUpdate = now;
+  });
+
+  _vehSim.cumulative += tickEmission / 1000; // convert kg to tCO2
+
+  // Log significant events
+  if (_vehSim.tickCount % 3 === 0 && tickEmission > 0) {
+    const movingVehs = _vehSim.vehicles.filter(v => v.status === 'moving');
+    if (movingVehs.length > 0) {
+      const v = movingVehs[Math.floor(Math.random() * movingVehs.length)];
+      _vehSim.log.unshift({
+        time: new Date().toLocaleTimeString(),
+        vehicleId: v.id,
+        vehicleName: v.name,
+        type: v.type,
+        event: `Travelling at ${v.currentSpeed.toFixed(0)} km/h`,
+        emission: tickEmission.toFixed(3),
+        cumulative: _vehSim.cumulative.toFixed(4),
+      });
+      if (_vehSim.log.length > 50) _vehSim.log.length = 50;
+    }
+  }
+
+  // Update UI if on vehicle emissions page
+  if (state.page === 'vehicle_emissions') {
+    _updateVehicleUI();
+  }
+}
+
+function _startVehicleSim() {
+  if (_vehSim.running) return;
+  _initVehicleSim();
+  _vehSim.running = true;
+  _vehSim.intervalId = setInterval(_simTick, 5000); // tick every 5 seconds
+  _simTick(); // immediate first tick
+}
+
+function _stopVehicleSim() {
+  if (!_vehSim.running) return;
+  _vehSim.running = false;
+  if (_vehSim.intervalId) { clearInterval(_vehSim.intervalId); _vehSim.intervalId = null; }
+}
+
+function _toggleVehicleSim() {
+  if (_vehSim.running) _stopVehicleSim(); else _startVehicleSim();
+  _updateVehicleUI();
+}
+
+function _getStatusColor(s) {
+  return s === 'moving' ? 'var(--green)' : s === 'stopped' ? 'var(--orange)' : 'var(--slate5)';
+}
+function _getStatusBg(s) {
+  return s === 'moving' ? 'rgba(52,211,153,0.1)' : s === 'stopped' ? 'rgba(251,146,60,0.1)' : 'rgba(148,163,184,0.06)';
+}
+function _getStatusIcon(s) {
+  return s === 'moving' ? '&#x25B6;' : s === 'stopped' ? '&#x25A0;' : '&#x23F8;';
+}
+
+function _buildCumulativeSparkSvg() {
+  // Build sparkline from logged cumulative values
+  const points = _vehSim.log.slice(0, 30).reverse().map(l => parseFloat(l.cumulative));
+  if (points.length < 2) return '<svg viewBox="0 0 120 40" style="width:120px;height:40px"><line x1="0" y1="20" x2="120" y2="20" stroke="rgba(148,163,184,0.15)" stroke-width="1"/></svg>';
+  const mx = Math.max(...points, 0.001);
+  const mn = Math.min(...points, 0);
+  const range = mx - mn || 1;
+  const pts = points.map((v, i) => {
+    const x = (i / (points.length - 1)) * 116 + 2;
+    const y = 38 - ((v - mn) / range) * 34;
+    return `${x.toFixed(1)},${y.toFixed(1)}`;
+  });
+  return `<svg viewBox="0 0 120 40" style="width:120px;height:40px">
+    <polyline points="${pts.join(' ')}" fill="none" stroke="var(--green)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="${pts[pts.length-1].split(',')[0]}" cy="${pts[pts.length-1].split(',')[1]}" r="3" fill="var(--green)"/>
+  </svg>`;
+}
+
+function _updateVehicleUI() {
+  const vehs = _vehSim.vehicles;
+  const movingCount = vehs.filter(v => v.status === 'moving').length;
+  const totalDist = vehs.reduce((s, v) => s + v.distanceKm, 0);
+  const totalEmKg = vehs.reduce((s, v) => s + v.emissionKg, 0);
+  const totalFuel = vehs.reduce((s, v) => s + v.fuelConsumedL, 0);
+  const elapsed = _vehSim.startTime ? Math.floor((Date.now() - _vehSim.startTime) / 1000) : 0;
+  const elMins = Math.floor(elapsed / 60);
+  const elSecs = elapsed % 60;
+
+  // Update stats
+  const el = id => document.getElementById(id);
+  if (el('vehStatMoving')) el('vehStatMoving').textContent = movingCount + ' / ' + vehs.length;
+  if (el('vehStatDist')) el('vehStatDist').textContent = totalDist.toFixed(2);
+  if (el('vehStatEmission')) el('vehStatEmission').textContent = totalEmKg.toFixed(2);
+  if (el('vehStatCumulative')) el('vehStatCumulative').textContent = _vehSim.cumulative.toFixed(4);
+  if (el('vehStatFuel')) el('vehStatFuel').textContent = totalFuel.toFixed(2);
+  if (el('vehStatElapsed')) el('vehStatElapsed').textContent = elMins + 'm ' + String(elSecs).padStart(2, '0') + 's';
+  if (el('vehSimBtn')) {
+    el('vehSimBtn').textContent = _vehSim.running ? 'Stop Tracking' : 'Start Tracking';
+    el('vehSimBtn').className = _vehSim.running ? 'btn btn-danger' : 'btn btn-primary';
+  }
+  if (el('vehSimStatus')) {
+    el('vehSimStatus').innerHTML = _vehSim.running
+      ? '<span class="veh-live-dot"></span> LIVE'
+      : '<span style="color:var(--slate5)">OFFLINE</span>';
+  }
+
+  // Update sparkline
+  if (el('vehCumSpark')) el('vehCumSpark').innerHTML = _buildCumulativeSparkSvg();
+
+  // Update vehicle cards
+  if (el('vehFleetGrid')) {
+    el('vehFleetGrid').innerHTML = vehs.map(v => {
+      const sc = _getStatusColor(v.status);
+      const sb = _getStatusBg(v.status);
+      const si = _getStatusIcon(v.status);
+      return `<div class="veh-card" style="border-left:3px solid ${sc};background:${sb}">
+        <div class="veh-card-header">
+          <div>
+            <div class="veh-card-name">${v.name}</div>
+            <div class="veh-card-meta">${v.type} &middot; ${v.plate} &middot; ${v.fuelType}</div>
+          </div>
+          <div class="veh-card-status" style="color:${sc}">${si} ${v.status.toUpperCase()}</div>
+        </div>
+        <div class="veh-card-metrics">
+          <div class="veh-metric"><div class="veh-metric-val">${v.currentSpeed.toFixed(0)}</div><div class="veh-metric-lbl">km/h</div></div>
+          <div class="veh-metric"><div class="veh-metric-val">${v.distanceKm.toFixed(1)}</div><div class="veh-metric-lbl">km total</div></div>
+          <div class="veh-metric"><div class="veh-metric-val" style="color:var(--orange)">${v.emissionKg.toFixed(2)}</div><div class="veh-metric-lbl">kgCO\u2082</div></div>
+          <div class="veh-metric"><div class="veh-metric-val">${v.fuelConsumedL.toFixed(2)}</div><div class="veh-metric-lbl">L fuel</div></div>
+          <div class="veh-metric"><div class="veh-metric-val" style="font-size:11px">${v.iotSignal.toFixed(0)}%</div><div class="veh-metric-lbl">IoT Signal</div></div>
+        </div>
+        <div class="veh-card-iot">
+          <div class="veh-iot-bar"><div class="veh-iot-fill" style="width:${v.iotSignal}%;background:${v.iotSignal>70?'var(--green)':v.iotSignal>50?'var(--orange)':'var(--red)'}"></div></div>
+          <span style="font-size:9px;color:var(--slate5)">IoT Device: ${v.id}-SNR &middot; Last ping: ${new Date(v.lastUpdate).toLocaleTimeString()}</span>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  // Update live log
+  if (el('vehLiveLog')) {
+    el('vehLiveLog').innerHTML = _vehSim.log.length ? _vehSim.log.slice(0, 20).map(l =>
+      `<tr>
+        <td style="font-size:11px;color:var(--slate5);white-space:nowrap">${l.time}</td>
+        <td style="font-weight:600;color:var(--blue);font-size:11px">${l.vehicleId}</td>
+        <td style="font-size:11px">${l.vehicleName}</td>
+        <td style="font-size:11px;color:var(--slate5)">${l.type}</td>
+        <td style="font-size:11px">${l.event}</td>
+        <td class="r mono" style="font-size:11px;color:var(--orange)">${l.emission}</td>
+        <td class="r mono" style="font-size:11px;font-weight:700;color:var(--green)">${l.cumulative}</td>
+      </tr>`
+    ).join('') : '<tr><td colspan="7" class="empty" style="padding:16px;font-size:11px">No events yet. Start tracking to see live data.</td></tr>';
+  }
+
+  // Update cumulative per-vehicle table
+  if (el('vehCumTable')) {
+    const sorted = [...vehs].sort((a, b) => b.emissionKg - a.emissionKg);
+    const totalKg = sorted.reduce((s, v) => s + v.emissionKg, 0) || 1;
+    el('vehCumTable').innerHTML = sorted.map(v => {
+      const pct = (v.emissionKg / totalKg) * 100;
+      return `<tr>
+        <td style="font-weight:600;font-size:12px">${v.id}</td>
+        <td style="font-size:12px">${v.name}</td>
+        <td style="font-size:11px;color:var(--slate5)">${v.type}</td>
+        <td class="r mono" style="font-size:12px">${v.distanceKm.toFixed(2)}</td>
+        <td class="r mono" style="font-size:12px;color:var(--orange);font-weight:700">${v.emissionKg.toFixed(3)}</td>
+        <td class="r mono" style="font-size:12px;font-weight:700;color:var(--green)">${(v.emissionKg / 1000).toFixed(5)}</td>
+        <td class="r">
+          <div style="display:flex;align-items:center;gap:6px;justify-content:flex-end">
+            <div style="width:60px;height:6px;background:var(--bg);border-radius:3px;overflow:hidden">
+              <div style="width:${pct}%;height:100%;background:var(--blue);border-radius:3px"></div>
+            </div>
+            <span style="font-size:10px;color:var(--slate4);min-width:32px;text-align:right">${pct.toFixed(1)}%</span>
+          </div>
+        </td>
+      </tr>`;
+    }).join('');
+  }
+}
+
+function renderVehicleEmissions(el) {
+  // Start simulation automatically when page loads
+  if (!_vehSim.running) _startVehicleSim();
+
+  el.innerHTML = `
+  <!-- Live Status Banner -->
+  <div class="veh-live-banner">
+    <div class="veh-live-left">
+      <div id="vehSimStatus"><span class="veh-live-dot"></span> LIVE</div>
+      <span style="font-size:11px;color:var(--slate5)">IoT Vehicle Tracking &middot; Updates every 5s</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px">
+      <span style="font-size:11px;color:var(--slate5)">Elapsed: <strong id="vehStatElapsed" style="color:var(--text)">0m 00s</strong></span>
+      <button id="vehSimBtn" class="btn btn-danger" onclick="_toggleVehicleSim()">Stop Tracking</button>
+    </div>
+  </div>
+
+  <!-- KPI Stats Row -->
+  <div class="stats-row" style="grid-template-columns:repeat(6,1fr)">
+    <div class="stat-card green">
+      <div class="sc-label">Active Vehicles</div>
+      <div class="sc-value" id="vehStatMoving">0 / ${VEHICLE_FLEET.length}</div>
+      <div class="sc-sub">moving / total</div>
+    </div>
+    <div class="stat-card blue">
+      <div class="sc-label">Total Distance</div>
+      <div class="sc-value" id="vehStatDist">0.00</div>
+      <div class="sc-sub">km</div>
+    </div>
+    <div class="stat-card orange">
+      <div class="sc-label">Session Emissions</div>
+      <div class="sc-value" id="vehStatEmission">0.00</div>
+      <div class="sc-sub">kgCO\u2082eq</div>
+    </div>
+    <div class="stat-card cyan">
+      <div class="sc-label">Cumulative Total</div>
+      <div class="sc-value" id="vehStatCumulative">0.0000</div>
+      <div class="sc-sub">tCO\u2082eq</div>
+    </div>
+    <div class="stat-card purple">
+      <div class="sc-label">Fuel Consumed</div>
+      <div class="sc-value" id="vehStatFuel">0.00</div>
+      <div class="sc-sub">Liters</div>
+    </div>
+    <div class="stat-card slate">
+      <div class="sc-label">Cumulative Trend</div>
+      <div id="vehCumSpark" style="margin-top:4px">${_buildCumulativeSparkSvg()}</div>
+      <div class="sc-sub">tCO\u2082 over time</div>
+    </div>
+  </div>
+
+  <!-- Fleet Grid -->
+  <div class="card">
+    <div class="card-title">Fleet Status &mdash; IoT Devices</div>
+    <div class="veh-fleet-grid" id="vehFleetGrid"></div>
+  </div>
+
+  <!-- Live Event Log -->
+  <div class="card">
+    <div class="card-title">Live Emission Events</div>
+    <div class="tbl-wrap" style="max-height:300px;overflow-y:auto">
+      <table>
+        <thead><tr><th>Time</th><th>Vehicle</th><th>Name</th><th>Type</th><th>Event</th><th class="r">Emission (kg)</th><th class="r">Cumulative (t)</th></tr></thead>
+        <tbody id="vehLiveLog"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Cumulative Per-Vehicle Breakdown -->
+  <div class="card">
+    <div class="card-title">Cumulative Emissions by Vehicle</div>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>ID</th><th>Vehicle</th><th>Type</th><th class="r">Distance (km)</th><th class="r">Emissions (kg)</th><th class="r">Emissions (t)</th><th class="r">Share</th></tr></thead>
+        <tbody id="vehCumTable"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Emission Factors Reference -->
+  <div class="card">
+    <div class="card-title">Vehicle Emission Factors Reference</div>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>Vehicle</th><th>Type</th><th>Fuel</th><th class="r">EF</th><th>Unit</th><th class="r">Avg Speed</th></tr></thead>
+        <tbody>${VEHICLE_FLEET.map(v =>
+          `<tr>
+            <td style="font-weight:600">${v.name}</td>
+            <td>${v.type}</td>
+            <td>${v.fuelType}</td>
+            <td class="r mono" style="font-weight:700;color:var(--orange)">${v.ef}</td>
+            <td style="font-size:11px;color:var(--slate5)">${v.unit}</td>
+            <td class="r mono">${v.avgSpeed} km/h</td>
+          </tr>`
+        ).join('')}</tbody>
+      </table>
+    </div>
+  </div>`;
+
+  // Initial UI update
+  _updateVehicleUI();
+}
