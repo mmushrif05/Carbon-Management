@@ -111,6 +111,8 @@ async function handleGetProject(body, decoded) {
 }
 
 // === UPDATE PROJECT ===
+// Cascades project name changes to all related records:
+// project_assignments, project_org_links, org_links, assignments
 async function handleUpdateProject(body, decoded) {
   const { projectId, name, description, code, status, packageIds } = body;
   if (!projectId) return respond(400, { error: 'Project ID is required.' });
@@ -124,17 +126,65 @@ async function handleUpdateProject(body, decoded) {
 
   const db = getDb();
   const snap = await db.ref('projects/' + projectId).once('value');
-  if (!snap.val()) return respond(404, { error: 'Project not found.' });
+  const project = snap.val();
+  if (!project) return respond(404, { error: 'Project not found.' });
 
-  const updates = { updatedAt: new Date().toISOString(), updatedBy: decoded.uid };
-  if (name) updates.name = name.trim();
-  if (description !== undefined) updates.description = (description || '').trim();
-  if (code !== undefined) updates.code = (code || '').trim();
-  if (packageIds !== undefined) updates.packageIds = (packageIds && typeof packageIds === 'object') ? packageIds : {};
-  if (status) updates.status = status;
+  const dbUpdates = {};
+  const now = new Date().toISOString();
 
-  await db.ref('projects/' + projectId).update(updates);
-  console.log('[PROJECT] Updated project:', projectId);
+  // Update project record fields
+  dbUpdates['projects/' + projectId + '/updatedAt'] = now;
+  dbUpdates['projects/' + projectId + '/updatedBy'] = decoded.uid;
+  if (name) dbUpdates['projects/' + projectId + '/name'] = name.trim();
+  if (description !== undefined) dbUpdates['projects/' + projectId + '/description'] = (description || '').trim();
+  if (code !== undefined) dbUpdates['projects/' + projectId + '/code'] = (code || '').trim();
+  if (packageIds !== undefined) dbUpdates['projects/' + projectId + '/packageIds'] = (packageIds && typeof packageIds === 'object') ? packageIds : {};
+  if (status) dbUpdates['projects/' + projectId + '/status'] = status;
+
+  // Cascade name change to related records
+  if (name) {
+    const newName = name.trim();
+
+    // 1. Cascade to project_assignments
+    const paSnap = await db.ref('project_assignments').once('value');
+    const pa = paSnap.val() || {};
+    for (const [id, a] of Object.entries(pa)) {
+      if (a.projectId === projectId) {
+        dbUpdates['project_assignments/' + id + '/projectName'] = newName;
+      }
+    }
+
+    // 2. Cascade to project_org_links
+    const polSnap = await db.ref('project_org_links').once('value');
+    const pol = polSnap.val() || {};
+    for (const [id, l] of Object.entries(pol)) {
+      if (l.projectId === projectId) {
+        dbUpdates['project_org_links/' + id + '/projectName'] = newName;
+      }
+    }
+
+    // 3. Cascade to org_links (consultant↔contractor links scoped to this project)
+    const olSnap = await db.ref('org_links').once('value');
+    const ol = olSnap.val() || {};
+    for (const [id, l] of Object.entries(ol)) {
+      if (l.projectId === projectId) {
+        dbUpdates['org_links/' + id + '/projectName'] = newName;
+      }
+    }
+
+    // 4. Cascade to assignments (user-level, scoped to this project)
+    const asSnap = await db.ref('assignments').once('value');
+    const as = asSnap.val() || {};
+    for (const [id, a] of Object.entries(as)) {
+      if (a.projectId === projectId) {
+        dbUpdates['assignments/' + id + '/projectName'] = newName;
+      }
+    }
+  }
+
+  // Apply all updates atomically
+  await db.ref().update(dbUpdates);
+  console.log('[PROJECT] Updated project:', projectId, name ? '(renamed to "' + name.trim() + '")' : '');
 
   return respond(200, { success: true });
 }
