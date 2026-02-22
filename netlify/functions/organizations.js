@@ -548,6 +548,93 @@ async function handleListUsers(decoded) {
   return respond(200, { users });
 }
 
+// === UPDATE USER NAME ===
+// Cascades the name change to all related records:
+// assignments, project_assignments, entries, a5entries
+async function handleUpdateUserName(body, decoded) {
+  const { userId, name } = body;
+  if (!userId) return respond(400, { error: 'User ID is required.' });
+  if (!name || !name.trim()) return respond(400, { error: 'User name is required.' });
+
+  const profile = await getUserProfile(decoded.uid);
+  if (!profile) return respond(403, { error: 'Profile not found.' });
+
+  if (!['client', 'consultant'].includes(profile.role)) {
+    return respond(403, { error: 'Only clients and consultants can update user names.' });
+  }
+
+  const db = getDb();
+  const userSnap = await db.ref('users/' + userId).once('value');
+  const user = userSnap.val();
+  if (!user) return respond(404, { error: 'User not found.' });
+
+  const newName = name.trim();
+  const updates = {};
+
+  // 1. Update the user record itself
+  updates['users/' + userId + '/name'] = newName;
+
+  // 2. Cascade to assignments (consultant ↔ contractor user-level)
+  const assignSnap = await db.ref('assignments').once('value');
+  const assignments = assignSnap.val() || {};
+  for (const [aId, a] of Object.entries(assignments)) {
+    if (a.consultantUid === userId) {
+      updates['assignments/' + aId + '/consultantName'] = newName;
+    }
+    if (a.contractorUid === userId) {
+      updates['assignments/' + aId + '/contractorName'] = newName;
+    }
+  }
+
+  // 3. Cascade to project_assignments
+  const paSnap = await db.ref('project_assignments').once('value');
+  const projectAssignments = paSnap.val() || {};
+  for (const [paId, pa] of Object.entries(projectAssignments)) {
+    if (pa.userId === userId) {
+      updates['project_assignments/' + paId + '/userName'] = newName;
+    }
+    if (pa.createdBy === userId) {
+      updates['project_assignments/' + paId + '/createdByName'] = newName;
+    }
+  }
+
+  // 4. Cascade to entries (A1-A3) - submittedBy / approvedBy
+  const project = user.project || profile.project || PROJECT_ID;
+  const entriesSnap = await db.ref('projects/' + project + '/entries').once('value');
+  const entries = entriesSnap.val() || {};
+  for (const [eId, e] of Object.entries(entries)) {
+    if (e.submittedBy === userId) {
+      updates['projects/' + project + '/entries/' + eId + '/submittedByName'] = newName;
+    }
+  }
+
+  // 5. Cascade to A5 entries
+  const a5Snap = await db.ref('projects/' + project + '/a5entries').once('value');
+  const a5entries = a5Snap.val() || {};
+  for (const [eId, e] of Object.entries(a5entries)) {
+    if (e.submittedBy === userId) {
+      updates['projects/' + project + '/a5entries/' + eId + '/submittedByName'] = newName;
+    }
+  }
+
+  // 6. Cascade to project_org_links (createdByName)
+  const polSnap = await db.ref('project_org_links').once('value');
+  const projOrgLinks = polSnap.val() || {};
+  for (const [lId, l] of Object.entries(projOrgLinks)) {
+    if (l.createdBy === userId) {
+      updates['project_org_links/' + lId + '/createdByName'] = newName;
+    }
+  }
+
+  // Apply all updates atomically
+  await db.ref().update(updates);
+
+  const cascadeCount = Object.keys(updates).length - 1;
+  console.log('[ORG] Renamed user:', userId, '"' + (user.name || user.email) + '" → "' + newName + '"', '(' + cascadeCount + ' related records updated)');
+
+  return respond(200, { success: true, cascadeCount });
+}
+
 // === MAIN HANDLER ===
 exports.handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return optionsResponse();
@@ -591,8 +678,9 @@ exports.handler = async (event) => {
       case 'delete-assignment':  return await handleDeleteAssignment(body, decoded);
       case 'list-assignments':   return await handleListAssignments(decoded);
 
-      // User listing
+      // User management
       case 'list-users':         return await handleListUsers(decoded);
+      case 'update-user':        return await handleUpdateUserName(body, decoded);
 
       default: return respond(400, { error: 'Invalid action.' });
     }

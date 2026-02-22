@@ -559,6 +559,17 @@ const DB = {
     return [];
   },
 
+  async updateUserName(userId, name) {
+    if (!dbConnected) throw new Error('Server connection required.');
+    const res = await apiCall('/organizations', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'update-user', userId, name })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to update user name.');
+    return data;
+  },
+
   // === PROJECTS ===
   async getProjects() {
     if (!dbConnected) { console.warn('[DB] getProjects skipped — not connected'); return state.projects || []; }
