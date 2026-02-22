@@ -2266,18 +2266,26 @@ function renderAssignmentList(assignments) {
     return;
   }
 
+  const usrMap = {};
+  (state.users || []).forEach(u => { usrMap[u.uid] = u; });
+
   el.innerHTML = `<div class="tbl-wrap"><table>
-    <thead><tr><th>Consultant</th><th>Org</th><th></th><th>Contractor</th><th>Org</th><th>Project</th><th>Created</th><th>Actions</th></tr></thead>
-    <tbody>${assignments.map(a => `<tr>
+    <thead><tr><th>Consultant</th><th>Email</th><th>Org</th><th></th><th>Contractor</th><th>Email</th><th>Org</th><th>Project</th><th>Created</th><th>Actions</th></tr></thead>
+    <tbody>${assignments.map(a => {
+      const consUser = usrMap[a.consultantUid] || {};
+      const contrUser = usrMap[a.contractorUid] || {};
+      return `<tr>
       <td style="font-weight:600;color:var(--green)"><span style="cursor:pointer;border-bottom:1px dashed var(--green)" title="Click to rename" onclick="renameUserFromBadge('${a.consultantUid}','${(a.consultantName || '').replace(/'/g, "\\'")}')">${a.consultantName}</span></td>
+      <td style="font-size:11px;color:var(--slate5)">${consUser.email || '--'}</td>
       <td style="font-size:11px;color:var(--slate5)">${a.consultantOrgName ? '<span style="cursor:pointer;border-bottom:1px dashed var(--slate5)" title="Click to rename" onclick="renameOrgFromBadge(\'' + a.consultantOrgId + '\',\'' + (a.consultantOrgName || '').replace(/'/g, "\\'") + '\')">' + a.consultantOrgName + '</span>' : '—'}</td>
       <td style="color:var(--slate5);text-align:center">→</td>
       <td style="font-weight:600;color:var(--blue)"><span style="cursor:pointer;border-bottom:1px dashed var(--blue)" title="Click to rename" onclick="renameUserFromBadge('${a.contractorUid}','${(a.contractorName || '').replace(/'/g, "\\'")}')">${a.contractorName}</span></td>
+      <td style="font-size:11px;color:var(--slate5)">${contrUser.email || '--'}</td>
       <td style="font-size:11px;color:var(--slate5)">${a.contractorOrgName ? '<span style="cursor:pointer;border-bottom:1px dashed var(--slate5)" title="Click to rename" onclick="renameOrgFromBadge(\'' + a.contractorOrgId + '\',\'' + (a.contractorOrgName || '').replace(/'/g, "\\'") + '\')">' + a.contractorOrgName + '</span>' : '—'}</td>
       <td style="font-size:12px;color:var(--purple)">${a.projectName || 'All projects'}</td>
       <td style="font-size:11px;color:var(--slate5)">${new Date(a.createdAt).toLocaleDateString()}</td>
       <td><button class="btn btn-danger btn-sm" onclick="deleteUserAssignment('${a.id}')">Remove</button></td>
-    </tr>`).join('')}</tbody>
+    </tr>`; }).join('')}</tbody>
   </table></div>`;
 }
 
@@ -2292,9 +2300,10 @@ function renderUserOrgList(users) {
   }
 
   el.innerHTML = `<div class="tbl-wrap"><table>
-    <thead><tr><th>User</th><th>Role</th><th>Organization</th></tr></thead>
+    <thead><tr><th>User</th><th>Email</th><th>Role</th><th>Organization</th></tr></thead>
     <tbody>${usersWithOrg.map(u => `<tr>
       <td style="font-weight:600"><span style="cursor:pointer;border-bottom:1px dashed var(--slate4)" title="Click to rename" onclick="renameUserFromBadge('${u.uid}','${(u.name || '').replace(/'/g, "\\'")}')">${u.name}</span></td>
+      <td style="color:var(--slate5);font-size:12px">${u.email || '--'}</td>
       <td><span class="badge ${u.role === 'consultant' ? 'approved' : u.role === 'contractor' ? 'review' : 'pending'}" style="text-transform:capitalize">${u.role}</span></td>
       <td style="color:var(--green)"><span style="cursor:pointer;border-bottom:1px dashed var(--green)" title="Click to rename org" onclick="renameOrgFromBadge('${u.organizationId}','${(u.organizationName || '').replace(/'/g, "\\'")}')">${u.organizationName}</span></td>
     </tr>`).join('')}</tbody>
@@ -2328,7 +2337,7 @@ function populateOrgDropdowns(orgs, users) {
   // User-to-org dropdowns
   const uEl = $('userToAssign');
   const oEl = $('orgToAssignTo');
-  if (uEl) uEl.innerHTML = '<option value="">Select user...</option>' + users.filter(u => u.role !== 'client').map(u => `<option value="${u.uid}">${u.name} (${u.role})${u.organizationName ? ' — ' + u.organizationName : ''}</option>`).join('');
+  if (uEl) uEl.innerHTML = '<option value="">Select user...</option>' + users.filter(u => u.role !== 'client').map(u => `<option value="${u.uid}">${u.name} (${u.email}) [${u.role}]${u.organizationName ? ' — ' + u.organizationName : ''}</option>`).join('');
   if (oEl) oEl.innerHTML = '<option value="">Select organization...</option>' + orgs.map(o => `<option value="${o.id}">${o.name} (${o.type.replace('_', ' ')})</option>`).join('');
   const uopEl = $('userOrgProject');
   if (uopEl) uopEl.innerHTML = '<option value="">All projects</option>' + projectOptions;
@@ -2979,7 +2988,7 @@ function renderProjectUserAssignments(assignments) {
     html += `<div style="margin-bottom:12px">
       <div style="font-size:11px;font-weight:700;color:var(--blue);text-transform:uppercase;letter-spacing:1px;padding:6px 0">${group.name}</div>
       <div class="tbl-wrap"><table>
-        <thead><tr><th>User</th><th>Designation</th><th>Role</th><th>Organization</th><th>Assigned By</th>${showActions ? '<th>Actions</th>' : ''}</tr></thead>
+        <thead><tr><th>User</th><th>Email</th><th>Designation</th><th>Role</th><th>Organization</th><th>Assigned By</th>${showActions ? '<th>Actions</th>' : ''}</tr></thead>
         <tbody>${group.items.map(a => {
           const desigBadge = a.designation === 'in_charge'
             ? '<span class="badge" style="background:rgba(251,191,36,0.15);color:var(--yellow);font-weight:700">In-Charge</span>'
@@ -2995,6 +3004,7 @@ function renderProjectUserAssignments(assignments) {
           }
           return `<tr>
           <td style="font-weight:600"><span style="cursor:pointer;border-bottom:1px dashed var(--slate5)" title="Click to rename" onclick="renameUserFromBadge('${a.userId}','${(a.userName || '').replace(/'/g, "\\'")}')">${a.userName}</span></td>
+          <td style="color:var(--slate5);font-size:12px">${a.userEmail || '--'}</td>
           <td>${desigBadge}</td>
           <td><span class="badge ${a.userRole === 'consultant' ? 'approved' : a.userRole === 'contractor' ? 'review' : 'pending'}" style="text-transform:capitalize">${a.userRole}</span></td>
           <td style="color:var(--slate5);font-size:12px">${a.userOrgName ? '<span style="cursor:pointer;border-bottom:1px dashed var(--slate5)" title="Click to rename org" onclick="renameOrgFromBadge(\'' + a.userOrgId + '\',\'' + (a.userOrgName || '').replace(/'/g, "\\'") + '\')">' + a.userOrgName + '</span>' : '--'}</td>
@@ -3069,7 +3079,7 @@ function populateProjectDropdowns(projects, users, orgs) {
     // Consultant in-charge can assign own org members + contractor users
     availableUsers = availableUsers.filter(u => u.role === 'consultant' || u.role === 'contractor');
   }
-  if (uuEl) uuEl.innerHTML = '<option value="">Select user...</option>' + availableUsers.map(u => `<option value="${u.uid}">${u.name} (${u.role})${u.organizationName ? ' - ' + u.organizationName : ''}</option>`).join('');
+  if (uuEl) uuEl.innerHTML = '<option value="">Select user...</option>' + availableUsers.map(u => `<option value="${u.uid}">${u.name} (${u.email}) [${u.role}]${u.organizationName ? ' — ' + u.organizationName : ''}</option>`).join('');
 }
 
 // === CONSULTANT CONTRACTOR PERMISSION FILTERING ===
