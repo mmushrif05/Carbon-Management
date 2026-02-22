@@ -1,5 +1,6 @@
 const { getDb, verifyToken, respond, optionsResponse, csrfCheck } = require('./utils/firebase');
 const { getClientId, checkRateLimit } = require('./lib/rate-limit');
+const { dbPath } = require('./utils/config');
 
 async function getUserProfile(uid) {
   const db = getDb();
@@ -45,7 +46,7 @@ async function handleList(event) {
   try {
     const db = getDb();
     const profile = await getUserProfile(decoded.uid);
-    const snap = await db.ref('projects/ksia/entries').once('value');
+    const snap = await db.ref(dbPath('entries')).once('value');
     const data = snap.val();
     let entries = data ? Object.values(data) : [];
 
@@ -123,7 +124,7 @@ async function handleSave(event, body) {
       entry.organizationName = profile.organizationName || null;
     }
 
-    await db.ref('projects/ksia/entries/' + entry.id).set(entry);
+    await db.ref(dbPath('entries') + '/' + entry.id).set(entry);
     return respond(200, { success: true });
   } catch (e) {
     return respond(500, { error: 'Failed to save entry' });
@@ -154,7 +155,7 @@ async function handleUpdate(event, body) {
 
     // Enforce assignment-based access for consultants
     if (profile && profile.role === 'consultant') {
-      const entrySnap = await db.ref('projects/ksia/entries/' + id).once('value');
+      const entrySnap = await db.ref(dbPath('entries') + '/' + id).once('value');
       const entry = entrySnap.val();
       if (entry && entry.submittedByUid) {
         const assignedContractors = await getAssignedContractorUids(decoded.uid);
@@ -165,7 +166,7 @@ async function handleUpdate(event, body) {
       }
     }
 
-    await db.ref('projects/ksia/entries/' + id).update(safeUpdates);
+    await db.ref(dbPath('entries') + '/' + id).update(safeUpdates);
     return respond(200, { success: true });
   } catch (e) {
     return respond(500, { error: 'Failed to update entry' });
@@ -209,7 +210,7 @@ async function handleBatchSave(event, body) {
         entry.organizationId = profile.organizationId || null;
         entry.organizationName = profile.organizationName || null;
       }
-      updates['projects/ksia/entries/' + entry.id] = entry;
+      updates[dbPath('entries') + '/' + entry.id] = entry;
     }
 
     await db.ref().update(updates);
@@ -229,11 +230,11 @@ async function handleDelete(event, body) {
   try {
     const db = getDb();
     // Verify the entry exists and belongs to the user or user has permission
-    const snap = await db.ref('projects/ksia/entries/' + id).once('value');
+    const snap = await db.ref(dbPath('entries') + '/' + id).once('value');
     const entry = snap.val();
     if (!entry) return respond(404, { error: 'Entry not found' });
 
-    await db.ref('projects/ksia/entries/' + id).remove();
+    await db.ref(dbPath('entries') + '/' + id).remove();
     return respond(200, { success: true });
   } catch (e) {
     return respond(500, { error: 'Failed to delete entry' });
@@ -256,7 +257,7 @@ async function handleRequestChange(event, body) {
     const profile = await getUserProfile(decoded.uid);
 
     // Verify the entry exists and belongs to the requester (by UID or organization)
-    const entrySnap = await db.ref('projects/ksia/entries/' + String(entryId)).once('value');
+    const entrySnap = await db.ref(dbPath('entries') + '/' + String(entryId)).once('value');
     const entry = entrySnap.val();
     if (!entry) return respond(404, { error: 'Entry not found' });
     const isOwner = entry.submittedByUid === decoded.uid ||
@@ -285,11 +286,11 @@ async function handleRequestChange(event, body) {
       requestedAt: new Date().toISOString()
     };
 
-    await db.ref('projects/ksia/editRequests/' + requestId).set(request);
+    await db.ref(dbPath('editRequests') + '/' + requestId).set(request);
 
     // Mark the entry with a pending request flag — store enough info on the entry itself
     // so consultants can see and act on requests directly from the entry list
-    await db.ref('projects/ksia/entries/' + String(entryId)).update({
+    await db.ref(dbPath('entries') + '/' + String(entryId)).update({
       editRequestId: requestId,
       editRequestType: requestType,
       editRequestStatus: 'pending',
@@ -312,7 +313,7 @@ async function handleListRequests(event) {
   try {
     const db = getDb();
     const profile = await getUserProfile(decoded.uid);
-    const snap = await db.ref('projects/ksia/editRequests').once('value');
+    const snap = await db.ref(dbPath('editRequests')).once('value');
     const data = snap.val();
     let requests = data ? Object.values(data) : [];
 
@@ -373,13 +374,13 @@ async function handleResolveRequest(event, body) {
       return respond(403, { error: 'Contractors cannot approve/reject requests' });
     }
 
-    const reqSnap = await db.ref('projects/ksia/editRequests/' + requestId).once('value');
+    const reqSnap = await db.ref(dbPath('editRequests') + '/' + requestId).once('value');
     const request = reqSnap.val();
     if (!request) return respond(404, { error: 'Request not found' });
     if (request.status !== 'pending') return respond(400, { error: 'Request already resolved' });
 
     // Update request status
-    await db.ref('projects/ksia/editRequests/' + requestId).update({
+    await db.ref(dbPath('editRequests') + '/' + requestId).update({
       status: resolution,
       resolvedBy: decoded.name || decoded.email,
       resolvedByUid: decoded.uid,
@@ -387,7 +388,7 @@ async function handleResolveRequest(event, body) {
     });
 
     // Update the entry's request flag
-    const entryRef = db.ref('projects/ksia/entries/' + request.entryId);
+    const entryRef = db.ref(dbPath('entries') + '/' + request.entryId);
     const entrySnap = await entryRef.once('value');
     const entry = entrySnap.val();
 
@@ -434,7 +435,7 @@ async function handleApplyEdit(event, body) {
   try {
     const db = getDb();
     const profile = await getUserProfile(decoded.uid);
-    const entryRef = db.ref('projects/ksia/entries/' + String(entryId));
+    const entryRef = db.ref(dbPath('entries') + '/' + String(entryId));
     const entrySnap = await entryRef.once('value');
     const entry = entrySnap.val();
 
@@ -492,13 +493,13 @@ async function handleForceDelete(event, body) {
       return respond(403, { error: 'Only consultants and clients can force-delete entries' });
     }
 
-    const snap = await db.ref('projects/ksia/entries/' + id).once('value');
+    const snap = await db.ref(dbPath('entries') + '/' + id).once('value');
     const entry = snap.val();
     if (!entry) return respond(404, { error: 'Entry not found' });
 
     // Log the deletion for audit trail
     const auditId = Date.now() + '_' + Math.random().toString(36).substr(2, 6);
-    await db.ref('projects/ksia/auditLog/' + auditId).set({
+    await db.ref(dbPath('auditLog') + '/' + auditId).set({
       action: 'force-delete',
       entryId: id,
       entryCategory: entry.category,
@@ -515,13 +516,13 @@ async function handleForceDelete(event, body) {
     });
 
     // Remove the entry
-    await db.ref('projects/ksia/entries/' + id).remove();
+    await db.ref(dbPath('entries') + '/' + id).remove();
 
     // Also clean up any pending edit requests for this entry
-    const reqSnap = await db.ref('projects/ksia/editRequests').orderByChild('entryId').equalTo(String(id)).once('value');
+    const reqSnap = await db.ref(dbPath('editRequests')).orderByChild('entryId').equalTo(String(id)).once('value');
     const requests = reqSnap.val() || {};
     for (const reqId of Object.keys(requests)) {
-      await db.ref('projects/ksia/editRequests/' + reqId).update({ status: 'resolved_by_delete', resolvedAt: new Date().toISOString() });
+      await db.ref(dbPath('editRequests') + '/' + reqId).update({ status: 'resolved_by_delete', resolvedAt: new Date().toISOString() });
     }
 
     return respond(200, { success: true });
@@ -547,7 +548,7 @@ async function handleForceCorrect(event, body) {
       return respond(403, { error: 'Only consultants and clients can force-correct entries' });
     }
 
-    const entryRef = db.ref('projects/ksia/entries/' + id);
+    const entryRef = db.ref(dbPath('entries') + '/' + id);
     const snap = await entryRef.once('value');
     const entry = snap.val();
     if (!entry) return respond(404, { error: 'Entry not found' });
@@ -565,7 +566,7 @@ async function handleForceCorrect(event, body) {
 
     // Audit trail
     const auditId = Date.now() + '_' + Math.random().toString(36).substr(2, 6);
-    await db.ref('projects/ksia/auditLog/' + auditId).set({
+    await db.ref(dbPath('auditLog') + '/' + auditId).set({
       action: 'force-correct',
       entryId: id,
       previousValues: Object.fromEntries(Object.keys(safeFixes).map(k => [k, entry[k]])),

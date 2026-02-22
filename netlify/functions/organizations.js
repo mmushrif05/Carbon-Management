@@ -1,9 +1,10 @@
 const { getDb, verifyToken, respond, optionsResponse, csrfCheck } = require('./utils/firebase');
 const { getClientId, checkRateLimit } = require('./lib/rate-limit');
+const { PROJECT_ID } = require('./utils/config');
 
 // ===== ORGANIZATIONS & ASSIGNMENTS API =====
 // Manages the enterprise hierarchy:
-//   Client (KSIA) → Consultant Firms (Parsons, Bechtel) → Contractor Companies
+//   Client → Consultant Firms → Contractor Companies
 // And the assignment of specific consultants to specific contractors.
 
 async function getUserProfile(uid) {
@@ -30,7 +31,7 @@ async function handleCreateOrg(body, decoded) {
   }
 
   const db = getDb();
-  const project = profile.project || 'ksia';
+  const project = profile.project || PROJECT_ID;
   const orgId = Date.now().toString();
 
   const org = {
@@ -55,7 +56,7 @@ async function handleListOrgs(decoded) {
   if (!profile) return respond(403, { error: 'Profile not found.' });
 
   const db = getDb();
-  const project = profile.project || 'ksia';
+  const project = profile.project || PROJECT_ID;
 
   const snap = await db.ref('organizations')
     .orderByChild('project')
@@ -266,7 +267,7 @@ async function handleLinkOrgs(body, decoded) {
     contractorOrgName: contractorOrg.name,
     projectId: projectId || null,
     projectName: projectName,
-    project: profile.project || 'ksia',
+    project: profile.project || PROJECT_ID,
     createdBy: decoded.uid,
     createdAt: new Date().toISOString()
   };
@@ -305,7 +306,7 @@ async function handleListLinks(decoded) {
   if (!profile) return respond(403, { error: 'Profile not found.' });
 
   const db = getDb();
-  const project = profile.project || 'ksia';
+  const project = profile.project || PROJECT_ID;
 
   const snap = await db.ref('org_links')
     .orderByChild('project')
@@ -388,7 +389,7 @@ async function handleCreateAssignment(body, decoded) {
     contractorOrgName: contractor.organizationName || null,
     projectId: projectId || null,
     projectName: projectName,
-    project: profile.project || 'ksia',
+    project: profile.project || PROJECT_ID,
     createdBy: decoded.uid,
     createdByName: profile.name || profile.email,
     createdAt: new Date().toISOString()
@@ -428,7 +429,7 @@ async function handleListAssignments(decoded) {
   if (!profile) return respond(403, { error: 'Profile not found.' });
 
   const db = getDb();
-  const project = profile.project || 'ksia';
+  const project = profile.project || PROJECT_ID;
 
   const snap = await db.ref('assignments')
     .orderByChild('project')
@@ -469,7 +470,7 @@ async function handleListUsers(decoded) {
     organizationId: u.organizationId || null,
     organizationName: u.organizationName || null,
     project: u.project
-  })).filter(u => u.project === (profile.project || 'ksia'));
+  })).filter(u => u.project === (profile.project || PROJECT_ID));
 
   return respond(200, { users });
 }

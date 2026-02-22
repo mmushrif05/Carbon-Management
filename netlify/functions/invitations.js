@@ -1,6 +1,7 @@
 const { getDb, getAuth, verifyToken, respond, optionsResponse, csrfCheck } = require('./utils/firebase');
 const crypto = require('crypto');
 const { getClientId, checkRateLimit } = require('./lib/rate-limit');
+const { PROJECT_ID } = require('./utils/config');
 
 const VALID_ROLES = ['contractor', 'consultant', 'client'];
 
@@ -47,7 +48,7 @@ async function handleCreate(body, decoded) {
   }
 
   const db = getDb();
-  const project = inviterProfile.project || 'ksia';
+  const project = inviterProfile.project || PROJECT_ID;
   const trimmedEmail = email.trim().toLowerCase();
 
   // Check if user already registered — one email, one role only
@@ -120,7 +121,7 @@ async function handleList(decoded) {
   }
 
   const db = getDb();
-  const project = inviterProfile.project || 'ksia';
+  const project = inviterProfile.project || PROJECT_ID;
 
   // Get all invitations for this project
   const snap = await db.ref('invitations')

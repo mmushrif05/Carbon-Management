@@ -1,6 +1,7 @@
 const nodemailer = require('nodemailer');
 const { getDb, verifyToken, respond, optionsResponse, csrfCheck } = require('./utils/firebase');
 const { getClientId, checkRateLimit } = require('./lib/rate-limit');
+const { PROJECT_NAME, APP_BRAND, APP_TAGLINE } = require('./utils/config');
 
 // Create reusable transporter using SMTP env vars
 function createTransporter() {
@@ -70,7 +71,7 @@ function buildInvitationEmail(invitation, appUrl) {
         </div>
         <div style="display:flex;margin-bottom:8px">
           <span style="color:#64748b;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;width:80px">PROJECT</span>
-          <span style="color:#ecfdf5;font-size:13px">KSIA — King Salman International Airport</span>
+          <span style="color:#ecfdf5;font-size:13px">${PROJECT_NAME}</span>
         </div>
         <div style="display:flex">
           <span style="color:#64748b;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;width:80px">EXPIRES</span>
@@ -93,7 +94,7 @@ function buildInvitationEmail(invitation, appUrl) {
     <!-- Footer -->
     <div style="padding:20px 32px;border-top:1px solid rgba(52,211,153,0.08);text-align:center">
       <p style="color:#475569;font-size:10px;margin:0">
-        CarbonTrack Pro v2.0 — KSIA Sustainability Program<br>
+        ${APP_BRAND}<br>
         This invitation expires in 7 days. If you didn't expect this email, you can ignore it.
       </p>
     </div>
@@ -107,14 +108,14 @@ ${invitation.invitedByName} has invited you to join CarbonTrack Pro as a ${roleL
 
 ${invitation.message ? `Message: "${invitation.message}"\n` : ''}
 Role: ${roleLabel}
-Project: KSIA — King Salman International Airport
+Project: ${PROJECT_NAME}
 Expires: ${new Date(invitation.expiresAt).toLocaleDateString()}
 
 Accept your invitation and create your account:
 ${inviteLink}
 
 This invitation expires in 7 days.
-CarbonTrack Pro v2.0 — KSIA Sustainability Program`;
+${APP_BRAND}`;
 
   return { html, text };
 }
@@ -192,7 +193,7 @@ function buildBatchNotificationEmail(contractorName, entryCount, appUrl) {
       <p style="color:#94a3b8;font-size:14px;line-height:1.6;margin:0 0 20px">
         <strong style="color:#a7f3d0">${contractorName}</strong> has submitted a batch of
         <strong style="color:#34d399">${entryCount} material entr${entryCount === 1 ? 'y' : 'ies'}</strong>
-        for your review on the KSIA project.
+        for your review.
       </p>
 
       <div style="background:#16201b;border:1px solid rgba(52,211,153,0.1);border-radius:10px;padding:16px;margin-bottom:24px">
@@ -206,7 +207,7 @@ function buildBatchNotificationEmail(contractorName, entryCount, appUrl) {
         </div>
         <div style="display:flex">
           <span style="color:#64748b;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;width:120px">PROJECT</span>
-          <span style="color:#ecfdf5;font-size:13px">KSIA — King Salman International Airport</span>
+          <span style="color:#ecfdf5;font-size:13px">${PROJECT_NAME}</span>
         </div>
       </div>
 
@@ -224,7 +225,7 @@ function buildBatchNotificationEmail(contractorName, entryCount, appUrl) {
     <!-- Footer -->
     <div style="padding:20px 32px;border-top:1px solid rgba(52,211,153,0.08);text-align:center">
       <p style="color:#475569;font-size:10px;margin:0">
-        CarbonTrack Pro v2.0 — KSIA Sustainability Program<br>
+        ${APP_BRAND}<br>
         You are receiving this because you are a Consultant on this project.
       </p>
     </div>
@@ -234,13 +235,13 @@ function buildBatchNotificationEmail(contractorName, entryCount, appUrl) {
 
   const text = `New Data Batch Ready for Review — CarbonTrack Pro
 
-${contractorName} has submitted ${entryCount} material entr${entryCount === 1 ? 'y' : 'ies'} for your review on the KSIA project.
+${contractorName} has submitted ${entryCount} material entr${entryCount === 1 ? 'y' : 'ies'} for your review.
 
-Log in to CarbonTrack Pro and go to the Approvals section to review and forward these entries.
+Log in to ${APP_BRAND} and go to the Approvals section to review and forward these entries.
 
 ${appUrl}
 
-CarbonTrack Pro v2.0 — KSIA Sustainability Program`;
+${APP_BRAND}`;
 
   return { html, text };
 }

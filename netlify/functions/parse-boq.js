@@ -1,7 +1,6 @@
 // ===== ECCS — Enhanced BOQ Carbon Classification Engine =====
-// AI-powered BOQ parsing with KSIA-grade classification hierarchy
-// Version 3.0 — Parsons Arabia Decarbonization Unit methodology
-// Supports chunked processing for large documents (parts 1-12+)
+// AI-powered BOQ parsing with enterprise-grade classification hierarchy
+// Version 3.0 — Supports chunked processing for large documents (parts 1-12+)
 const { getDb, verifyToken, headers, respond, optionsResponse, csrfCheck } = require('./utils/firebase');
 const { getClientId, checkRateLimit } = require('./lib/rate-limit');
 

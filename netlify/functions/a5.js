@@ -1,5 +1,6 @@
 const { getDb, verifyToken, respond, optionsResponse, csrfCheck } = require('./utils/firebase');
 const { getClientId, checkRateLimit } = require('./lib/rate-limit');
+const { dbPath } = require('./utils/config');
 
 async function getUserProfile(uid) {
   const db = getDb();
@@ -14,7 +15,7 @@ async function handleList(event) {
   try {
     const db = getDb();
     const profile = await getUserProfile(decoded.uid);
-    const snap = await db.ref('projects/ksia/a5entries').once('value');
+    const snap = await db.ref(dbPath('a5entries')).once('value');
     const data = snap.val();
     let entries = data ? Object.values(data) : [];
 
@@ -55,7 +56,7 @@ async function handleSave(event, body) {
       entry.organizationName = profile.organizationName || null;
     }
 
-    await db.ref('projects/ksia/a5entries/' + entry.id).set(entry);
+    await db.ref(dbPath('a5entries') + '/' + entry.id).set(entry);
     return respond(200, { success: true });
   } catch (e) {
     return respond(500, { error: 'Failed to save A5 entry' });
@@ -71,7 +72,7 @@ async function handleDelete(event, body) {
 
   try {
     const db = getDb();
-    await db.ref('projects/ksia/a5entries/' + id).remove();
+    await db.ref(dbPath('a5entries') + '/' + id).remove();
     return respond(200, { success: true });
   } catch (e) {
     return respond(500, { error: 'Failed to delete A5 entry' });
