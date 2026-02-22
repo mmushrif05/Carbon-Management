@@ -440,7 +440,7 @@ function buildProjectContext() {
     matMap[cat].actual += (e.a13A || 0);
     matMap[cat].entries++;
   });
-  a5entries.forEach(function(e) { a5Total += (e.emission || 0); });
+  a5entries.filter(function(e) { return e.stage !== 'a4'; }).forEach(function(e) { a5Total += (e.emission || 0); });
 
   var materials = Object.values(matMap).map(function(m) {
     m.reduction = m.baseline > 0 ? ((m.baseline - m.actual) / m.baseline * 100).toFixed(1) : 0;
