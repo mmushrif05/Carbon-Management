@@ -2248,9 +2248,9 @@ function renderLinkList(links) {
   el.innerHTML = `<div class="tbl-wrap"><table>
     <thead><tr><th>Consultant Firm</th><th></th><th>Contractor Company</th><th>Project</th><th>Actions</th></tr></thead>
     <tbody>${links.map(l => `<tr>
-      <td style="font-weight:600;color:var(--green)">${l.consultantOrgName}</td>
+      <td style="font-weight:600;color:var(--green)"><span style="cursor:pointer;border-bottom:1px dashed var(--green)" title="Click to rename" onclick="renameOrgFromBadge('${l.consultantOrgId}','${(l.consultantOrgName || '').replace(/'/g, "\\'")}')">${l.consultantOrgName}</span></td>
       <td style="color:var(--slate5);text-align:center">→</td>
-      <td style="font-weight:600;color:var(--blue)">${l.contractorOrgName}</td>
+      <td style="font-weight:600;color:var(--blue)"><span style="cursor:pointer;border-bottom:1px dashed var(--blue)" title="Click to rename" onclick="renameOrgFromBadge('${l.contractorOrgId}','${(l.contractorOrgName || '').replace(/'/g, "\\'")}')">${l.contractorOrgName}</span></td>
       <td style="font-size:12px;color:var(--purple)">${l.projectName || 'All projects'}</td>
       <td><button class="btn btn-danger btn-sm" onclick="unlinkOrganizations('${l.id}')">Unlink</button></td>
     </tr>`).join('')}</tbody>
@@ -2269,11 +2269,11 @@ function renderAssignmentList(assignments) {
   el.innerHTML = `<div class="tbl-wrap"><table>
     <thead><tr><th>Consultant</th><th>Org</th><th></th><th>Contractor</th><th>Org</th><th>Project</th><th>Created</th><th>Actions</th></tr></thead>
     <tbody>${assignments.map(a => `<tr>
-      <td style="font-weight:600;color:var(--green)">${a.consultantName}</td>
-      <td style="font-size:11px;color:var(--slate5)">${a.consultantOrgName || '—'}</td>
+      <td style="font-weight:600;color:var(--green)"><span style="cursor:pointer;border-bottom:1px dashed var(--green)" title="Click to rename" onclick="renameUserFromBadge('${a.consultantUid}','${(a.consultantName || '').replace(/'/g, "\\'")}')">${a.consultantName}</span></td>
+      <td style="font-size:11px;color:var(--slate5)">${a.consultantOrgName ? '<span style="cursor:pointer;border-bottom:1px dashed var(--slate5)" title="Click to rename" onclick="renameOrgFromBadge(\'' + a.consultantOrgId + '\',\'' + (a.consultantOrgName || '').replace(/'/g, "\\'") + '\')">' + a.consultantOrgName + '</span>' : '—'}</td>
       <td style="color:var(--slate5);text-align:center">→</td>
-      <td style="font-weight:600;color:var(--blue)">${a.contractorName}</td>
-      <td style="font-size:11px;color:var(--slate5)">${a.contractorOrgName || '—'}</td>
+      <td style="font-weight:600;color:var(--blue)"><span style="cursor:pointer;border-bottom:1px dashed var(--blue)" title="Click to rename" onclick="renameUserFromBadge('${a.contractorUid}','${(a.contractorName || '').replace(/'/g, "\\'")}')">${a.contractorName}</span></td>
+      <td style="font-size:11px;color:var(--slate5)">${a.contractorOrgName ? '<span style="cursor:pointer;border-bottom:1px dashed var(--slate5)" title="Click to rename" onclick="renameOrgFromBadge(\'' + a.contractorOrgId + '\',\'' + (a.contractorOrgName || '').replace(/'/g, "\\'") + '\')">' + a.contractorOrgName + '</span>' : '—'}</td>
       <td style="font-size:12px;color:var(--purple)">${a.projectName || 'All projects'}</td>
       <td style="font-size:11px;color:var(--slate5)">${new Date(a.createdAt).toLocaleDateString()}</td>
       <td><button class="btn btn-danger btn-sm" onclick="deleteUserAssignment('${a.id}')">Remove</button></td>
@@ -2294,9 +2294,9 @@ function renderUserOrgList(users) {
   el.innerHTML = `<div class="tbl-wrap"><table>
     <thead><tr><th>User</th><th>Role</th><th>Organization</th></tr></thead>
     <tbody>${usersWithOrg.map(u => `<tr>
-      <td style="font-weight:600">${u.name}</td>
+      <td style="font-weight:600"><span style="cursor:pointer;border-bottom:1px dashed var(--slate4)" title="Click to rename" onclick="renameUserFromBadge('${u.uid}','${(u.name || '').replace(/'/g, "\\'")}')">${u.name}</span></td>
       <td><span class="badge ${u.role === 'consultant' ? 'approved' : u.role === 'contractor' ? 'review' : 'pending'}" style="text-transform:capitalize">${u.role}</span></td>
-      <td style="color:var(--green)">${u.organizationName}</td>
+      <td style="color:var(--green)"><span style="cursor:pointer;border-bottom:1px dashed var(--green)" title="Click to rename org" onclick="renameOrgFromBadge('${u.organizationId}','${(u.organizationName || '').replace(/'/g, "\\'")}')">${u.organizationName}</span></td>
     </tr>`).join('')}</tbody>
   </table></div>`;
 }
@@ -2405,6 +2405,59 @@ async function saveOrgRename(orgId) {
     await loadOrgData();
   } catch (e) {
     alert(e.message || 'Failed to rename organization.');
+  }
+}
+
+// === GLOBAL RENAME FUNCTIONS (clickable badges) ===
+
+async function renameOrgFromBadge(orgId, currentName) {
+  const newName = prompt('Rename organization:\n(Changes will apply everywhere)', currentName);
+  if (!newName || newName.trim() === '' || newName.trim() === currentName) return;
+  try {
+    await DB.updateOrganization(orgId, newName.trim());
+    // Refresh whichever page is currently active
+    if (state.page === 'projects') await loadProjectData();
+    else if (state.page === 'organizations') await loadOrgData();
+    else navigate(state.page);
+  } catch (e) {
+    alert(e.message || 'Failed to rename organization.');
+  }
+}
+
+async function renamePackageFromBadge(templateId, currentName) {
+  const newName = prompt('Rename package template:\n(Changes will apply everywhere)', currentName);
+  if (!newName || newName.trim() === '' || newName.trim() === currentName) return;
+  try {
+    await DB.updatePackageTemplate(templateId, { name: newName.trim() });
+    if (state.page === 'projects') await loadProjectData();
+    else navigate(state.page);
+  } catch (e) {
+    alert(e.message || 'Failed to rename package template.');
+  }
+}
+
+async function renameProjectFromBadge(projectId, currentName) {
+  const newName = prompt('Rename project:\n(Changes will apply everywhere)', currentName);
+  if (!newName || newName.trim() === '' || newName.trim() === currentName) return;
+  try {
+    await DB.updateProject(projectId, { name: newName.trim() });
+    if (state.page === 'projects') await loadProjectData();
+    else navigate(state.page);
+  } catch (e) {
+    alert(e.message || 'Failed to rename project.');
+  }
+}
+
+async function renameUserFromBadge(userId, currentName) {
+  const newName = prompt('Rename user:\n(Changes will apply everywhere)', currentName);
+  if (!newName || newName.trim() === '' || newName.trim() === currentName) return;
+  try {
+    await DB.updateUserName(userId, newName.trim());
+    if (state.page === 'projects') await loadProjectData();
+    else if (state.page === 'organizations') await loadOrgData();
+    else navigate(state.page);
+  } catch (e) {
+    alert(e.message || 'Failed to rename user.');
   }
 }
 
@@ -2764,8 +2817,8 @@ function renderProjectList(projects) {
       const inChargeCount = pAssign.filter(a => a.designation === 'in_charge').length;
       const teamCount = pAssign.filter(a => a.designation !== 'in_charge').length;
       const statusClass = p.status === 'active' ? 'approved' : p.status === 'completed' ? 'review' : 'pending';
-      const consOrgNames = consOrgs.map(l => '<span class="badge approved" style="font-size:10px;margin:1px">' + l.orgName + ' (' + (l.role || 'Consultant') + ')</span>').join(' ') || '<span style="color:var(--slate5);font-size:11px">--</span>';
-      const contOrgNames = contOrgs.map(l => '<span class="badge review" style="font-size:10px;margin:1px">' + l.orgName + '</span>').join(' ') || '<span style="color:var(--slate5);font-size:11px">--</span>';
+      const consOrgNames = consOrgs.map(l => '<span class="badge approved" style="font-size:10px;margin:1px;cursor:pointer" title="Click to rename" onclick="renameOrgFromBadge(\'' + l.orgId + '\',\'' + (l.orgName || '').replace(/'/g, "\\'") + '\')">' + l.orgName + ' (' + (l.role || 'Consultant') + ')</span>').join(' ') || '<span style="color:var(--slate5);font-size:11px">--</span>';
+      const contOrgNames = contOrgs.map(l => '<span class="badge review" style="font-size:10px;margin:1px;cursor:pointer" title="Click to rename" onclick="renameOrgFromBadge(\'' + l.orgId + '\',\'' + (l.orgName || '').replace(/'/g, "\\'") + '\')">' + l.orgName + '</span>').join(' ') || '<span style="color:var(--slate5);font-size:11px">--</span>';
       // Resolve packageIds to names using templates
       const tplMap = {};
       (state.packageTemplates || []).forEach(t => { tplMap[t.id] = t; });
@@ -2776,7 +2829,7 @@ function renderProjectList(projects) {
           pkgBadges = ids.map(id => {
             const tpl = tplMap[id];
             const name = tpl ? tpl.name : id;
-            return '<span class="badge" style="background:rgba(139,92,246,0.1);color:var(--purple);font-size:10px;margin:1px">' + name + '</span>';
+            return '<span class="badge" style="background:rgba(139,92,246,0.1);color:var(--purple);font-size:10px;margin:1px;cursor:pointer" title="Click to rename" onclick="renamePackageFromBadge(\'' + id + '\',\'' + name.replace(/'/g, "\\'") + '\')">' + name + '</span>';
           }).join(' ');
         }
       } else if (p.package) {
@@ -2849,8 +2902,8 @@ function renderProjectOrgLinks(links) {
             return org ? org.name : id;
           });
           return `<tr>
-          <td style="font-weight:600;color:var(--blue)">${l.projectName}</td>
-          <td style="font-weight:600">${l.orgName}</td>
+          <td style="font-weight:600;color:var(--blue)"><span style="cursor:pointer;border-bottom:1px dashed var(--blue)" title="Click to rename project" onclick="renameProjectFromBadge('${l.projectId}','${(l.projectName || '').replace(/'/g, "\\'")}')">${l.projectName}</span></td>
+          <td style="font-weight:600"><span style="cursor:pointer;border-bottom:1px dashed var(--slate4)" title="Click to rename org" onclick="renameOrgFromBadge('${l.orgId}','${(l.orgName || '').replace(/'/g, "\\'")}')">${l.orgName}</span></td>
           <td><span class="badge approved">${l.role || 'Consultant'}</span></td>
           <td style="color:var(--slate5);font-size:12px">${l.createdByName || '--'}</td>
           ${isClient ? `
@@ -2880,8 +2933,8 @@ function renderProjectOrgLinks(links) {
       contEl.innerHTML = `<div class="tbl-wrap"><table>
         <thead><tr><th>Project</th><th>Contractor Company</th><th>Linked By</th>${canUnlink ? '<th>Actions</th>' : ''}</tr></thead>
         <tbody>${contractorLinks.map(l => `<tr>
-          <td style="font-weight:600;color:var(--blue)">${l.projectName}</td>
-          <td style="font-weight:600">${l.orgName}</td>
+          <td style="font-weight:600;color:var(--blue)"><span style="cursor:pointer;border-bottom:1px dashed var(--blue)" title="Click to rename project" onclick="renameProjectFromBadge('${l.projectId}','${(l.projectName || '').replace(/'/g, "\\'")}')">${l.projectName}</span></td>
+          <td style="font-weight:600"><span style="cursor:pointer;border-bottom:1px dashed var(--slate4)" title="Click to rename org" onclick="renameOrgFromBadge('${l.orgId}','${(l.orgName || '').replace(/'/g, "\\'")}')">${l.orgName}</span></td>
           <td style="color:var(--slate5);font-size:12px">${l.createdByName || '--'} <span class="badge ${l.createdByRole === 'client' ? 'approved' : 'review'}" style="font-size:10px">${l.createdByRole || ''}</span></td>
           ${canUnlink ? `<td><button class="btn btn-danger btn-sm" onclick="unlinkOrgFromProject('${l.id}')">Unlink</button></td>` : ''}
         </tr>`).join('')}</tbody>
@@ -2941,10 +2994,10 @@ function renderProjectUserAssignments(assignments) {
             canRemoveThis = a.userOrgId === state.organizationId && a.userId !== state.uid;
           }
           return `<tr>
-          <td style="font-weight:600">${a.userName}</td>
+          <td style="font-weight:600"><span style="cursor:pointer;border-bottom:1px dashed var(--slate5)" title="Click to rename" onclick="renameUserFromBadge('${a.userId}','${(a.userName || '').replace(/'/g, "\\'")}')">${a.userName}</span></td>
           <td>${desigBadge}</td>
           <td><span class="badge ${a.userRole === 'consultant' ? 'approved' : a.userRole === 'contractor' ? 'review' : 'pending'}" style="text-transform:capitalize">${a.userRole}</span></td>
-          <td style="color:var(--slate5);font-size:12px">${a.userOrgName || '--'}</td>
+          <td style="color:var(--slate5);font-size:12px">${a.userOrgName ? '<span style="cursor:pointer;border-bottom:1px dashed var(--slate5)" title="Click to rename org" onclick="renameOrgFromBadge(\'' + a.userOrgId + '\',\'' + (a.userOrgName || '').replace(/'/g, "\\'") + '\')">' + a.userOrgName + '</span>' : '--'}</td>
           <td style="color:var(--slate5);font-size:12px">${a.createdByName || '--'} <span class="badge" style="font-size:10px;background:rgba(148,163,184,0.08);color:var(--slate5)">${a.createdByRole || ''}</span></td>
           ${showActions ? `<td>${canRemoveThis ? `<button class="btn btn-danger btn-sm" onclick="removeUserFromProject('${a.id}')">Remove</button>` : ''}</td>` : ''}
         </tr>`; }).join('')}</tbody>
