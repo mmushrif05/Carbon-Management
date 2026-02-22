@@ -15,7 +15,7 @@ const RATE_LIMITS = {
   auth: { maxRequests: 10, windowMs: WINDOW_MS },       // Login/register: 10/min
   ai: { maxRequests: 5, windowMs: WINDOW_MS },           // AI calls: 5/min
   upload: { maxRequests: 10, windowMs: WINDOW_MS },      // Document uploads: 10/min
-  api: { maxRequests: 60, windowMs: WINDOW_MS },         // General API: 60/min
+  api: { maxRequests: 200, windowMs: WINDOW_MS },        // General API: 200/min (SPA makes many parallel calls per page)
 };
 
 /**
@@ -55,7 +55,7 @@ async function checkRateLimit(db, clientId, category) {
     // Check if over limit
     if (data.count >= config.maxRequests) {
       const retryAfter = Math.ceil((data.windowStart + config.windowMs - now) / 1000);
-      return { allowed: false, remaining: 0, retryAfter };
+      return { allowed: false, remaining: 0, retryAfter: (retryAfter > 0 && isFinite(retryAfter)) ? retryAfter : 5 };
     }
 
     // Increment counter
