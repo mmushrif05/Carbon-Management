@@ -93,17 +93,19 @@
   .dot-g { background: #34d399; }
   .screen-url { font-size: 10px; color: var(--slate); margin-left: 8px; font-family: monospace; }
   .screen-body img {
-    width: 100%; height: auto; display: block;
+    width: 100%; height: auto; display: none;
   }
-  /* Placeholder shown while image is missing / loading */
+  /* Feature preview cards (no screenshots needed) */
   .screen-body .placeholder {
     display: flex; flex-direction: column; align-items: center; justify-content: center;
-    min-height: 260px; gap: 10px;
-    background: var(--bg3);
-    color: var(--slate); font-size: 12px;
+    min-height: 220px; gap: 12px;
+    background: linear-gradient(135deg, var(--bg3) 0%, var(--bg4) 100%);
+    border: 1px solid rgba(52,211,153,0.08);
+    color: var(--text3); font-size: 13px; padding: 24px;
+    text-align: center;
   }
-  .placeholder-icon { font-size: 36px; opacity: 0.3; }
-  .placeholder-name { font-size: 11px; font-weight: 600; color: var(--slate); opacity: 0.7; font-family: monospace; }
+  .placeholder-icon { font-size: 48px; opacity: 0.6; }
+  .placeholder-name { font-size: 13px; font-weight: 600; color: var(--text2); opacity: 0.9; font-family: 'Segoe UI', system-ui, sans-serif; line-height: 1.5; max-width: 320px; }
   .screen-caption {
     font-size: 11px; color: var(--slate); padding: 8px 4px;
     display: flex; align-items: center; gap: 6px;
@@ -763,6 +765,38 @@
 
 <script>
   // Sidebar active link on scroll
+  // Replace placeholder filenames with feature descriptions
+  const descMap = {
+    'screenshots/00-login.png': 'Secure invitation-based login with email verification and session management',
+    'screenshots/00-sidebar.png': 'Role-adaptive sidebar navigation showing features based on user permissions',
+    'screenshots/01-architecture.png': 'Multi-tenant architecture: Client → Consultant Firms → Contractor Companies → Users',
+    'screenshots/02-client-dashboard.png': 'Real-time portfolio dashboard with carbon reduction targets, trends, and KPIs',
+    'screenshots/03-project-overview.png': 'Project overview with emission breakdowns by category, package, and contractor',
+    'screenshots/04-contractors-tab.png': 'Contractor performance comparison showing emissions per organization',
+    'screenshots/05-materials-tab.png': 'Material-level analysis with emission factors and baseline comparisons',
+    'screenshots/06-consultant-dashboard.png': 'Consultant dashboard with assigned contractor oversight and approval queues',
+    'screenshots/07-contributors-tab.png': 'Contributors view showing submission activity per team member',
+    'screenshots/08-requests-tab.png': 'Edit and deletion request tracking with approval workflow',
+    'screenshots/09-approvals.png': 'Multi-stage approval workflow: Pending → Review → Approved/Rejected',
+    'screenshots/10-a13-entry.png': 'A1-A3 material entry form with quantity, emission factors, and anomaly detection',
+    'screenshots/11-a5-entry.png': 'A5 site emissions entry for fuel consumption, water usage, and generator hours',
+    'screenshots/12-contractor-dashboard.png': 'Contractor dashboard with draft batch submission and emission summaries',
+    'screenshots/13-boq-upload.png': 'Excel BOQ upload with AI-powered material classification and mapping',
+    'screenshots/14-boq-results.png': 'AI classification results showing matched materials with emission factors',
+    'screenshots/15-boq-scenarios.png': 'Side-by-side tender scenario comparison with total embodied carbon projections',
+    'screenshots/16-doc-upload.png': 'Document upload supporting PDF, specifications, and sustainability reports',
+    'screenshots/17-doc-analysis.png': 'AI-powered document analysis across 5 sustainability dimensions with KPI extraction',
+    'screenshots/18-doc-citations.png': 'Source citations with document references and confidence scores',
+    'screenshots/19-advisor-panel.png': 'Carbon advisor panel for project-specific AI recommendations',
+    'screenshots/20-advisor-result.png': 'AI-generated reduction strategies with actionable implementation steps',
+    'screenshots/21-certifications.png': 'LEED, BREEAM, Envision, Mostadam, and WELL certification credit tracking',
+    'screenshots/22-iot-roadmap.png': 'IoT integration roadmap for automated real-time emissions monitoring'
+  };
+  document.querySelectorAll('.placeholder-name').forEach(el => {
+    const desc = descMap[el.textContent.trim()];
+    if (desc) el.textContent = desc;
+  });
+
   const links = document.querySelectorAll('.sidebar-link[href^="#"]');
   const sections = [...links].map(l => document.querySelector(l.getAttribute('href'))).filter(Boolean);
   const obs = new IntersectionObserver(entries => {
