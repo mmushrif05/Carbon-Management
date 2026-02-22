@@ -136,7 +136,7 @@ function openProjectModal(idx, opts) {
   const pConsOrgs = pOrgLinks.filter(l => l.orgType === 'consultant_firm');
   let pB=0,pA=0,pA4=0; pe.forEach(e=>{pB+=e.a13B||0;pA+=e.a13A||0;pA4+=e.a4||0;});
   let pA5=0; pa5.forEach(e=>{pA5+=e.emission||0;});
-  const pRed=pB>0?((pB-pA)/pB)*100:0, pTotal=pA+pA4+pA5, pSav=Math.max(pB-pA,0);
+  const pRed=pB>0?((pB-pA)/pB)*100:0, pTotal=pA+pA4, pSav=Math.max(pB-pA,0); // A1-A4 only — A5 separate
   const rc=_rc(pRed,target);
   const consC=pAsgn.filter(a=>a.userRole==='consultant').length;
   const contC=pAsgn.filter(a=>a.userRole==='contractor').length;
@@ -156,7 +156,12 @@ function openProjectModal(idx, opts) {
       <div class="stat-card blue" style="padding:8px 10px"><div class="sc-label" style="font-size:9px">Actual</div><div class="sc-value" style="font-size:16px">${fmt(pA)}</div><div class="sc-sub">tCO\u2082eq</div></div>
       <div class="stat-card green" style="padding:8px 10px"><div class="sc-label" style="font-size:9px">Savings</div><div class="sc-value" style="font-size:16px">${fmt(pSav)}</div><div class="sc-sub">tCO\u2082eq</div></div>
       <div class="stat-card" style="padding:8px 10px;background:${_rbg(pRed,target)};border:1px solid ${rc}22"><div class="sc-label" style="font-size:9px;color:${rc}">Reduction</div><div class="sc-value" style="font-size:16px;color:${rc}">${fmt(pRed)}%</div><div class="sc-sub" style="color:${rc}">vs ${target}%</div></div>
-      <div class="stat-card orange" style="padding:8px 10px"><div class="sc-label" style="font-size:9px">A4+A5</div><div class="sc-value" style="font-size:16px">${fmt(pA4+pA5)}</div><div class="sc-sub">tCO\u2082eq</div></div>
+      <div class="stat-card orange" style="padding:8px 10px"><div class="sc-label" style="font-size:9px">A4 Transport</div><div class="sc-value" style="font-size:16px">${fmt(pA4)}</div><div class="sc-sub">tCO\u2082eq</div></div>
+    </div>
+    ${pA5>0?`<div style="margin-top:6px;padding:6px 10px;background:rgba(6,182,212,0.06);border:1px solid rgba(6,182,212,0.12);border-radius:8px;display:flex;align-items:center;gap:12px">
+      <div style="font-size:9px;font-weight:700;color:var(--cyan);text-transform:uppercase">A5 Site (Separate)</div>
+      <div style="font-size:14px;font-weight:800;color:var(--cyan)">${fmt(pA5)} <span style="font-size:9px;font-weight:400;color:var(--slate5)">tCO\u2082eq</span></div>
+    </div>`:''}
     </div>
     ${buildReductionGauge(pA, pB, target)}
     ${pe.length>0?`<div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:12px">
@@ -261,9 +266,15 @@ function openProjectModal(idx, opts) {
         <td><span class="badge ${e.status||'pending'}" style="font-size:9px">${e.status||'pending'}</span></td>
         ${_ctbActions(e)}
       </tr>`;}).join('')}</tbody></table></div>
-    ${pa5.length>0?`<div style="margin-top:10px;font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;margin-bottom:4px">A5 Site (${pa5.length})</div>
+    ${pa5.length>0?`<div style="margin-top:12px;padding:8px 10px;background:rgba(6,182,212,0.04);border:1px solid rgba(6,182,212,0.1);border-radius:8px">
+    <div style="font-size:10px;font-weight:700;color:var(--cyan);text-transform:uppercase;margin-bottom:6px">A5 Site Emissions (Separate from A1-A4)</div>
+    ${pa5.filter(e=>e.dataSource!=='iot').length>0?`<div style="font-size:9px;font-weight:700;color:var(--slate4);margin-bottom:3px">Manual (${pa5.filter(e=>e.dataSource!=='iot').length})</div>
     <div class="tbl-wrap"><table><thead><tr><th>Month</th><th>Source</th><th class="r">Qty</th><th>Unit</th><th class="r">Emission</th><th>By</th></tr></thead>
-    <tbody>${[...pa5].sort((a,b)=>(b.emission||0)-(a.emission||0)).map(e=>`<tr><td style="font-size:10px">${e.monthLabel||'--'}</td><td style="font-weight:600;font-size:10px">${e.source||'--'}</td><td class="r mono" style="font-size:10px">${fmtI(e.qty)}</td><td style="font-size:10px">${e.unit||'--'}</td><td class="r mono" style="font-size:10px;font-weight:700">${fmt(e.emission)}</td><td style="font-size:9px;color:var(--slate5)">${e.submittedBy||'--'}</td></tr>`).join('')}</tbody></table></div>`:''}
+    <tbody>${[...pa5.filter(e=>e.dataSource!=='iot')].sort((a,b)=>(b.emission||0)-(a.emission||0)).map(e=>`<tr><td style="font-size:10px">${e.monthLabel||'--'}</td><td style="font-weight:600;font-size:10px">${e.source||'--'}</td><td class="r mono" style="font-size:10px">${fmtI(e.qty)}</td><td style="font-size:10px">${e.unit||'--'}</td><td class="r mono" style="font-size:10px;font-weight:700">${fmt(e.emission)}</td><td style="font-size:9px;color:var(--slate5)">${e.submittedBy||'--'}</td></tr>`).join('')}</tbody></table></div>`:''}
+    ${pa5.filter(e=>e.dataSource==='iot').length>0?`<div style="font-size:9px;font-weight:700;color:var(--purple);margin:6px 0 3px">IoT Vehicle (${pa5.filter(e=>e.dataSource==='iot').length})</div>
+    <div class="tbl-wrap"><table><thead><tr><th>Month</th><th>Source</th><th class="r">Vehicles</th><th class="r">Distance</th><th class="r">Emission</th><th>By</th></tr></thead>
+    <tbody>${[...pa5.filter(e=>e.dataSource==='iot')].sort((a,b)=>(b.emission||0)-(a.emission||0)).map(e=>`<tr><td style="font-size:10px">${e.monthLabel||'--'}</td><td style="font-weight:600;font-size:10px;color:var(--purple)">${e.source||'--'}</td><td class="r mono" style="font-size:10px">${e.vehicleCount||'--'}</td><td class="r mono" style="font-size:10px">${e.totalDistanceKm?fmt(e.totalDistanceKm)+' km':'--'}</td><td class="r mono" style="font-size:10px;font-weight:700">${fmt(e.emission)}</td><td style="font-size:9px;color:var(--slate5)">${e.submittedBy||'--'}</td></tr>`).join('')}</tbody></table></div>`:''}
+    </div>`:''}
     `:'<div style="padding:24px;text-align:center;color:var(--slate5);font-size:12px">No entries yet. Contributors appear here when data is submitted.</div>'}
   </div>`;
 
@@ -534,9 +545,21 @@ function buildEntryTable(entries, a5entries) {
     </tr>`;}).join('')}</tbody></table></div>`;
   }
   if(a5entries&&a5entries.length>0){const s5=[...a5entries].sort((a,b)=>(b.emission||0)-(a.emission||0));
-    html+=`<div style="margin-top:14px;font-size:12px;font-weight:700;color:var(--slate4);margin-bottom:6px">A5 Site (${s5.length})</div>
-    <div class="tbl-wrap"><table><thead><tr><th>Month</th><th>Source</th><th class="r">Qty</th><th>Unit</th><th class="r">Emission</th><th>By</th><th>Org</th></tr></thead>
-    <tbody>${s5.map(e=>`<tr><td style="font-size:11px">${e.monthLabel||'--'}</td><td style="font-weight:600">${e.source||'--'}</td><td class="r mono" style="font-size:11px">${fmtI(e.qty)}</td><td style="font-size:11px">${e.unit||'--'}</td><td class="r mono" style="font-size:11px;font-weight:700">${fmt(e.emission)}</td><td style="font-size:10px;color:var(--slate5)">${e.submittedBy||'--'}</td><td style="font-size:10px;color:var(--slate5)">${e.organizationName||'--'}</td></tr>`).join('')}</tbody></table></div>`;
+    const manualA5=s5.filter(e=>e.dataSource!=='iot');
+    const iotA5=s5.filter(e=>e.dataSource==='iot');
+    html+=`<div style="margin-top:18px;padding:10px 14px;background:rgba(6,182,212,0.04);border:1px solid rgba(6,182,212,0.12);border-radius:10px">
+    <div style="font-size:11px;font-weight:800;color:var(--cyan);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">A5 Site Emissions (Separate from A1-A4 Core Carbon)</div>`;
+    if(manualA5.length>0){
+      html+=`<div style="font-size:10px;font-weight:700;color:var(--slate4);margin:8px 0 4px">Manual Entries (${manualA5.length})</div>
+      <div class="tbl-wrap"><table><thead><tr><th>Month</th><th>Source</th><th class="r">Qty</th><th>Unit</th><th class="r">Emission</th><th>By</th><th>Org</th></tr></thead>
+      <tbody>${manualA5.map(e=>`<tr><td style="font-size:11px">${e.monthLabel||'--'}</td><td style="font-weight:600">${e.source||'--'}</td><td class="r mono" style="font-size:11px">${fmtI(e.qty)}</td><td style="font-size:11px">${e.unit||'--'}</td><td class="r mono" style="font-size:11px;font-weight:700">${fmt(e.emission)}</td><td style="font-size:10px;color:var(--slate5)">${e.submittedBy||'--'}</td><td style="font-size:10px;color:var(--slate5)">${e.organizationName||'--'}</td></tr>`).join('')}</tbody></table></div>`;
+    }
+    if(iotA5.length>0){
+      html+=`<div style="font-size:10px;font-weight:700;color:var(--purple);margin:8px 0 4px">IoT Vehicle Entries (${iotA5.length})</div>
+      <div class="tbl-wrap"><table><thead><tr><th>Month</th><th>Source</th><th class="r">Qty</th><th>Unit</th><th class="r">Emission</th><th>By</th><th>Org</th></tr></thead>
+      <tbody>${iotA5.map(e=>`<tr><td style="font-size:11px">${e.monthLabel||'--'}</td><td style="font-weight:600">${e.source||'--'}</td><td class="r mono" style="font-size:11px">${fmtI(e.qty)}</td><td style="font-size:11px">${e.unit||'--'}</td><td class="r mono" style="font-size:11px;font-weight:700">${fmt(e.emission)}</td><td style="font-size:10px;color:var(--slate5)">${e.submittedBy||'--'}</td><td style="font-size:10px;color:var(--slate5)">${e.organizationName||'--'}</td></tr>`).join('')}</tbody></table></div>`;
+    }
+    html+=`</div>`;
   }
   if(!html) html='<div style="padding:16px;text-align:center;color:var(--slate5);font-size:12px">No entries yet.</div>';
   return html;
@@ -581,7 +604,7 @@ function renderPortfolioDashboard(el, projects) {
   let tB=0,tA=0,tA4=0; d.forEach(e=>{tB+=e.a13B||0;tA+=e.a13A||0;tA4+=e.a4||0;});
   let a5T=0; a5e.forEach(e=>{a5T+=e.emission||0;});
   const rP=tB>0?((tB-tA)/tB)*100:0;
-  const tTotal=tA+tA4+a5T, tSav=Math.max(tB-tA,0);
+  const tTotal=tA+tA4, tSav=Math.max(tB-tA,0); // A1-A4 only — A5 is separate
   const orc=_rc(rP,target), onTrack=rP>=target;
 
   // Aggregate per-project
@@ -594,7 +617,7 @@ function renderPortfolioDashboard(el, projects) {
     const pa5=a5e.filter(e=>e.projectId===p.id);
     let pB=0,pA=0,pA4=0;pe.forEach(e=>{pB+=e.a13B||0;pA+=e.a13A||0;pA4+=e.a4||0;});
     let pA5=0;pa5.forEach(e=>{pA5+=e.emission||0;});
-    const pRed=pB>0?((pB-pA)/pB)*100:0, pTotal=pA+pA4+pA5, pSav=Math.max(pB-pA,0);
+    const pRed=pB>0?((pB-pA)/pB)*100:0, pTotal=pA+pA4, pSav=Math.max(pB-pA,0); // A1-A4 only — A5 separate
     // Worst contractor per project
     const orgs=_aggContractors(pe);
     const worstOrg=orgs.length>0?orgs[0]:null;
@@ -818,7 +841,7 @@ function renderPortfolioDashboard(el, projects) {
     <div class="dash-kpi-row">
       <div class="dash-kpi"><div class="dash-kpi-v" style="color:var(--slate3)">${fmt(tB)}</div><div class="dash-kpi-l">BAU Baseline</div></div>
       <div class="dash-kpi-sep"></div>
-      <div class="dash-kpi"><div class="dash-kpi-v" style="color:var(--blue)">${fmt(tTotal)}</div><div class="dash-kpi-l">Actual</div></div>
+      <div class="dash-kpi"><div class="dash-kpi-v" style="color:var(--blue)">${fmt(tTotal)}</div><div class="dash-kpi-l">A1-A4 Actual</div></div>
       <div class="dash-kpi-sep"></div>
       <div class="dash-kpi"><div class="dash-kpi-v" style="color:var(--green)">${fmt(tSav)}</div><div class="dash-kpi-l">Savings</div></div>
       <div class="dash-kpi-sep"></div>
@@ -926,8 +949,12 @@ function renderClassicDashboard(el) {
     <div class="stat-card slate"><div class="sc-label">A1-A3 BAU Baseline</div><div class="sc-value">${fmt(tB)}</div><div class="sc-sub">tCO\u2082eq</div></div>
     <div class="stat-card blue"><div class="sc-label">A1-A3 Actual</div><div class="sc-value">${fmt(tA)}</div><div class="sc-sub">tCO\u2082eq</div></div>
     <div class="stat-card orange"><div class="sc-label">A4 Transport</div><div class="sc-value">${fmt(tA4)}</div><div class="sc-sub">tCO\u2082eq</div></div>
-    <div class="stat-card cyan"><div class="sc-label">A5 Site</div><div class="sc-value">${fmt(a5T)}</div><div class="sc-sub">tCO\u2082eq</div></div>
-    <div class="stat-card green"><div class="sc-label">A1-A5 Total</div><div class="sc-value">${fmt(tA+tA4+a5T)}</div><div class="sc-sub">tCO\u2082eq</div></div>
+    <div class="stat-card green"><div class="sc-label">A1-A4 Total</div><div class="sc-value">${fmt(tA+tA4)}</div><div class="sc-sub">tCO\u2082eq (Core Carbon)</div></div>
+  </div>
+  <div class="stats-row" style="margin-top:8px">
+    <div class="stat-card cyan"><div class="sc-label">A5 Site (Manual)</div><div class="sc-value">${fmt(a5T)}</div><div class="sc-sub">tCO\u2082eq</div></div>
+    <div class="stat-card purple"><div class="sc-label">A5 Site (IoT)</div><div class="sc-value">${fmt(_vehSim.cumulative||0)}</div><div class="sc-sub">tCO\u2082eq</div></div>
+    <div class="stat-card slate"><div class="sc-label">A5 Total</div><div class="sc-value">${fmt(a5T+(_vehSim.cumulative||0))}</div><div class="sc-sub">tCO\u2082eq (Separate)</div></div>
   </div>
   ${buildReductionGauge(tA, tB, target)}
   ${d.length>0?`<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:16px 0">
@@ -1624,7 +1651,30 @@ function renderA5(el){
   const myProjects = (state.projects || []).filter(p => p.status === 'active');
   const projOptions = myProjects.map(p => `<option value="${p.id}" ${state.selectedProjectId === p.id ? 'selected' : ''}>${p.name}${p.code ? ' (' + p.code + ')' : ''}</option>`).join('');
 
-  el.innerHTML=`<div class="card"><div class="card-title">A5 \u2014 Site Energy & Water</div>
+  // Separate A5 entries by source type
+  const manualA5 = (state.a5entries || []).filter(e => e.dataSource !== 'iot');
+  const iotA5 = (state.a5entries || []).filter(e => e.dataSource === 'iot');
+  const manualTotal = manualA5.reduce((s, e) => s + (e.emission || 0), 0);
+  const iotTotal = iotA5.reduce((s, e) => s + (e.emission || 0), 0);
+  const liveIoT = _vehSim.cumulative || 0;
+
+  el.innerHTML=`
+  <!-- A5 Isolation Banner -->
+  <div style="padding:10px 14px;background:rgba(6,182,212,0.06);border:1px solid rgba(6,182,212,0.15);border-radius:10px;margin-bottom:14px;font-size:12px;color:var(--cyan)">
+    <strong>A5 Site Emissions</strong> are tracked <strong>completely separate</strong> from A1-A3 (Material Production) and A4 (Transport). A5 data does <strong>not</strong> affect core carbon totals.
+  </div>
+
+  <!-- A5 Summary Stats -->
+  <div class="stats-row" style="grid-template-columns:repeat(4,1fr);margin-bottom:14px">
+    <div class="stat-card cyan"><div class="sc-label">A5 Manual</div><div class="sc-value">${fmt(manualTotal)}</div><div class="sc-sub">tCO\u2082eq (Energy & Water)</div></div>
+    <div class="stat-card purple"><div class="sc-label">A5 IoT (Saved)</div><div class="sc-value">${fmt(iotTotal)}</div><div class="sc-sub">tCO\u2082eq (Vehicle Tracking)</div></div>
+    <div class="stat-card orange"><div class="sc-label">A5 IoT (Live)</div><div class="sc-value">${fmt(liveIoT)}</div><div class="sc-sub">tCO\u2082eq (Unsaved Session)</div></div>
+    <div class="stat-card green"><div class="sc-label">A5 Grand Total</div><div class="sc-value">${fmt(manualTotal + iotTotal)}</div><div class="sc-sub">tCO\u2082eq (All Saved A5)</div></div>
+  </div>
+
+  <!-- MANUAL ENTRY SECTION -->
+  <div class="card"><div class="card-title" style="display:flex;align-items:center;gap:8px">A5 Manual Entry <span style="font-size:9px;padding:2px 8px;background:rgba(6,182,212,0.1);border:1px solid rgba(6,182,212,0.2);border-radius:4px;color:var(--cyan);font-weight:700">MANUAL</span></div>
+  <div style="font-size:11px;color:var(--slate5);margin-bottom:12px">Enter site energy consumption (diesel, gasoline, electricity) and water usage manually.</div>
   ${myProjects.length > 0 ? `<div class="form-row" style="margin-bottom:12px">
     <div class="fg" style="max-width:400px">
       <label style="font-weight:700;color:var(--blue)">Project <span style="color:var(--red)">*</span></label>
@@ -1642,8 +1692,40 @@ function renderA5(el){
   <div class="form-row c3"><div class="fg"><label>Quantity</label><input type="number" id="a5Q" placeholder="Amount" oninput="calcA5()"><div class="fg-help" id="a5U">L</div></div>
   <div class="fg"><label>EF (auto)</label><input id="a5E" class="fg-readonly" readonly></div>
   <div class="fg"><label>Emission</label><input id="a5R" class="fg-readonly" readonly></div></div>
-  <div class="btn-row"><button class="btn btn-primary" onclick="subA5()">\ud83d\udcbe Submit</button></div></div>
-  <div class="card"><div class="card-title">A5 Entries</div><div class="tbl-wrap"><table><thead><tr><th>Project</th><th>Month</th><th>Source</th><th class="r">Qty</th><th>Unit</th><th class="r">Emission</th><th></th></tr></thead><tbody id="a5B"></tbody></table></div></div>`;
+  <div class="btn-row"><button class="btn btn-primary" onclick="subA5()">\ud83d\udcbe Submit Manual Entry</button></div></div>
+
+  <!-- IoT VEHICLE SECTION -->
+  <div class="card"><div class="card-title" style="display:flex;align-items:center;gap:8px">A5 IoT Vehicle Emissions <span style="font-size:9px;padding:2px 8px;background:rgba(168,85,247,0.1);border:1px solid rgba(168,85,247,0.2);border-radius:4px;color:var(--purple);font-weight:700">IoT</span></div>
+  <div style="font-size:11px;color:var(--slate5);margin-bottom:12px">Save vehicle emission data from the live IoT tracking system. Go to <strong>Vehicle Emissions</strong> page to start/stop tracking, then return here to save the session data as A5 entries.</div>
+  <div style="padding:12px;background:var(--bg3);border-radius:10px;margin-bottom:12px">
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <div>
+        <div style="font-size:11px;color:var(--slate5)">Live IoT Session</div>
+        <div style="font-size:18px;font-weight:800;color:var(--purple)" id="a5IotLive">${fmt(liveIoT)} tCO\u2082eq</div>
+        <div style="font-size:10px;color:var(--slate5)" id="a5IotVehicles">${_vehSim.running ? _vehSim.vehicles.filter(v=>v.status==='moving').length + ' vehicles moving' : 'Tracking stopped'}</div>
+      </div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-secondary btn-sm" onclick="navigate('vehicle_emissions')">Open Tracker</button>
+        <button class="btn btn-primary btn-sm" onclick="saveIoTtoA5()" ${!_vehSim.cumulative || _vehSim.cumulative <= 0 ? 'disabled style="opacity:0.4"' : ''}>Save IoT to A5</button>
+      </div>
+    </div>
+  </div>
+  ${myProjects.length > 0 ? `<div class="form-row" style="margin-bottom:12px">
+    <div class="fg" style="max-width:400px">
+      <label style="font-weight:700;color:var(--purple)">Project for IoT data <span style="color:var(--red)">*</span></label>
+      <select id="a5IotProj">
+        <option value="">Select project...</option>
+        ${projOptions}
+      </select>
+    </div>
+  </div>` : ''}
+  </div>
+
+  <!-- MANUAL ENTRIES TABLE -->
+  <div class="card"><div class="card-title">Manual A5 Entries</div><div class="tbl-wrap"><table><thead><tr><th>Project</th><th>Month</th><th>Source</th><th class="r">Qty</th><th>Unit</th><th class="r">Emission</th><th></th></tr></thead><tbody id="a5B"></tbody></table></div></div>
+
+  <!-- IoT ENTRIES TABLE -->
+  <div class="card"><div class="card-title" style="color:var(--purple)">IoT A5 Entries</div><div class="tbl-wrap"><table><thead><tr><th>Project</th><th>Month</th><th>Source</th><th class="r">Vehicles</th><th class="r">Distance</th><th class="r">Emission</th><th></th></tr></thead><tbody id="a5IotB"></tbody></table></div></div>`;
   onA5S(); rA5();
 }
 function getA5S(){const v=$('a5S').value;const t=v[0],i=parseInt(v.slice(1));return t==='e'?A5_EFS.energy[i]:A5_EFS.water[i];}
@@ -1653,9 +1735,51 @@ async function subA5(){const s=getA5S(),q=parseFloat($('a5Q').value);if(isNaN(q)
   const projEl=$('a5Proj');const projId=projEl?projEl.value:'';
   if(!projId){alert('Please select a project first.');return;}
   const proj=(state.projects||[]).find(p=>p.id===projId);
-  const yr=$('a5Y').value,mo=$('a5M').value;const e={id:Date.now(),source:s.name,qty:q,unit:s.unit,ef:s.ef,emission:(q*s.ef)/1000,year:yr,month:mo,monthKey:yr+'-'+mo,monthLabel:MONTHS[parseInt(mo)-1]+' '+yr,projectId:projId,projectName:proj?proj.name:'',submittedBy:state.name,role:state.role};await DB.saveA5Entry(e);state.a5entries.push(e);rA5();$('a5Q').value='';$('a5R').value='\u2705 Saved';}
-function rA5(){const t=$('a5B');if(!t)return;const a=[...state.a5entries].reverse();t.innerHTML=a.length?a.map(e=>`<tr><td style="font-weight:600;color:var(--blue);font-size:11px">${e.projectName||'--'}</td><td>${e.monthLabel}</td><td>${e.source}</td><td class="r mono">${fmtI(e.qty)}</td><td>${e.unit}</td><td class="r mono" style="font-weight:700">${fmt(e.emission)}</td><td><button class="btn btn-danger btn-sm" onclick="dA5(${e.id})">\u2715</button></td></tr>`).join(''):'<tr><td colspan="7" class="empty">No entries</td></tr>';}
+  const yr=$('a5Y').value,mo=$('a5M').value;const e={id:Date.now(),source:s.name,qty:q,unit:s.unit,ef:s.ef,emission:(q*s.ef)/1000,year:yr,month:mo,monthKey:yr+'-'+mo,monthLabel:MONTHS[parseInt(mo)-1]+' '+yr,projectId:projId,projectName:proj?proj.name:'',submittedBy:state.name,role:state.role,dataSource:'manual'};await DB.saveA5Entry(e);state.a5entries.push(e);rA5();$('a5Q').value='';$('a5R').value='\u2705 Saved';}
+function rA5(){
+  // Manual entries
+  const t=$('a5B');if(t){const manualEntries=[...(state.a5entries||[]).filter(e=>e.dataSource!=='iot')].reverse();t.innerHTML=manualEntries.length?manualEntries.map(e=>`<tr><td style="font-weight:600;color:var(--blue);font-size:11px">${e.projectName||'--'}</td><td>${e.monthLabel}</td><td>${e.source}</td><td class="r mono">${fmtI(e.qty)}</td><td>${e.unit}</td><td class="r mono" style="font-weight:700">${fmt(e.emission)}</td><td><button class="btn btn-danger btn-sm" onclick="dA5(${e.id})">\u2715</button></td></tr>`).join(''):'<tr><td colspan="7" class="empty">No manual entries</td></tr>';}
+  // IoT entries
+  const iotT=$('a5IotB');if(iotT){const iotEntries=[...(state.a5entries||[]).filter(e=>e.dataSource==='iot')].reverse();iotT.innerHTML=iotEntries.length?iotEntries.map(e=>`<tr><td style="font-weight:600;color:var(--purple);font-size:11px">${e.projectName||'--'}</td><td>${e.monthLabel}</td><td style="color:var(--purple);font-weight:600">${e.source}</td><td class="r mono">${e.vehicleCount||'--'}</td><td class="r mono">${e.totalDistanceKm?fmt(e.totalDistanceKm)+' km':'--'}</td><td class="r mono" style="font-weight:700">${fmt(e.emission)}</td><td><button class="btn btn-danger btn-sm" onclick="dA5(${e.id})">\u2715</button></td></tr>`).join(''):'<tr><td colspan="7" class="empty">No IoT entries — start vehicle tracking to generate data</td></tr>';}
+}
 async function dA5(id){await DB.deleteA5Entry(id);state.a5entries=state.a5entries.filter(e=>e.id!==id);rA5();}
+
+// Save current IoT vehicle simulation data as an A5 entry
+async function saveIoTtoA5(){
+  if(!_vehSim.cumulative || _vehSim.cumulative <= 0){alert('No IoT emission data to save. Start vehicle tracking first.');return;}
+  const projEl=$('a5IotProj');const projId=projEl?projEl.value:'';
+  if(!projId){alert('Please select a project for the IoT data.');return;}
+  const proj=(state.projects||[]).find(p=>p.id===projId);
+  const yr=new Date().getFullYear(),mo=String(new Date().getMonth()+1).padStart(2,'0');
+  const totalDist=_vehSim.vehicles.reduce((s,v)=>s+v.distanceKm,0);
+  const totalFuel=_vehSim.vehicles.reduce((s,v)=>s+v.fuelConsumedL,0);
+  const vehicleCount=_vehSim.vehicles.filter(v=>v.emissionKg>0).length;
+  const e={
+    id:Date.now(),
+    source:'IoT Vehicle Tracking',
+    qty:totalFuel,
+    unit:'L (fuel)',
+    ef:0,
+    emission:_vehSim.cumulative,
+    year:String(yr),
+    month:mo,
+    monthKey:yr+'-'+mo,
+    monthLabel:MONTHS[parseInt(mo)-1]+' '+yr,
+    projectId:projId,
+    projectName:proj?proj.name:'',
+    submittedBy:state.name,
+    role:state.role,
+    dataSource:'iot',
+    vehicleCount:vehicleCount,
+    totalDistanceKm:totalDist,
+    totalFuelL:totalFuel,
+    vehicleDetails:_vehSim.vehicles.map(v=>({id:v.id,name:v.name,type:v.type,distKm:v.distanceKm,emKg:v.emissionKg,fuelL:v.fuelConsumedL})),
+  };
+  await DB.saveA5Entry(e);
+  state.a5entries.push(e);
+  rA5();
+  alert('IoT vehicle emissions saved to A5 (' + fmt(_vehSim.cumulative) + ' tCO\u2082eq).\nThis data is separate from your A1-A4 core carbon.');
+}
 
 // ===== APPROVALS =====
 function renderApprovals(el){
