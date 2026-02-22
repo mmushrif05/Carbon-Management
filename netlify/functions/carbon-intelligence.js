@@ -1,7 +1,7 @@
 // ===== Carbon Intelligence — RAG Retrieval + Citation-Aware AI Analysis =====
 // Multi-step analysis pipeline: Retrieve relevant chunks → Focused AI call → Cited findings
 // Each call stays under 22s to avoid Netlify timeouts
-const { getDb, verifyToken, headers, respond, optionsResponse } = require('./utils/firebase');
+const { getDb, verifyToken, headers, respond, optionsResponse, csrfCheck } = require('./utils/firebase');
 const { resetAnonymization, sanitizeProjectData, sanitizeChunks, deAnonymizeResponse, createAIAuditEntry } = require('./lib/ai-privacy');
 const { checkPromptInjection, validatePayloadSize } = require('./lib/sanitize');
 const { getClientId, checkRateLimit } = require('./lib/rate-limit');
@@ -233,6 +233,10 @@ function parseAnalysisResponse(content) {
 // ===== HANDLER =====
 exports.handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return optionsResponse();
+
+  const csrf = csrfCheck(event);
+  if (csrf) return csrf;
+
   if (event.httpMethod !== 'POST') return respond(405, { error: 'Method not allowed' });
 
   const user = await verifyToken(event);
@@ -391,10 +395,10 @@ exports.handler = async (event) => {
       return respond(200, { success: true, results });
     }
 
-    return respond(400, { error: 'Unknown action: ' + action });
+    return respond(400, { error: 'Invalid action.' });
 
   } catch (err) {
     console.error('Carbon intelligence error:', err);
-    return respond(500, { error: 'Analysis failed: ' + err.message });
+    return respond(500, { error: 'Analysis failed. Please try again.' });
   }
 };

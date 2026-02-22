@@ -10,8 +10,9 @@
  *   - listApprovals: List approval queue for current user
  */
 
-const { getDb, verifyToken, respond, optionsResponse } = require('./utils/firebase');
+const { getDb, verifyToken, respond, optionsResponse, csrfCheck } = require('./utils/firebase');
 const { writeAuditLog, shouldAutoApprove } = require('./lib/permissions');
+const { getClientId, checkRateLimit } = require('./lib/rate-limit');
 
 async function getUserProfile(uid) {
   const db = getDb();
@@ -228,8 +229,20 @@ exports.handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return optionsResponse();
   if (event.httpMethod !== 'POST') return respond(405, { error: 'Method not allowed' });
 
+  // CSRF validation
+  const csrf = csrfCheck(event);
+  if (csrf) return csrf;
+
   const decoded = await verifyToken(event);
   if (!decoded) return respond(401, { error: 'Authentication required.' });
+
+  // Rate limiting
+  const db = getDb();
+  const clientId = getClientId(event, decoded);
+  const rateCheck = await checkRateLimit(db, clientId, 'api');
+  if (!rateCheck.allowed) {
+    return respond(429, { error: 'Too many requests. Please wait ' + rateCheck.retryAfter + ' seconds.' });
+  }
 
   try {
     const body = JSON.parse(event.body || '{}');

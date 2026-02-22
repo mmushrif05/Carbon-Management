@@ -1,4 +1,5 @@
-const { getDb, verifyToken, respond, optionsResponse } = require('./utils/firebase');
+const { getDb, verifyToken, respond, optionsResponse, csrfCheck } = require('./utils/firebase');
+const { getClientId, checkRateLimit } = require('./lib/rate-limit');
 
 // ===== PACKAGE TEMPLATES API =====
 // Tenant-configurable package templates. No hard-coded names.
@@ -209,10 +210,21 @@ async function handleMigrate(body, decoded) {
 // === MAIN HANDLER ===
 exports.handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return optionsResponse();
+
+  const csrf = csrfCheck(event);
+  if (csrf) return csrf;
+
   if (event.httpMethod !== 'POST') return respond(405, { error: 'Method not allowed' });
 
   const decoded = await verifyToken(event);
   if (!decoded) return respond(401, { error: 'Authentication required.' });
+
+  const db = getDb();
+  const clientId = getClientId(event, decoded);
+  const rateCheck = await checkRateLimit(db, clientId, 'api');
+  if (!rateCheck.allowed) {
+    return respond(429, { error: 'Too many requests. Please wait ' + rateCheck.retryAfter + ' seconds.' });
+  }
 
   try {
     const body = JSON.parse(event.body || '{}');
@@ -224,10 +236,10 @@ exports.handler = async (event) => {
       case 'update':   return await handleUpdate(body, decoded);
       case 'list':     return await handleList(body, decoded);
       case 'migrate':  return await handleMigrate(body, decoded);
-      default: return respond(400, { error: 'Invalid action: ' + action });
+      default: return respond(400, { error: 'Invalid action.' });
     }
   } catch (e) {
     console.error('[PKG_TPL] Error:', e.message || e);
-    return respond(500, { error: 'Server error: ' + (e.message || 'Unknown') });
+    return respond(500, { error: 'Internal server error.' });
   }
 };

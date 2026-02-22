@@ -1,5 +1,6 @@
 const nodemailer = require('nodemailer');
-const { getDb, verifyToken, respond, optionsResponse } = require('./utils/firebase');
+const { getDb, verifyToken, respond, optionsResponse, csrfCheck } = require('./utils/firebase');
+const { getClientId, checkRateLimit } = require('./lib/rate-limit');
 
 // Create reusable transporter using SMTP env vars
 function createTransporter() {
@@ -161,7 +162,7 @@ async function handleSendInvite(body, decoded) {
     return respond(200, { success: true, message: 'Invitation email sent successfully.' });
   } catch (e) {
     console.error('[EMAIL] Failed to send:', e.message || e);
-    return respond(500, { error: 'Failed to send email: ' + (e.message || 'Unknown error') });
+    return respond(500, { error: 'Failed to send email. Please try again or contact support.' });
   }
 }
 
@@ -308,17 +309,28 @@ async function handleBatchNotify(body, decoded) {
     return respond(200, { success: true, message: `Notification sent to ${consultants.length} consultant(s).` });
   } catch (e) {
     console.error('[EMAIL] Failed to send batch notification:', e.message || e);
-    return respond(500, { error: 'Failed to send notification email: ' + (e.message || 'Unknown error') });
+    return respond(500, { error: 'Failed to send notification email. Please try again or contact support.' });
   }
 }
 
 // === MAIN HANDLER ===
 exports.handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return optionsResponse();
+
+  const csrf = csrfCheck(event);
+  if (csrf) return csrf;
+
   if (event.httpMethod !== 'POST') return respond(405, { error: 'Method not allowed' });
 
   const decoded = await verifyToken(event);
   if (!decoded) return respond(401, { error: 'Authentication required.' });
+
+  const db = getDb();
+  const clientId = getClientId(event, decoded);
+  const rateCheck = await checkRateLimit(db, clientId, 'api');
+  if (!rateCheck.allowed) {
+    return respond(429, { error: 'Too many requests. Please wait ' + rateCheck.retryAfter + ' seconds.' });
+  }
 
   try {
     const body = JSON.parse(event.body || '{}');
@@ -331,6 +343,6 @@ exports.handler = async (event) => {
     }
   } catch (e) {
     console.error('[EMAIL] Server error:', e);
-    return respond(500, { error: 'Server error: ' + (e.message || 'Unknown') });
+    return respond(500, { error: 'Internal server error.' });
   }
 };

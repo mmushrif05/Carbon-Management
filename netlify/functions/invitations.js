@@ -1,5 +1,6 @@
-const { getDb, getAuth, verifyToken, respond, optionsResponse } = require('./utils/firebase');
+const { getDb, getAuth, verifyToken, respond, optionsResponse, csrfCheck } = require('./utils/firebase');
 const crypto = require('crypto');
+const { getClientId, checkRateLimit } = require('./lib/rate-limit');
 
 const VALID_ROLES = ['contractor', 'consultant', 'client'];
 
@@ -248,6 +249,10 @@ async function handleResend(body, decoded) {
 exports.handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return optionsResponse();
 
+  // CSRF validation
+  const csrf = csrfCheck(event);
+  if (csrf) return csrf;
+
   try {
     const body = JSON.parse(event.body || '{}');
     const { action } = body;
@@ -263,6 +268,14 @@ exports.handler = async (event) => {
     const decoded = await verifyToken(event);
     if (!decoded) return respond(401, { error: 'Authentication required.' });
 
+    // Rate limiting
+    const db = getDb();
+    const clientId = getClientId(event, decoded);
+    const rateCheck = await checkRateLimit(db, clientId, 'api');
+    if (!rateCheck.allowed) {
+      return respond(429, { error: 'Too many requests. Please wait ' + rateCheck.retryAfter + ' seconds.' });
+    }
+
     switch (action) {
       case 'create':  return await handleCreate(body, decoded);
       case 'list':    return await handleList(decoded);
@@ -272,6 +285,6 @@ exports.handler = async (event) => {
     }
   } catch (e) {
     console.error('[INVITE] Server error:', e);
-    return respond(500, { error: 'Server error: ' + (e.message || 'Unknown') });
+    return respond(500, { error: 'An error occurred processing your request. Please try again.' });
   }
 };

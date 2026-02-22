@@ -14,8 +14,9 @@
  *     - breakGlass: Emergency bypass (logged)
  */
 
-const { getDb, verifyToken, respond, optionsResponse } = require('./utils/firebase');
+const { getDb, verifyToken, respond, optionsResponse, csrfCheck } = require('./utils/firebase');
 const { CONFIG, hasPermission, writeAuditLog, shouldAutoApprove, breakGlassOverride } = require('./lib/permissions');
+const { getClientId, checkRateLimit } = require('./lib/rate-limit');
 
 async function getUserProfile(uid) {
   const db = getDb();
@@ -458,7 +459,7 @@ async function handleBreakGlass(body, decoded) {
   try {
     await breakGlassOverride(db, requestId, decoded.uid, note);
   } catch (e) {
-    return respond(400, { error: e.message });
+    return respond(400, { error: 'Break-glass override failed.' });
   }
 
   // Force-activate the request
@@ -515,10 +516,21 @@ async function handleListAccessRequests(body, decoded) {
 // === MAIN HANDLER ===
 exports.handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return optionsResponse();
+
+  const csrf = csrfCheck(event);
+  if (csrf) return csrf;
+
   if (event.httpMethod !== 'POST') return respond(405, { error: 'Method not allowed' });
 
   const decoded = await verifyToken(event);
   if (!decoded) return respond(401, { error: 'Authentication required.' });
+
+  const db = getDb();
+  const clientId = getClientId(event, decoded);
+  const rateCheck = await checkRateLimit(db, clientId, 'api');
+  if (!rateCheck.allowed) {
+    return respond(429, { error: 'Too many requests. Please wait ' + rateCheck.retryAfter + ' seconds.' });
+  }
 
   try {
     const body = JSON.parse(event.body || '{}');
@@ -535,7 +547,7 @@ exports.handler = async (event) => {
       case 'myScopes':           return await handleMyScopes(body, decoded);
       case 'breakGlass':         return await handleBreakGlass(body, decoded);
       case 'listRequests':       return await handleListAccessRequests(body, decoded);
-      default: return respond(400, { error: 'Invalid action: ' + action });
+      default: return respond(400, { error: 'Invalid action.' });
     }
   } catch (err) {
     console.error('[ACCESS] Error:', err);

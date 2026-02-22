@@ -1,4 +1,5 @@
-const { getDb, verifyToken, respond, optionsResponse } = require('./utils/firebase');
+const { getDb, verifyToken, respond, optionsResponse, csrfCheck } = require('./utils/firebase');
+const { getClientId, checkRateLimit } = require('./lib/rate-limit');
 
 // ===== PROJECTS API =====
 // Manages projects within the platform.
@@ -724,8 +725,20 @@ exports.handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return optionsResponse();
   if (event.httpMethod !== 'POST') return respond(405, { error: 'Method not allowed' });
 
+  // CSRF validation
+  const csrf = csrfCheck(event);
+  if (csrf) return csrf;
+
   const decoded = await verifyToken(event);
   if (!decoded) return respond(401, { error: 'Authentication required. Please sign in again.' });
+
+  // Rate limiting
+  const db = getDb();
+  const clientId = getClientId(event, decoded);
+  const rateCheck = await checkRateLimit(db, clientId, 'api');
+  if (!rateCheck.allowed) {
+    return respond(429, { error: 'Too many requests. Please wait ' + rateCheck.retryAfter + ' seconds.' });
+  }
 
   try {
     const body = JSON.parse(event.body || '{}');
@@ -765,15 +778,7 @@ exports.handler = async (event) => {
       default: return respond(400, { error: 'Invalid action.' });
     }
   } catch (e) {
-    console.error('[PROJECT] Server error:', e.message || e, e.stack || '');
-    // Provide helpful error messages for common Firebase issues
-    const msg = e.message || 'Unknown';
-    if (msg.includes('permission') || msg.includes('PERMISSION_DENIED')) {
-      return respond(500, { error: 'Firebase permission denied. Check your Firebase Realtime Database rules allow read/write access.' });
-    }
-    if (msg.includes('credential') || msg.includes('INVALID_ARGUMENT')) {
-      return respond(500, { error: 'Firebase configuration error. Check your FIREBASE_SERVICE_ACCOUNT environment variable.' });
-    }
-    return respond(500, { error: 'Server error: ' + msg });
+    console.error('[PROJECT] Server error:', e.message || e);
+    return respond(500, { error: 'An error occurred processing your request. Please try again.' });
   }
 };
